@@ -4,7 +4,8 @@ CORE_INCS="$CORE_INCS $ngx_feature_path \
           "
 
 CORE_LIBS="$CORE_LIBS $ngx_feature_libs \
-           -lyajl_s
+           -lyajl_s \
+           -ltb     \
           "
 
 HTTP_MODULES="$HTTP_MODULES               \
@@ -16,4 +17,4 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS                               \
                 "
 
 
-CFLAGS="$CFLAGS -I$ngx_addon_dir "
+CFLAGS="$CFLAGS -I$ngx_addon_dir"
