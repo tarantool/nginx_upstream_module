@@ -12,10 +12,14 @@
 
 #define log_crit(log, ...) \
     ngx_log_error_core(NGX_LOG_CRIT, (log), 0, __VA_ARGS__)
+
 #define crit(...) log_crit(r->connection->log, __VA_ARGS__)
+
 #define log_dd(log, ...) \
     ngx_log_debug(NGX_LOG_INFO, (log), 0, __VA_ARGS__)
+
 #define dd(...) log_dd(r->connection->log, 0, __VA_ARGS__)
+
 
 typedef struct {
     ngx_http_upstream_conf_t   upstream;
@@ -25,15 +29,19 @@ typedef struct {
 
 typedef struct {
     tp_transcode_t          in_t, out_t;
-    struct tpresponse       tpresponse;
+    ngx_buf_t               *in_cache;
 
-    size_t                  response_len;
+    ssize_t                 payload;
     ngx_int_t               greetings:1;
 
+#define CLEAN                   0
 #define INPUT_JSON_PARSE_FAILED 1
     ngx_int_t               state;
+
 } ngx_http_tnt_ctx_t;
 
+static inline ngx_int_t ngx_http_tnt_read_greetings(ngx_http_request_t *r,
+    ngx_http_tnt_ctx_t *ctx, ngx_buf_t *b);
 static ngx_int_t ngx_http_tnt_output_json_parse_error(ngx_http_request_t *r,
     ngx_http_tnt_ctx_t *ctx);
 
@@ -160,7 +168,7 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
     ngx_buf_t           *b, *output;
     ngx_chain_t         *output_chain, *body;
     ngx_http_tnt_ctx_t  *ctx;
-    size_t              complete_msg_size;
+    size_t              complete_msg_size = 0;
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
     if (ctx == NULL) {
@@ -176,6 +184,7 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         }
 
         memset(ctx, 0, sizeof(ngx_http_tnt_ctx_t));
+        ctx->payload = -1;
 
         ngx_http_set_ctx(r, ctx, ngx_http_tnt_module);
 
@@ -199,20 +208,46 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
             return NGX_ERROR;
         }
 
-    } else {
+    } else /* return after NGX_AGAIN */ {
 
         if (ctx->in_t.codec.create == NULL) {
-            crit("Impossoble! ngx_http_tnt_create_request w/o valid 'ctx'");
+            crit("[BUG] ngx_http_tnt_create_request w/o valid 'ctx'");
             return NGX_ERROR;
         }
 
     }
 
-    complete_msg_size = 0;
-
     for (body = r->upstream->request_bufs; body; body = body->next) {
 
-        b = body->buf;
+        if (body->buf->in_file) {
+
+            b = ngx_create_temp_buf(r->pool, b->file_last);
+            if (b == NULL) {
+                return NGX_ERROR;
+            }
+
+            if (body->buf->file == NULL) {
+                crit("[BUG] seems body is in file but the 'b'"" don't have "
+                        "no file context");
+                return NGX_ERROR;
+            }
+
+            /** TODO
+             *  Replace pread onto nginx I/O
+             */
+            rc = pread(body->buf->file->fd, b->start, body->buf->file_last,
+                    body->buf->file_pos);
+            if (rc != body->buf->file_last) {
+                crit("[BUG] pread() temp file, failed errno: %i, msg: %s",
+                        errno, strerror(errno));
+                return NGX_ERROR;
+            }
+
+            b->last = b->start + rc;
+
+        } else {
+            b = body->buf;
+        }
 
         rc = tp_transcode(&ctx->in_t, (char *)b->pos, b->last - b->pos);
         switch (rc) {
@@ -220,7 +255,7 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         case TP_TRANSCODE_OK: {
             rc = tp_transcode_complete(&ctx->in_t, &complete_msg_size);
             if (rc == TP_TRANSCODE_ERROR) {
-                dd("tp_transcode_complete() failed");
+                dd("'input coding' failed to complete");
                 ctx->state |= INPUT_JSON_PARSE_FAILED;
                 return NGX_OK;
             }
@@ -236,11 +271,15 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         }
 
         case TP_TRANSCODE_AGAIN:
+            /** TODO
+             *  Potential BUG
+             */
+            dd("'input coding' needs mode bytes ... (i.e. NGX_AGAIN)");
             return NGX_AGAIN;
 
         default:
         case TP_TRANSCODE_ERROR:
-            dd("input transcode failed: '%s'", ctx->in_t.errmsg);
+            dd("'input coding' failed: '%s'", ctx->in_t.errmsg);
             tp_transcode_complete(&ctx->in_t, &complete_msg_size);
             ctx->state |= INPUT_JSON_PARSE_FAILED;
             return NGX_OK;
@@ -251,7 +290,7 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         return NGX_OK;
     }
 
-    crit("Impossoble! r->upstream->request_bufs == NULL");
+    crit("[BUG] r->upstream->request_bufs == NULL");
 
     return NGX_ERROR;
 }
@@ -266,84 +305,7 @@ ngx_http_tnt_reinit_request(ngx_http_request_t *r)
         ngx_http_set_ctx(r, NULL, ngx_http_tnt_module);
     }
 
-    return NGX_OK;
-}
-
-
-static inline ngx_int_t
-read_greetings(ngx_buf_t *b)
-{
-    if (b->last - b->pos < 128) {
-        return NGX_AGAIN;
-    }
-
-    if (b->last - b->pos >= sizeof("Tarantool") - 1
-        && b->pos[0] == 'T'
-        && b->pos[1] == 'a'
-        && b->pos[2] == 'r'
-        && b->pos[3] == 'a'
-        && b->pos[4] == 'n'
-        && b->pos[5] == 't'
-        && b->pos[6] == 'o'
-        && b->pos[7] == 'o'
-        && b->pos[8] == 'l')
-    {
-        b->pos = b->pos + 128;
-        return NGX_OK;
-    }
-
-    return NGX_ERROR;
-}
-
-static ngx_int_t
-ngx_http_tnt_output_json_parse_error(ngx_http_request_t *r,
-    ngx_http_tnt_ctx_t *ctx)
-{
-    ngx_http_upstream_t      *u;
-    ngx_chain_t              *cl, **ll;
-
-    u = r->upstream;
-
-    for (cl = u->out_bufs, ll = &u->out_bufs; cl; cl = cl->next) {
-        ll = &cl->next;
-    }
-
-    *ll = cl = ngx_chain_get_free_buf(r->pool, &u->free_bufs);
-    if (cl == NULL) {
-        return NGX_ERROR;
-    }
-
-    u->headers_in.status_n = 200;
-    u->state->status = 200;
-    if (ctx->in_t.errmsg[0]) {
-        u->headers_in.content_length_n = sizeof("{'error':''}") - 1
-            + ngx_strlen(ctx->in_t.errmsg);
-    } else {
-        u->headers_in.content_length_n =
-            sizeof("{'error':'Unkown input request parse error'}") - 1;
-    }
-
-    cl->buf = ngx_create_temp_buf(r->pool, r->headers_in.content_length_n);
-    if (cl->buf == NULL) {
-        return NGX_ERROR;
-    }
-
-    if (ctx->in_t.errmsg) {
-
-        ngx_snprintf(cl->buf->start, u->headers_in.content_length_n,
-                "{\"error\":\"%s\"}", ctx->in_t.errmsg);
-    } else {
-
-        ngx_snprintf(cl->buf->start, u->headers_in.content_length_n, "%s"
-            "{\"error\":\"Unkown input request parse error\"}");
-    }
-
-    cl->buf->last = cl->buf->end;
-    cl->buf->flush = 1;
-    cl->buf->memory = 1;
-    cl->buf->tag = u->output.tag;
-
-    ctx->state = 0;
+    dd("reinit connection with Tarantool...");
 
     return NGX_OK;
 }
@@ -357,17 +319,13 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
     ngx_http_tnt_ctx_t  *ctx;
     ngx_int_t           rc = NGX_ERROR;
     ngx_buf_t           *b = &r->upstream->buffer;
+    struct tpresponse   tpresponse;
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
-    if (!ctx->greetings) {
-
-        rc = read_greetings(b);
-        if (rc != NGX_OK) {
-            return rc;
-        }
-
-        ctx->greetings = 1;
+    rc = ngx_http_tnt_read_greetings(r, ctx, b);
+    if (rc != NGX_OK) {
+        return rc;
     }
 
     if (ctx->state & INPUT_JSON_PARSE_FAILED) {
@@ -378,12 +336,13 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
         return NGX_AGAIN;
     }
 
-    ctx->response_len = tp_read_payload(&ctx->tpresponse,
-                                (const char *)b->pos, b->last - b->pos);
-    switch (ctx->response_len) {
+    ctx->payload = tp_read_payload(&tpresponse,
+                                (const char *)b->pos, (const char *)b->last);
+    switch (ctx->payload) {
     case 0:
         return NGX_AGAIN;
     case -1:
+        crit("Tarantool sent invalid 'payload' (i.e. message size)");
         return NGX_HTTP_UPSTREAM_INVALID_HEADER;
     default:
         u->headers_in.status_n = 200;
@@ -392,7 +351,10 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
          * just multiply msgpack payload in hope is more or enough
          * for the JSON message.
          */
-        u->headers_in.content_length_n = JSON_RPC_MAGIC + ctx->response_len * 2;
+        u->headers_in.content_length_n = JSON_RPC_MAGIC + ctx->payload * 2;
+        dd("got 'payload' expected input len:%i, _magic_ output len:%i",
+                ctx->payload, u->headers_in.content_length_n);
+        r->keepalive = 1;
         break;
     }
 
@@ -403,7 +365,19 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_tnt_filter_init(void *data)
 {
-    (void)data;
+    ngx_http_request_t *r = data;
+    ngx_http_tnt_ctx_t *ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
+    if (ctx == NULL) {
+        crit("[BUG] ngx_http_tnt_filter invalid 'ctx'");
+        return NGX_ERROR;
+    }
+
+    r->upstream->length = ctx->payload;
+    ctx->in_cache = ngx_create_temp_buf(r->pool, ctx->payload);
+    if (ctx->in_cache == NULL) {
+        return NGX_ERROR;
+    }
+
     return NGX_OK;
 }
 
@@ -429,15 +403,25 @@ ngx_http_tnt_filter(void *data, ssize_t bytes)
      */
     ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
     if (ctx == NULL) {
-        crit("Impossoble! ngx_http_tnt_filter invalid 'ctx'");
+        crit("[BUG] ngx_http_tnt_filter invalid 'ctx'");
         return NGX_ERROR;
     }
 
-    if (b->last - b->pos < ctx->response_len) {
-        ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                "waiting body, buffer len:%ui, expected len: %ui",
-                b->last - b->pos, ctx->response_len);
-        return NGX_AGAIN;
+
+    u->length -= bytes;
+
+    ctx->in_cache->pos = ngx_copy(
+        ctx->in_cache->pos, b->pos, b->last - b->pos);
+
+    /* Done with tnt input
+     */
+    if (u->length > 0) {
+        return NGX_OK;
+    }
+
+    if (u->length < 0) {
+        dd("[BUG] upstream->length == %i", u->length);
+        u->length = 0;
     }
 
     /* Get next output chail buf and output responce
@@ -463,42 +447,48 @@ ngx_http_tnt_filter(void *data, ssize_t bytes)
 
     /* Tarantool message transcode & output
      */
-    if (ctx->out_t.codec.create == NULL) {
-        rc = tp_transcode_init(&ctx->out_t, (char *)cl->buf->start,
-                u->headers_in.content_length_n, TP_REPLY_TO_JSON);
-        if (rc == TP_TRANSCODE_ERROR) {
-            crit("line: %d tp_transcode_init() failed", __LINE__);
-            return NGX_ERROR;
-        }
+    rc = tp_transcode_init(&ctx->out_t, (char *)cl->buf->start,
+            u->headers_in.content_length_n, TP_REPLY_TO_JSON);
+    if (rc == TP_TRANSCODE_ERROR) {
+        crit("line: %d tp_transcode_init() failed", __LINE__);
+        return NGX_ERROR;
     }
 
     ngx_int_t result = NGX_OK;
-    rc = tp_transcode(&ctx->out_t, (char *)b->pos, b->last - b->start);
+    rc = tp_transcode(&ctx->out_t, (char *)ctx->in_cache->start,
+            ctx->in_cache->end - ctx->in_cache->start);
     switch (rc) {
     case TP_TRANSCODE_OK:
-        dd("output transcoded tarantool message");
+        dd("'output coding' OK");
         break;
+    /** TODO
+     *  Since we wait bytes message from the Tarantool we ignore stream parsing.
+     *  This sould be fixed.
+     */
     case TP_TRANSCODE_AGAIN:
     case TP_TRANSCODE_ERROR:
     default:
-        crit("output transcoded tarantool message failed: %s",
-            ctx->out_t.errmsg);
+        crit("output failed: %s", ctx->out_t.errmsg);
         result = NGX_ERROR;
         break;
     }
 
     size_t complete_msg_size = 0;
     rc = tp_transcode_complete(&ctx->out_t, &complete_msg_size);
-    if (rc != TP_TRANSCODE_OK) {
-        crit("output transcoded transcoded message failed");
+    if (rc != TP_TRANSCODE_OK || result == NGX_ERROR) {
+        crit("'output coding' failed to complete");
         result = NGX_ERROR;
     } else {
+
+        /** 'erase' trailer
+         */
         for (u_char *p = cl->buf->start + complete_msg_size;
             p < cl->buf->end;
             ++p)
         {
-            *p = ' ';
+            *p = '\0';
         }
+
     }
 
     return result;
@@ -648,3 +638,108 @@ ngx_http_tnt_pass(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 }
+
+
+static inline ngx_int_t
+ngx_http_tnt_read_greetings(ngx_http_request_t *r, ngx_http_tnt_ctx_t *ctx,
+    ngx_buf_t *b)
+{
+    if (ctx->greetings) {
+        return NGX_OK;
+    }
+
+    if (b->last - b->pos < 128) {
+        crit("Tarantool sent invalid greetings len:%i",
+                b->last - b->pos);
+        return NGX_ERROR;
+    }
+
+    if (b->last - b->pos >= sizeof("Tarantool") - 1
+        && b->pos[0] == 'T'
+        && b->pos[1] == 'a'
+        && b->pos[2] == 'r'
+        && b->pos[3] == 'a'
+        && b->pos[4] == 'n'
+        && b->pos[5] == 't'
+        && b->pos[6] == 'o'
+        && b->pos[7] == 'o'
+        && b->pos[8] == 'l')
+    {
+        b->pos = b->pos + 128;
+        ctx->greetings = 1;
+        return NGX_OK;
+    }
+
+    crit("Tarantool sent strange greetings: '%*.s',"
+            "expected 'Tarantool' with len. == 128",
+            128, b->pos);
+
+    return NGX_ERROR;
+}
+
+
+static ngx_int_t
+ngx_http_tnt_output_json_parse_error(ngx_http_request_t *r,
+    ngx_http_tnt_ctx_t *ctx)
+{
+    ngx_http_upstream_t      *u;
+    ngx_chain_t              *cl, **ll;
+
+    u = r->upstream;
+
+    for (cl = u->out_bufs, ll = &u->out_bufs; cl; cl = cl->next) {
+        ll = &cl->next;
+    }
+
+    *ll = cl = ngx_chain_get_free_buf(r->pool, &u->free_bufs);
+    if (cl == NULL) {
+        return NGX_ERROR;
+    }
+
+    u->headers_in.status_n = 200;
+    u->state->status = 200;
+
+    if (ctx->in_t.errmsg[0]) {
+        u->headers_in.content_length_n = sizeof("{'error':''}") - 1
+            + ngx_strlen(ctx->in_t.errmsg);
+    } else {
+        u->headers_in.content_length_n =
+            sizeof("{'error':'Unkown input request parse error'}") - 1;
+    }
+
+    cl->buf = ngx_create_temp_buf(r->pool, r->headers_in.content_length_n);
+    if (cl->buf == NULL) {
+        return NGX_ERROR;
+    }
+
+    if (ctx->in_t.errmsg[0]) {
+
+        cl->buf->pos = ngx_snprintf(
+                cl->buf->start, u->headers_in.content_length_n,
+                "{\"error\":\"%s\"}",
+                ctx->in_t.errmsg);
+
+    } else {
+
+        cl->buf->pos = ngx_snprintf(cl->buf->start,
+            u->headers_in.content_length_n,
+            "{\"error\":\"Input parse error, probably no valid json\"}");
+
+    }
+
+    /** 'erase' trailer
+     */
+    for (u_char *p = cl->buf->pos; p < cl->buf->end; ++p) {
+        *p = '\0';
+    }
+
+    cl->buf->last = cl->buf->end;
+    cl->buf->flush = 1;
+    cl->buf->memory = 1;
+    cl->buf->tag = u->output.tag;
+
+    ctx->state = CLEAN;
+
+    return NGX_OK;
+}
+
