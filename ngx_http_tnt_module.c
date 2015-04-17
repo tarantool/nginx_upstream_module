@@ -31,7 +31,7 @@ typedef struct {
     tp_transcode_t	    in_t, out_t;
     ngx_buf_t		    *in_cache;
     ngx_chain_t		    *out_chain;
-    ssize_t		    payload;
+    ssize_t		        payload;
     ngx_int_t		    greetings:1;
 
 #define GOOD			0
@@ -315,7 +315,6 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
     ngx_int_t		rc;
     ngx_http_tnt_ctx_t	*ctx;
     ngx_buf_t		*b = &r->upstream->buffer;
-    struct tpresponse	tpresponse;
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
@@ -346,8 +345,8 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
 
     r->upstream->length = 0;
 
-    ctx->payload = tp_read_payload(&tpresponse,
-				(const char *)b->pos, (const char *)b->last);
+    ctx->payload = tp_read_payload((const char *)b->pos,
+            (const char *)b->last);
     switch (ctx->payload) {
     case 0:
 	return NGX_AGAIN;

@@ -136,6 +136,21 @@ tp_dump(char *output, size_t output_size, char *input, size_t input_size)
 	return complete_msg_size > 0;
 }
 
+static inline ssize_t
+tp_read_payload(const char * const buf, const char * const end)
+{
+	const size_t size = end - buf;
+	if (size == 0 || size < 6)
+		return 0;
+	const char *p = buf, *test = buf;
+	memset(r, 0, sizeof(struct tpresponse));
+	if (mp_check(&test, buf + size))
+		return -1;
+	if (mp_typeof(*p) != MP_UINT)
+		return -1;
+	return mp_decode_uint(&p) + p - buf;
+}
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
