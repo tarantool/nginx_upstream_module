@@ -2,9 +2,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-
 #define MP_SOURCE 1
-
 #include "tp.h"
 #include "tp_transcode.h"
 
@@ -37,8 +35,8 @@ while (0)
 typedef struct {
 	char *ptr;
 	int16_t count;
-#define TYPE_MAP	1
-#define TYPE_ARRAY	2
+#define TYPE_MAP    1
+#define TYPE_ARRAY 2
 	int type;
 } stack_item_t;
 
@@ -459,7 +457,7 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
 	if (mp_unlikely(stat != yajl_status_ok)) {
 
 		if (!s_ctx->tc->errmsg[0]) {
-	        unsigned char *err;
+			unsigned char *err;
 			stat = yajl_complete_parse(s_ctx->hand);
 			err = yajl_get_error(s_ctx->hand, 0, input_, input_size);
 			say_error(s_ctx, "%s", err);
@@ -857,3 +855,18 @@ tp_transcode_init(tp_transcode_t *t, char *output, size_t output_size,
 
 	return TP_TRANSCODE_OK;
 }
+
+ssize_t
+tp_read_payload(const char * const buf, const char * const end)
+{
+	const size_t size = end - buf;
+	if (size == 0 || size < 6)
+		return 0;
+	const char *p = buf, *test = buf;
+	if (mp_check(&test, buf + size))
+		return -1;
+	if (mp_typeof(*p) != MP_UINT)
+		return -1;
+	return mp_decode_uint(&p) + p - buf;
+}
+

@@ -6,7 +6,6 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
-#include <tp.h>
 #include <tp_transcode.h>
 
 

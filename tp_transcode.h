@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+
 /* {{{ API declaration */
 struct tp_transcode;
 
@@ -67,6 +68,9 @@ typedef struct tp_transcode {
 #define TP_TRANSCODE_ERROR 2
 #define TP_TRANSCODE_AGAIN 3
 
+ssize_t
+tp_read_payload(const char * const buf, const char * const end);
+
 /**
  * Initialize struct tp_transcode.
  * Returns TP_TRANSCODE_ERROR if codec not found or create codec failed
@@ -102,7 +106,7 @@ tp_dump(char *output, size_t output_size, char *input, size_t input_size);
 static inline int
 tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size)
 {
-	if (mp_likely(t != NULL)) {
+	if (t != NULL) {
 		const int rc = t->codec.complete(t->codec.ctx, complete_msg_size);
 		t->codec.free(t->codec.ctx);
 		return rc;
@@ -113,7 +117,7 @@ tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size)
 static inline int
 tp_transcode(tp_transcode_t *t, char *b, size_t size)
 {
-	if (mp_likely(t != NULL))
+	if (t != NULL)
 		return t->codec.transcode(t->codec.ctx, b, size);
 	return TP_TRANSCODE_ERROR;
 }
@@ -123,32 +127,17 @@ tp_dump(char *output, size_t output_size, char *input, size_t input_size)
 {
 	tp_transcode_t t;
 	if (tp_transcode_init(&t, output, output_size, TP_TO_JSON)
-      == TP_TRANSCODE_ERROR)
+			== TP_TRANSCODE_ERROR)
 		return false;
 
 	if (tp_transcode(&t, input, input_size) == TP_TRANSCODE_ERROR)
-    return false;
+		return false;
 
 	size_t complete_msg_size = 0;
 	tp_transcode_complete(&t, &complete_msg_size);
 	output[complete_msg_size] = '0';
 
 	return complete_msg_size > 0;
-}
-
-static inline ssize_t
-tp_read_payload(const char * const buf, const char * const end)
-{
-	const size_t size = end - buf;
-	if (size == 0 || size < 6)
-		return 0;
-	const char *p = buf, *test = buf;
-	memset(r, 0, sizeof(struct tpresponse));
-	if (mp_check(&test, buf + size))
-		return -1;
-	if (mp_typeof(*p) != MP_UINT)
-		return -1;
-	return mp_decode_uint(&p) + p - buf;
 }
 
 #ifdef __cplusplus
