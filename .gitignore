@@ -1,2 +1,6 @@
-test
+test-root
 nginx
+*.dSYM
+misc/tp_dump
+misc/tp_send
+misc/json2tp
