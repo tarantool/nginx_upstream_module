@@ -1,0 +1,6 @@
+[submodule "third_party/tarantool-c"]
+	path = third_party/tarantool-c
+	url = https://github.com/dedok/tarantool-c.git
+[submodule "third_party/yajl"]
+	path = third_party/yajl
+	url = https://github.com/lloyd/yajl.git
