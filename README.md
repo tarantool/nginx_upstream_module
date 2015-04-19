@@ -1,5 +1,4 @@
-# nginx_upstream_module
-Tarantool NginX upstream module (JSON API, websockets, load balancing)
+# Tarantool NginX upstream module
 
   Key features:
   * United nginx features and tarantool features over HTTP(S).
@@ -16,6 +15,16 @@ Alpha version
 ## Protocol
 
   Module expectes json posted over HTTP POST in request body.
+  
+  Server HTTP statuses
+  
+  OK - response body contains result or error, the error - usualy parse error etc.
+    
+  INTERNAL SERVER ERROR - may appear in many cases, most of them is 'out of memory' error.
+    
+  NOT ALLOWED - incoming request not POST.
+    
+  BAD GATEWAY - lost connection with Tarantool server(s).
 
 ### Input JSON form
 
