@@ -30,7 +30,7 @@ Alpha version
 
     "params"
 
-      TNT_METHOD is a name of Tarantool lua function.
+      TNT_METHOD - Tarantool lua function name.
       Here is a Structured array, that MUST hold the TNT_METHOD name as first element before all of the rest elements.
       These elements are arguments of TNT_METHOD.
       
