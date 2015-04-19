@@ -9,6 +9,10 @@ Tarantool NginX upstream module (JSON API, websockets, load balancing)
   
   About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
 
+## Status
+
+Alpha version
+
 ## Protocol
 
   Module expectes json posted over HTTP POST in request body.
@@ -26,8 +30,10 @@ Tarantool NginX upstream module (JSON API, websockets, load balancing)
 
     "params"
 
+      TNT_METHOD - Tarantool lua function name.
       Here is a Structured array, that MUST hold the TNT_METHOD name as first element before all of the rest elements.
       These elements are arguments of TNT_METHOD.
+      
 
     "id"
       An identifier established by the Client MUST contain an unsigned Number not
@@ -59,7 +65,6 @@ Tarantool NginX upstream module (JSON API, websockets, load balancing)
       If this field exists input message did not pass to Tarantool backend.
 
       See "message" field for details.
-
 
 ## Compilation and install
 
@@ -96,6 +101,17 @@ Tarantool NginX upstream module (JSON API, websockets, load balancing)
     }
 
 ```
+
+## Examples
+
+  Python minimalistic example: test/client.py.
+  
+  Client side javascript example: example/echo.html.
+  
+  For those examples Tarantool must be launched with example/echo.lua and this module with "location = '/tnt'".
+
+
+
 
 Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues
 We also warmly welcome your feedback in the discussion mailing list, tarantool@googlegroups.com.
