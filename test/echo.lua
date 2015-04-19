@@ -7,6 +7,14 @@ function echo(a)
   return {a}
 end
 
+function big_echo()
+  local out = {}
+  for i = 0, 100000 do
+    out[i] = "string";
+  end
+  return {{out}};
+end
+
 box.cfg {
     log_level = 5;
     listen = 9999;

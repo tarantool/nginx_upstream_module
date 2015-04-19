@@ -3,6 +3,7 @@
 import json
 import urllib2
 import traceback
+import os
 
 URL = 'http://127.0.0.1:8081/tnt'
 VERBOSE = False

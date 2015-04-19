@@ -141,12 +141,16 @@ tp_dump(char *output, size_t output_size, char *input, size_t input_size)
 			== TP_TRANSCODE_ERROR)
 		return false;
 
-	if (tp_transcode(&t, input, input_size) == TP_TRANSCODE_ERROR)
+	if (tp_transcode(&t, input, input_size) == TP_TRANSCODE_ERROR) {
+		tp_transcode_free(&t);
 		return false;
+  }
 
 	size_t complete_msg_size = 0;
 	tp_transcode_complete(&t, &complete_msg_size);
 	output[complete_msg_size] = '0';
+
+	tp_transcode_free(&t);
 
 	return complete_msg_size > 0;
 }
