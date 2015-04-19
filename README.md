@@ -105,9 +105,12 @@ Alpha version
 ## Examples
 
   Python minimalistic example: test/client.py.
+  
   Client side javascript example: example/echo.html.
   
   For those examples Tarantool must be launched with example/echo.lua and this module with "location = '/tnt'".
+
+
 
 
 Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues
