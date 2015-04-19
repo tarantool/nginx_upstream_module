@@ -14,15 +14,15 @@ Alpha version
 
 ## Protocol
 
-  Module expectes json posted over HTTP POST in request body.
+  Module expects json posted over HTTP POST in request body.
   
   Server HTTP statuses
   
-    OK - response body contains result or error, the error - usualy parse error etc.
+    OK - response body contains result or error(usually parsing error etc).
     
     INTERNAL SERVER ERROR - may appear in many cases, most of them is 'out of memory' error.
     
-    NOT ALLOWED - incoming request not POST.
+    NOT ALLOWED - POST requests only are allowed.
     
     BAD GATEWAY - lost connection with Tarantool server(s).
 
