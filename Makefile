@@ -18,7 +18,7 @@ yajl:
 	ln -sf src third_party/yajl/yajl
 	cd $(YAJL_PATH); ./configure; make distro
 
-build:
+build: utils
 	$(MAKE) -C $(NGX_PATH)
 
 configure-debug:
@@ -30,7 +30,7 @@ configure-debug:
 						--with-debug --with-ld-opt='$(LDFLAGS)'
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
 	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
-	rm -f $(PREFIX_PATH)/conf/nginx.conf $(PREFIX_PATH)/conf/nginx.dev.conf
+	rm -f $(PREFIX_PATH)/conf/nginx.conf
 	ln -s $(PWD)/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf > /dev/null
 
 configure:
@@ -40,27 +40,26 @@ configure:
 		--prefix=$(PREFIX_PATH)
 
 json2tp:
-	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -lyajl_s \
+	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) -lyajl_s \
 				$(CUR_PATH)/misc/json2tp.c \
 				tp_transcode.c \
 				-o misc/json2tp
 
 tp_dump:
-	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -lyajl_s \
+	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) -lyajl_s \
 				$(CUR_PATH)/misc/tp_dump.c \
 				tp_transcode.c \
 				-o misc/tp_dump
-tp_send:
-	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -lyajl_s \
-				$(CUR_PATH)/misc/tp_send.c \
-				tp_transcode.c \
-				-o misc/tp_send
+
+test: utils build
+	$(CUR_PATH)/test/transcode.sh
+	$(CUR_PATH)/test/nginx-tnt.sh
 
 clean:
 	$(MAKE) -C $(NGX_PATH) clean
 	rm -f misc/tp_{send,dump} misc/json2tp
 
-utils: json2tp tp_dump tp_send
+utils: json2tp tp_dump
 build-all: yajl configure build utils
 build-all-debug: yajl configure-debug build utils
 

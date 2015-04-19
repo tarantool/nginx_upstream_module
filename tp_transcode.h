@@ -1,6 +1,9 @@
 #ifndef TP_TRANSCODE_H_INCLUDED
 #define TP_TRANSCODE_H INCLUDED
 
+#include <assert.h>
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -80,6 +83,12 @@ int tp_transcode_init(tp_transcode_t *t, char *output, size_t output_size,
 		enum tp_codec_type codec);
 
 /**
+ *
+ */
+static inline void
+tp_transcode_free(tp_transcode_t *t);
+
+/**
  * Convert input data to output (see tp_transcode_init), for instance json to msgpack
  * Returns TP_TRANSCODE_OK if bytes enought for finish transcoding
  * Returns TP_TRANSOCDE_AGAIN if more bytes requered
@@ -103,23 +112,25 @@ tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size);
 static inline bool
 tp_dump(char *output, size_t output_size, char *input, size_t input_size);
 
+static inline void
+tp_transcode_free(tp_transcode_t *t)
+{
+  assert(t);
+  t->codec.free(t->codec.ctx);
+}
+
 static inline int
 tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size)
 {
-	if (t != NULL) {
-		const int rc = t->codec.complete(t->codec.ctx, complete_msg_size);
-		t->codec.free(t->codec.ctx);
-		return rc;
-	}
-	return TP_TRANSCODE_ERROR;
+	assert(t);
+	return t->codec.complete(t->codec.ctx, complete_msg_size);
 }
 
 static inline int
 tp_transcode(tp_transcode_t *t, char *b, size_t size)
 {
-	if (t != NULL)
-		return t->codec.transcode(t->codec.ctx, b, size);
-	return TP_TRANSCODE_ERROR;
+  assert(t);
+	return t->codec.transcode(t->codec.ctx, b, size);
 }
 
 static inline bool
@@ -143,5 +154,7 @@ tp_dump(char *output, size_t output_size, char *input, size_t input_size)
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
+/* }}} */
 
 #endif

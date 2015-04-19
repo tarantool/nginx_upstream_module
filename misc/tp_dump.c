@@ -33,12 +33,13 @@ main(int argc, char ** argv)
 		{0, 0, 0, 0}
 	};
 	int index = 0;
-	while ((c = getopt_long(argc, argv, "ih:", long_options, &index)) != -1){
+	while ((c = getopt_long(argc, argv, "ih:", long_options, &index)) != -1) {
 		switch(c){
 		case 'i':
 			in = fopen(optarg, "r");
 			if (in == NULL) {
-				fprintf(stderr, "Failed to open file '%s', error '%s'\n",
+				fprintf(stderr,
+						"tp_dump: failed to open file '%s', error '%s'\n",
 						optarg, strerror(errno));
 				exit(2);
 			}
@@ -56,8 +57,8 @@ main(int argc, char ** argv)
 	tp_transcode_t tc;
 	if (tp_transcode_init(&tc, obuf, sizeof(obuf) - 1, TP_TO_JSON)
             == TP_TRANSCODE_ERROR)
-    {
-		fprintf(stderr, "Failed to initialize transcode\n");
+	{
+		fprintf(stderr, "tp_dump: failed to initialize transcode\n");
 		return 2;
 	}
 
@@ -66,7 +67,7 @@ main(int argc, char ** argv)
 		size += rd = fread((void *)&ibuf[size], 1, sizeof(ibuf) - size, in);
 		if (rd == 0) {
 			if (!feof(in)) {
-				fprintf(stderr, "Failed to read file, error: '%s'\n",
+				fprintf(stderr, "tp_dump: failed to read file, error: '%s'\n",
 						strerror(ferror(in)));
 				return 2;
 			}
@@ -74,18 +75,23 @@ main(int argc, char ** argv)
 		}
 	}
 
-	if (tp_transcode(&tc, ibuf, size) == TP_TRANSCODE_ERROR) {
-		fprintf(stderr, "Failed to transcode , msg: '%s'\n", tc.errmsg);
+	if (tp_transcode(&tc, ibuf, size) != TP_TRANSCODE_OK) {
+		fprintf(stderr, "tp_dump: failed to transcode , msg: '%s'\n",
+				tc.errmsg);
 		return 2;
+	} else {
+		size_t complete_msg_size = 0;
+		if (tp_transcode_complete(&tc, &complete_msg_size)
+				== TP_TRANSCODE_ERROR)
+		{
+			fprintf(stderr, "tp_dump: failed to complete transcode, msg '%s'\n",
+					tc.errmsg);
+			return 2;
+		}
+		printf("%.*s", (int)complete_msg_size, obuf);
 	}
 
-	size_t complete_msg_size = 0;
-	if (tp_transcode_complete(&tc, &complete_msg_size) == TP_TRANSCODE_ERROR) {
-		fprintf(stderr, "Failed to complete transcode, msg '%s'\n", tc.errmsg);
-		return 2;
-	}
-
-	printf("Dump: '%.*s'\n", (int)complete_msg_size, obuf);
+	tp_transcode_free(&tc);
 
 	return 0;
 }

@@ -1,0 +1,10 @@
+param_w_tnt_name.json -> 29{0:6,1:555}{34:"tp_call",33:["arg"]}
+param_wo_args.json -> json2tp: failed to complete: 'json _must_ contain 'method':str,'params': ['tnt_method', arg1, ... argN]'
+param_wo_tnt_name.json -> json2tp: failed to transcode: 'tarantool method _must_ be first _string_ in 'params' array'
+regular.json -> 84{0:6,1:555}{34:"tnt_method",33:["string1",{"a":1,"b":2,"c":4,"d":[{"aa":"22","bb":"string"},true,null]},"END"]}
+without_id.json -> 22{0:6,1:0}{34:"f",33:["a0"]}
+without_method.json -> json2tp: failed to complete: 'json _must_ contain 'method':str,'params': ['tnt_method', arg1, ... argN]'
+without_params.json -> json2tp: failed to complete: 'json _must_ contain 'method':str,'params': ['tnt_method', arg1, ... argN]'
+wrong_args.json -> json2tp: failed to transcode: 'tarantool method _must_ be first _string_ in 'params' array'
+wrong_args_2.json -> json2tp: failed to complete: 'json _must_ contain 'method':str,'params': ['tnt_method', arg1, ... argN]'
+wrong_args_3.json -> json2tp: failed to complete: 'json _must_ contain 'method':str,'params': ['tnt_method', arg1, ... argN]'

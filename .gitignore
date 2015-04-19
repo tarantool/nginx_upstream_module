@@ -4,3 +4,7 @@ nginx
 misc/tp_dump
 misc/tp_send
 misc/json2tp
+*.snap
+*.xlog
+tc.out*
+test/cases/*.tmp
