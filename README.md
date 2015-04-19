@@ -9,6 +9,10 @@ Tarantool NginX upstream module (JSON API, websockets, load balancing)
   
   About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
 
+## Status
+
+Alpha version
+
 ## Protocol
 
   Module expectes json posted over HTTP POST in request body.
