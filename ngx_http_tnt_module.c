@@ -82,17 +82,32 @@ static size_t JSON_RPC_MAGIC = sizeof(
         "'id':18446744073709551615"
     "}") - 1;
 
-static const u_char REQUEST_TOO_LARGE[] = "{\"result\":{\"error\":\""
-                        "Request too large, consider increasing your "
-                        "server's setting 'client_body_buffer_size'"
-                    "\"}}";
+static const u_char REQUEST_TOO_LARGE[] = "{"
+                        "\"result\":null,"
+                        "\"error\":{"
+                            "\"message\":"
+                                "\"Request too large, consider increasing your "
+                                "server's setting 'client_body_buffer_size'\""
+                            "}"
+                        "}";
 
-static const u_char UNKNOWN_PARSE_ERROR[] = "{\"result\":{\"error\":"
-                                                "\"Unknown parse error\""
-                                            "}}";
+static const u_char UNKNOWN_PARSE_ERROR[] = "{\"result\":null,"
+                                                "\"error\":{"
+                                                    "\"message\":"
+                                                    "\"Unknown parse error\""
+                                                "}"
+                                            "}";
 
-static const char ERR_RESULT_FMT[] = "{\"result\":{\"error\":\"%s\"}}";
-static const size_t ERR_RESULT_SIZE = sizeof("{\"result\":{\"error\":\"\"}}") - 1;
+static const char ERR_RESULT_FMT[] = "{"
+                                        "\"result\":null,"
+                                        "\"error\":{"
+                                            "\"message\":\"%s\""
+                                            "}"
+                                        "}";
+
+static const size_t ERR_RESULT_SIZE = sizeof("{'result':null,"
+                                                "'error':{'message':''}"
+                                            "}") - 1;
 
 static ngx_command_t  ngx_http_tnt_commands[] = {
 

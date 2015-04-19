@@ -7,7 +7,7 @@ MODULE_PATH = $(PWD)
 PREFIX_PATH = $(PWD)/test-root
 INC_FLAGS   = -I$(TNTC_PATH)/src -I$(TNTC_PATH)/src/msgpuck
 INC_FLAGS  += -I$(YAJL_PATH)
-LDFLALGS    = -L$(YAJL_PATH)/build/yajl-2.1.0/lib/
+LDFLAGS    = -L$(YAJL_PATH)/build/yajl-2.1.0/lib/
 
 CFLAGS     += -ggdb3 -O0 -Wall -Werror
 
@@ -26,7 +26,6 @@ configure-debug:
 	CFLAGS="-ggdb3 -O0 -Wall -Werror $(INC_FLAGS)" ./configure \
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
-						--without-http_rewrite_module \
 						--with-debug --with-ld-opt='$(LDFLAGS)'
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
 	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
@@ -35,9 +34,9 @@ configure-debug:
 
 configure:
 	cd $(NGX_PATH) && \
-	./configure \
-		--add-module=$(MODULE_PATH) \
-		--prefix=$(PREFIX_PATH)
+	CFLAGS="-O2 -Wall -Werror $(INC_FLAGS)" ./configure \
+			--add-module='$(MODULE_PATH)'\
+			--with-ld-opt='$(LDFLAGS)'
 
 json2tp:
 	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) -lyajl_s \

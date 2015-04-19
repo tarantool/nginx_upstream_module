@@ -39,14 +39,16 @@ def echo_check(data, error_expected = True):
         assert(res['result'][0] == data['params'][1]), \
             'echo_check result must be same as params'
     else:
-        assert('error' in res['result']), 'expected error, got'
+        assert('error' in res), 'expected error'
+        assert('message' in res['error']), 'expected error, got'
 
 ###
 # Spec. cases
 (rc, res) = request_raw('{"method":"call", "params":["name", __wrong__], "id":555}');
 assert(rc == 200), 'expected 200'
 assert('result' in res), 'expected result'
-assert('error' in res['result']), 'expected error message'
+assert('error' in res), 'expected error'
+assert('message' in res['error']), 'expected error message'
 
 (rc, res) = request_raw('');
 assert(rc == 500), 'expected 500'
