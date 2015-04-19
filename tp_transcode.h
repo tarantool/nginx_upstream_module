@@ -38,7 +38,7 @@ typedef struct tp_codec {
  */
 enum tp_codec_type {
 
-  /**
+	/**
 	 * JSON PRC to Tarantool message (Yajl engine)
 	 */
 	YAJL_JSON_TO_TP = 0,
@@ -115,8 +115,8 @@ tp_dump(char *output, size_t output_size, char *input, size_t input_size);
 static inline void
 tp_transcode_free(tp_transcode_t *t)
 {
-  assert(t);
-  t->codec.free(t->codec.ctx);
+	assert(t);
+	t->codec.free(t->codec.ctx);
 }
 
 static inline int
@@ -129,7 +129,7 @@ tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size)
 static inline int
 tp_transcode(tp_transcode_t *t, char *b, size_t size)
 {
-  assert(t);
+	assert(t);
 	return t->codec.transcode(t->codec.ctx, b, size);
 }
 
