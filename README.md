@@ -18,13 +18,13 @@ Alpha version
   
   Server HTTP statuses
   
-  OK - response body contains result or error, the error - usualy parse error etc.
+    OK - response body contains result or error, the error - usualy parse error etc.
     
-  INTERNAL SERVER ERROR - may appear in many cases, most of them is 'out of memory' error.
+    INTERNAL SERVER ERROR - may appear in many cases, most of them is 'out of memory' error.
     
-  NOT ALLOWED - incoming request not POST.
+    NOT ALLOWED - incoming request not POST.
     
-  BAD GATEWAY - lost connection with Tarantool server(s).
+    BAD GATEWAY - lost connection with Tarantool server(s).
 
 ### Input JSON form
 
