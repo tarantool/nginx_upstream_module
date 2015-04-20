@@ -75,12 +75,19 @@ spush(yajl_ctx_t *s,  char *ptr, int mask)
 {
     if (mp_likely(s->size < MAX_STACK_SIZE)) {
 
-        if (mp_unlikely(s->allocated < s->size)) {
-            s->stack = REALLOC(s, s->stack, sizeof(stack_item_t) * 16);
+        if (mp_unlikely(s->allocated == s->size)) {
+            s->allocated += 16;
+            s->stack = REALLOC(s, s->stack,
+                               sizeof(stack_item_t) * s->allocated);
             if (s->stack == NULL)
                 return false;
 
-            s->allocated += 16;
+            size_t i;
+            for (i = s->size; i < s->allocated; ++i) {
+                s->stack[i].ptr = 0;
+                s->stack[i].count = 0;
+                s->stack[i].type = 0;
+            }
         }
 
         s->stack[s->size].ptr = ptr;

@@ -310,6 +310,8 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         }
         ctx->out_chain->buf->last_in_chain = 1;
 
+        dd("[output] out buffer size %i", (int)output_size);
+
         if (tp_transcode_init(&ctx->in_t, (char *)ctx->out_chain->buf->start,
                                output_size, YAJL_JSON_TO_TP, NULL)
                 == TP_TRANSCODE_ERROR)
