@@ -6,7 +6,8 @@ NGX_PATH    = nginx
 MODULE_PATH = $(PWD)
 PREFIX_PATH = $(PWD)/test-root
 INC_FLAGS   = -I$(TNTC_PATH)/src -I$(TNTC_PATH)/src/msgpuck
-INC_FLAGS  += -I$(YAJL_PATH)
+INC_FLAGS  += -I$(YAJL_PATH)/build/yajl-2.1.0/include/
+YAJL_LIB   = $(YAJL_PATH)/build/yajl-2.1.0/lib/libyajl_s.a
 LDFLAGS    = -L$(YAJL_PATH)/build/yajl-2.1.0/lib/
 
 CFLAGS     += -ggdb3 -O0 -Wall -Werror
@@ -23,7 +24,7 @@ build: utils
 
 configure-debug:
 	cd $(NGX_PATH) && \
-	CFLAGS="-ggdb3 -O0 -Wall -Werror $(INC_FLAGS)" ./configure \
+	./configure --with-cc-opt='-ggdb3 $(INC_FLAGS)'\
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
 						--with-debug --with-ld-opt='$(LDFLAGS)'
@@ -34,21 +35,24 @@ configure-debug:
 
 configure:
 	cd $(NGX_PATH) && \
-	CFLAGS="-O2 -Wall -Werror $(INC_FLAGS)" ./configure \
+	./configure --with-cc-opt='$(INC_FLAGS)'\
 			--add-module='$(MODULE_PATH)'\
-			--with-ld-opt='$(LDFLAGS)'
+			--with-ld-opt='$(LDFLAGS)' \
+			--test-build-epoll
 
 json2tp:
-	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) -lyajl_s \
+	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
 				$(CUR_PATH)/misc/json2tp.c \
 				tp_transcode.c \
-				-o misc/json2tp
+				-o misc/json2tp \
+				-lyajl_s
 
 tp_dump:
-	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) -lyajl_s \
+	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
 				$(CUR_PATH)/misc/tp_dump.c \
 				tp_transcode.c \
-				-o misc/tp_dump
+				-o misc/tp_dump \
+				-lyajl_s
 
 test: utils build
 	$(CUR_PATH)/test/transcode.sh

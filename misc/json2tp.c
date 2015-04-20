@@ -67,7 +67,8 @@ main(int argc, char **argv)
 	}
 
 	int rc = 0;
-	for (size_t s = 0;;) {
+    size_t s = 0;
+	for (s = 0;;) {
 		char *it = data;
 		const size_t rd = fread((void *) data, 1, 10, file);
 		s += rd;

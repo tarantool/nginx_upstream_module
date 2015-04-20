@@ -62,8 +62,8 @@ main(int argc, char ** argv)
 		return 2;
 	}
 
-	size_t size = 0;
-	for (size_t rd = 0;;) {
+	size_t size = 0, rd = 0;
+	for (;;) {
 		size += rd = fread((void *)&ibuf[size], 1, sizeof(ibuf) - size, in);
 		if (rd == 0) {
 			if (!feof(in)) {
