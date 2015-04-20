@@ -59,18 +59,17 @@ main(int argc, char **argv)
 	}
 
 	tp_transcode_t t;
-	if (tp_transcode_init(&t, output, size, YAJL_JSON_TO_TP)
+	if (tp_transcode_init(&t, output, size, YAJL_JSON_TO_TP, NULL)
             == TP_TRANSCODE_ERROR)
 	{
 		fprintf(stderr, "json2tp: failed to initialize transcode, exiting\n");
 		exit(2);
 	}
 
-	int rc = 0;
     size_t s = 0;
+	enum tt_result rc = 0;
 	for (s = 0;;) {
-		char *it = data;
-		const size_t rd = fread((void *) data, 1, 10, file);
+		const size_t rd = fread((void *) &data[0], 1, 10, file);
 		s += rd;
 		if (rd == 0) {
 			if (!feof(file)) {
@@ -79,11 +78,10 @@ main(int argc, char **argv)
 			break;
 		}
 
-		if ((rc = tp_transcode(&t, it, rd)) == TP_TRANSCODE_ERROR) {
+		if ((rc = tp_transcode(&t, &data[0], rd)) == TP_TRANSCODE_ERROR) {
 			fprintf(stderr, "json2tp: failed to transcode: '%s'\n", t.errmsg);
 			break;
 		}
-		it = data + size;
 	}
 
 	if (rc == TP_TRANSCODE_OK) {

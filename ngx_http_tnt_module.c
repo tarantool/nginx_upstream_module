@@ -100,14 +100,14 @@ static const u_char UNKNOWN_PARSE_ERROR[] = "{\"result\":null,"
                                                 "}"
                                             "}";
 
-static const char ERR_RESULT_FMT[] = "{"
+static const char ERR_RES_FMT[] = "{"
                                         "\"result\":null,"
                                         "\"error\":{"
                                             "\"message\":\"%s\""
                                             "}"
                                         "}";
 
-static const size_t ERR_RESULT_SIZE = sizeof("{'result':null,"
+static const size_t ERR_RES_SIZE = sizeof("{'result':null,"
                                                 "'error':{'message':''}"
                                             "}") - 1;
 
@@ -265,7 +265,6 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_tnt_create_request(ngx_http_request_t *r)
 {
-    ngx_int_t               rc;
     ngx_buf_t               *b;
     ngx_chain_t             *body;
     ngx_http_tnt_ctx_t      *ctx;
@@ -292,7 +291,6 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         }
 
         memset(ctx, 0, sizeof(ngx_http_tnt_ctx_t));
-        ctx->payload = -1;
 
         ngx_http_set_ctx(r, ctx, ngx_http_tnt_module);
 
@@ -312,9 +310,10 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         }
         ctx->out_chain->buf->last_in_chain = 1;
 
-        rc = tp_transcode_init(&ctx->in_t, (char *)ctx->out_chain->buf->start,
-                               output_size, YAJL_JSON_TO_TP);
-        if (rc == TP_TRANSCODE_ERROR) {
+        if (tp_transcode_init(&ctx->in_t, (char *)ctx->out_chain->buf->start,
+                               output_size, YAJL_JSON_TO_TP, NULL)
+                == TP_TRANSCODE_ERROR)
+        {
             crit("[BUG] failed to call tp_transcode_init(input)");
             return NGX_ERROR;
         }
@@ -327,6 +326,10 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         }
 
     }
+
+    /** Input body transcoding
+     */
+    ctx->state = OK;
 
     for (body = r->upstream->request_bufs; body; body = body->next) {
 
@@ -342,80 +345,64 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
 
             ctx->state = INPUT_TO_LARGE;
 
-            break;
+            goto read_input_done;
 
         } else {
             b = body->buf;
         }
 
-        /** Transcode input
-         */
-        rc = tp_transcode(&ctx->in_t, (char *)b->pos, b->last - b->pos);
-        switch (rc) {
-        case TP_TRANSCODE_OK: {
-
-            rc = tp_transcode_complete(&ctx->in_t, &complete_msg_size);
-            if (rc == TP_TRANSCODE_ERROR) {
-
-                dd("[input] failed to complete");
-
-                if (ctx->in_t.errmsg[0] != 0) {
-                    ctx->errmsg.len = ngx_strlen(ctx->in_t.errmsg)
-                                    + ERR_RESULT_SIZE;
-                    ctx->errmsg.data = ngx_palloc(r->pool, ctx->errmsg.len);
-                    if (ctx->errmsg.data == NULL) {
-                        goto error_exit;
-                    }
-
-                    ngx_snprintf(ctx->errmsg.data, ctx->errmsg.len,
-                            ERR_RESULT_FMT, ctx->in_t.errmsg);
-
-                }
-
-                ctx->state = INPUT_JSON_PARSE_FAILED;
-
-            } else {
-
-                ctx->out_chain->buf->last =
-                            ctx->out_chain->buf->start + complete_msg_size;
-
-                ctx->state = OK;
-
-            }
-
-            break;
-        }
-        case TP_TRANSCODE_AGAIN: {
-            /** XXX
-             *  Potential BUG
-             */
-            dd("[input] needs mode bytes ... (i.e. NGX_AGAIN)");
-            return NGX_AGAIN;
-        }
-        default:
-        case TP_TRANSCODE_ERROR:
-
+        if (tp_transcode(&ctx->in_t, (char *)b->pos, b->last - b->pos)
+                == TP_TRANSCODE_ERROR)
+        {
             dd("[input] failed: '%s'", ctx->in_t.errmsg);
 
             if (ctx->in_t.errmsg[0] != 0) {
-                ctx->errmsg.len = ngx_strlen(ctx->in_t.errmsg)
-                                + ERR_RESULT_SIZE;
+                ctx->errmsg.len = ngx_strlen(ctx->in_t.errmsg) + ERR_RES_SIZE;
                 ctx->errmsg.data = ngx_palloc(r->pool, ctx->errmsg.len);
                 if (ctx->errmsg.data == NULL) {
                     goto error_exit;
                 }
 
-                ngx_snprintf(ctx->errmsg.data, ctx->errmsg.len, ERR_RESULT_FMT,
+                ngx_snprintf(ctx->errmsg.data, ctx->errmsg.len, ERR_RES_FMT,
                         ctx->in_t.errmsg);
 
             }
 
             ctx->state = INPUT_JSON_PARSE_FAILED;
 
-            break;
+            goto read_input_done;
         }
+
     }
 
+    if (tp_transcode_complete(&ctx->in_t, &complete_msg_size)
+            == TP_TRANSCODE_OK)
+    {
+        ctx->out_chain->buf->last =
+                ctx->out_chain->buf->start + complete_msg_size;
+    }
+    else
+    {
+        dd("[input] failed to complete");
+
+        if (ctx->in_t.errmsg[0] != 0) {
+            ctx->errmsg.len = ngx_strlen(ctx->in_t.errmsg) + ERR_RES_SIZE;
+            ctx->errmsg.data = ngx_palloc(r->pool, ctx->errmsg.len);
+            if (ctx->errmsg.data == NULL) {
+                goto error_exit;
+            }
+
+            ngx_snprintf(ctx->errmsg.data, ctx->errmsg.len, ERR_RES_FMT,
+                    ctx->in_t.errmsg);
+
+        }
+
+        ctx->state = INPUT_JSON_PARSE_FAILED;
+
+        goto read_input_done;
+    }
+
+read_input_done:
     if (ctx->state != OK && ctx->errmsg.data == NULL) {
         ctx->errmsg.data = (u_char *)&UNKNOWN_PARSE_ERROR[0];
         ctx->errmsg.len = sizeof(UNKNOWN_PARSE_ERROR) - 1;
@@ -475,7 +462,7 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
         break;
     case INPUT_TO_LARGE:
     case INPUT_JSON_PARSE_FAILED:
-        return ngx_http_tnt_say_error(r, ctx, NGX_HTTP_OK);
+        return ngx_http_tnt_say_error(r, ctx, NGX_HTTP_BAD_REQUEST);
     default:
         assert(false);
         return NGX_ERROR;
@@ -485,18 +472,19 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
         return NGX_AGAIN;
     }
 
-    u->length = 0;
-
     ctx->payload = tp_read_payload((char *)b->pos, (char *)b->last);
     switch (ctx->payload) {
     case 0:
+        dd("tp_read_payload() need more bytes .. NGX_AGAIN");
         return NGX_AGAIN;
     case -1:
         crit("[BUG?] tarantool sent invalid 'payload' (i.e. message size)");
         return NGX_HTTP_UPSTREAM_INVALID_HEADER;
     default:
+
         u->headers_in.status_n = 200;
         u->state->status = 200;
+
         /** We can't get fair size of outgoing JSON message at this stage - so
          * just multiply msgpack payload in hope is more or enough
          * for the JSON message.
@@ -553,7 +541,7 @@ ngx_http_tnt_filter(void *data, ssize_t bytes)
     ngx_chain_t          *cl, **ll;
 
     /*
-     * Waiting body & parse tnt message
+     * Transcoding tarantool message
      */
     ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
     if (ctx == NULL) {
@@ -614,10 +602,10 @@ ngx_http_tnt_filter(void *data, ssize_t bytes)
     cl->buf->tag = u->output.tag;
     cl->buf->last = cl->buf->end;
 
-    /* Transcode & output
-     */
     rc = tp_transcode_init(&ctx->out_t, (char *)cl->buf->start,
-        u->headers_in.content_length_n, TP_REPLY_TO_JSON);
+                                        u->headers_in.content_length_n,
+                                        TP_REPLY_TO_JSON,
+                                        NULL);
     if (rc == TP_TRANSCODE_ERROR) {
         crit("[BUG] failed to call tp_transcode_init(output)");
         return NGX_ERROR;
@@ -627,23 +615,8 @@ ngx_http_tnt_filter(void *data, ssize_t bytes)
     rc = tp_transcode(&ctx->out_t, (char *)ctx->in_cache->start,
                       ctx->in_cache->end - ctx->in_cache->start);
     switch (rc) {
-    case TP_TRANSCODE_OK:
-        dd("[output] OK");
-        break;
-    /** TODO
-     *  TP_TRANSCODE_AGAIN are not allowed,
-     *  since we got whole message in 'in_cache'.
-     *  This sould be fixed.
-     */
-    case TP_TRANSCODE_AGAIN:
-    case TP_TRANSCODE_ERROR:
-    default:
-        crit("[BUG] failed to transcode output, err: '%s'", ctx->out_t.errmsg);
-        result = NGX_ERROR;
-        break;
-    }
+    case TP_TRANSCODE_OK: {
 
-    if (result == NGX_OK) {
         size_t complete_msg_size = 0;
         rc = tp_transcode_complete(&ctx->out_t, &complete_msg_size);
         if (rc != TP_TRANSCODE_OK) {
@@ -662,6 +635,15 @@ ngx_http_tnt_filter(void *data, ssize_t bytes)
             }
 
         }
+
+        break;
+    }
+
+    case TP_TRANSCODE_ERROR:
+    default:
+        crit("[BUG] failed to transcode output, err: '%s'", ctx->out_t.errmsg);
+        result = NGX_ERROR;
+        break;
     }
 
     tp_transcode_free(&ctx->out_t);
@@ -721,7 +703,9 @@ ngx_http_tnt_create_loc_conf(ngx_conf_t *cf)
     conf->in_multiplier =
     conf->out_multiplier = NGX_CONF_UNSET_SIZE;
 
-    /* the hardcoded values */
+    /*
+     * The hardcoded values
+     */
     conf->upstream.cyclic_temp_file = 0;
     conf->upstream.buffering = 0;
     conf->upstream.ignore_client_abort = 0;
@@ -833,7 +817,8 @@ ngx_http_tnt_read_greetings(ngx_http_request_t *r,
     }
 
     if (b->last - b->pos < 128) {
-        crit("Tarantool sent invalid greetings len:%i", b->last - b->pos);
+        crit("[BUG] Tarantool sent invalid greetings len:%i",
+                b->last - b->pos);
         return NGX_ERROR;
     }
 
@@ -853,7 +838,7 @@ ngx_http_tnt_read_greetings(ngx_http_request_t *r,
         return NGX_OK;
     }
 
-    crit("Tarantool sent strange greetings: '%.*s',"
+    crit("[BUG] Tarantool sent strange greeting: '%.*s',"
         " expected 'Tarantool' with len. == 128",
         128, b->pos);
 

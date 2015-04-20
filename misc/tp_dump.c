@@ -55,7 +55,7 @@ main(int argc, char ** argv)
 	memset(ibuf, 0, sizeof(ibuf));
 
 	tp_transcode_t tc;
-	if (tp_transcode_init(&tc, obuf, sizeof(obuf) - 1, TP_TO_JSON)
+	if (tp_transcode_init(&tc, obuf, sizeof(obuf) - 1, TP_TO_JSON, NULL)
             == TP_TRANSCODE_ERROR)
 	{
 		fprintf(stderr, "tp_dump: failed to initialize transcode\n");

@@ -6,9 +6,10 @@ import traceback
 import os
 
 URL = 'http://127.0.0.1:8081/tnt'
-VERBOSE = False
+VERBOSE = True
 
 def request_raw(data):
+    out = '{}'
     try:
         req = urllib2.Request(URL)
         req.add_header('Content-Type', 'application/json')
@@ -22,38 +23,43 @@ def request_raw(data):
 
         if rc != 500:
             return (rc, json.loads(out))
+
         return (rc, False)
+    except urllib2.HTTPError, e:
+        if e.code == 400:
+            out = e.read();
+        return (e.code, json.loads(out))
     except Exception:
-        if VERBOSE:
-            print traceback.format_exc()
-        return (500, False)
+        print traceback.format_exc()
+        return (False, False)
 
 def request(data):
     return request_raw(json.dumps(data))
 
-def echo_check(data, error_expected = True):
-    (rc, res) = request(data)
-    assert(rc == 200), 'echo_check expected HTTP code 200'
-    assert(res != False), 'echo_check expected some data'
-    assert('result' in res), 'expected result'
-    if error_expected == True:
-        assert(res['result'][0] == data['params'][1]), \
-            'echo_check result must be same as params'
+def assert_if_not_error(s):
+    assert('result' in s), 'expected result'
+    assert('error' in s), 'expected error'
+    assert('message' in s['error']), 'expected error message'
+
+def echo_check(r, bad_request_expected = False):
+    (rc, res) = request(r)
+    if bad_request_expected == True:
+        assert(rc == 400), 'bad request expected'
+        assert_if_not_error(res)
     else:
-        assert('error' in res), 'expected error'
-        assert('message' in res['error']), 'expected error, got'
+        assert(rc == 200), 'echo_check expected HTTP code 200'
+        assert('result' in res), 'expected result'
+        assert(res['result'][0] == r['params'][1]), \
+            'echo_check result must be same as params'
 
 ###
 # Spec. cases
 (rc, res) = request_raw('{"method":"call", "params":["name", __wrong__], "id":555}');
-assert(rc == 200), 'expected 200'
-assert('result' in res), 'expected result'
-assert('error' in res), 'expected error'
-assert('message' in res['error']), 'expected error message'
+assert(rc == 400), 'expected 400'
+assert_if_not_error(res)
 
 (rc, res) = request_raw('');
 assert(rc == 500), 'expected 500'
-assert(res == False), 'expected empty reply'
 
 ###
 # nginx -> tnt request - reply cases
@@ -61,7 +67,7 @@ echo_check({
     'method': 'call',
     'params': [ 'echo', [{'a':1,'b':2,'c':[1,2,3,4,5,6,7,8,9]}] ],
     'id': 555
-})
+    })
 
 bigarray = []
 for i in range(100000): bigarray.append(i)
@@ -69,6 +75,7 @@ echo_check({
     'method': 'call',
     'params': [ 'echo', bigarray ],
     'id': 555
-}, False)
+    }, True)
+
 
 print '[OK] client.py'
