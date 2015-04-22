@@ -6,6 +6,7 @@
 #include "tp.h"
 #include "tp_transcode.h"
 
+#define VERBOSE 1
 #if defined VERBOSE
 #define dd(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -40,7 +41,6 @@ while (0)
 enum { MAX_STACK_SIZE = 254 - 1 };
 enum type { TYPE_MAP = 1, TYPE_ARRAY = 2 };
 enum stage { START = 0, PARAMS = 4, ID = 8, METHOD = 16 };
-enum tp_stage { TP_START = 0, TP_METHOD = 64, TP_ARGS = 128 };
 
 typedef struct {
     char *ptr;
@@ -61,13 +61,13 @@ typedef struct {
     struct tp tp;
 
     enum stage stage;
-    enum tp_stage tp_stage;
 
     int been_stages;
 
     uint32_t id;
 
     tp_transcode_t *tc;
+    char *call_end;
 } yajl_ctx_t;
 
 static inline bool
@@ -137,39 +137,19 @@ sinc_if(yajl_ctx_t *s, int cond)
     return 0; \
 } while (0)
 
-static const char bad_tnt_method[] =
-    "tarantool method _must_ be first _string_ in 'params' array";
-#define BAD_TNT_METHOD_R {\
-    say_error(s_ctx, "%s", bad_tnt_method); \
-    dd("BAD_TNT_METHOD_R: %d\n", __LINE__);\
-    return 0; }
-
-static const char bad_id[] = "'id' _must_ be positive integer";
-#define BAD_ID_R {\
-    say_error(s_ctx, "%s", bad_id); \
-    dd("BAD_ID_R: %d\n", __LINE__);\
-    return 0; }
-
 static int
 yajl_null(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    if (mp_likely(s_ctx->stage == PARAMS)) {
+    if (mp_unlikely(s_ctx->stage != PARAMS))
+        return 1;
 
-        if (mp_likely(s_ctx->tp_stage == TP_ARGS)) {
+    dd("null\n");
 
-            dd("null\n");
-
-            sinc_if_array(s_ctx);
-            if (mp_unlikely(!tp_encode_nil(&s_ctx->tp)))
-                say_overflow_r_2(s_ctx);
-
-        } else
-            BAD_TNT_METHOD_R
-
-    } else if (s_ctx->stage == ID)
-        BAD_ID_R
+    sinc_if_array(s_ctx);
+    if (mp_unlikely(!tp_encode_nil(&s_ctx->tp)))
+        say_overflow_r_2(s_ctx);
 
     return 1;
 }
@@ -179,21 +159,14 @@ yajl_boolean(void * ctx, int v)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    if (mp_likely(s_ctx->stage == PARAMS)) {
+    if (mp_unlikely(s_ctx->stage != PARAMS))
+        return 1;
 
-        if (mp_likely(s_ctx->tp_stage == TP_ARGS)) {
+    dd("bool: %s\n", v ? "true" : "false");
 
-            dd("bool: %s\n", v ? "true" : "false");
-
-            sinc_if_array(s_ctx);
-            if (mp_unlikely(!tp_encode_bool(&s_ctx->tp, v)))
-                say_overflow_r_2(s_ctx);
-
-        } else
-            BAD_TNT_METHOD_R
-
-    } else if (s_ctx->stage == ID)
-        BAD_ID_R
+    sinc_if_array(s_ctx);
+    if (mp_unlikely(!tp_encode_bool(&s_ctx->tp, v)))
+        say_overflow_r_2(s_ctx);
 
     return 1;
 }
@@ -205,29 +178,25 @@ yajl_integer(void *ctx, long long v)
 
     if (mp_likely(s_ctx->stage == PARAMS)) {
 
-        if (mp_likely(s_ctx->tp_stage == TP_ARGS)) {
+        dd("integer: %lld\n", v);
 
-            dd("integer: %lld\n", v);
+        sinc_if_array(s_ctx);
 
-            sinc_if_array(s_ctx);
+        char *r = NULL;
+        if (v < 0)
+            r = tp_encode_int(&s_ctx->tp, (int64_t)v);
+        else
+            r = tp_encode_uint(&s_ctx->tp, (uint64_t)v);
 
-            char *r = NULL;
-            if (v < 0)
-                r = tp_encode_int(&s_ctx->tp, (int64_t)v);
-            else
-                r = tp_encode_uint(&s_ctx->tp, (uint64_t)v);
-
-            if (mp_unlikely(!r))
-                say_overflow_r_2(s_ctx);
-        } else
-            BAD_TNT_METHOD_R
+        if (mp_unlikely(!r))
+            say_overflow_r_2(s_ctx);
 
     } else if (s_ctx->stage == ID) {
 
         dd ("id: %lld\n", v);
 
         if (mp_unlikely(v > UINT32_MAX)) {
-            say_error(s_ctx, "'id' large then UINT32_t");
+            say_error(s_ctx, "'id' _must_ be less than UINT32_t");
             return 0;
         }
 
@@ -243,23 +212,19 @@ yajl_double(void *ctx, double v)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    if (mp_likely(s_ctx->stage == PARAMS)) {
+    if (mp_unlikely(s_ctx->stage != PARAMS))
+        return 1;
 
-        dd("double: %g\n", v);
+    dd("double: %g\n", v);
 
-        if (mp_likely(s_ctx->tp_stage == TP_ARGS)) {
-            sinc_if_array(s_ctx);
+    sinc_if_array(s_ctx);
 
-            if (mp_unlikely(!tp_encode_double(&s_ctx->tp, v)))
-                say_overflow_r_2(s_ctx);
-        } else
-            BAD_TNT_METHOD_R
-
-    } else if (s_ctx->stage == ID)
-        BAD_ID_R
+    if (mp_unlikely(!tp_encode_double(&s_ctx->tp, v)))
+        say_overflow_r_2(s_ctx);
 
     return 1;
 }
+
 
 static int
 yajl_string(void *ctx, const unsigned char * str, size_t len)
@@ -268,45 +233,99 @@ yajl_string(void *ctx, const unsigned char * str, size_t len)
 
     if (mp_likely(s_ctx->stage == PARAMS)) {
 
-        if (mp_likely(s_ctx->tp_stage == TP_ARGS)) {
+        dd("string: %.*s\n", (int)len, str);
 
-            dd("string: %.*s\n", (int)len, str);
+        if (len > 0) {
 
-            if (len > 0) {
+            sinc_if_array(s_ctx);
 
-                sinc_if_array(s_ctx);
-
-                if (mp_unlikely(!tp_encode_str(&s_ctx->tp,
-                                (const char *)str, len)))
-                    say_overflow_r_2(s_ctx);
-            }
-
-        } else if (s_ctx->tp_stage == TP_METHOD) {
-
-            dd("method: %.*s\n", (int)len, str);
-
-            if (mp_unlikely(!tp_call(&s_ctx->tp, (const char *)str, len)))
+            if (mp_unlikely(!tp_encode_str(&s_ctx->tp,
+                            (const char *)str, len)))
                 say_overflow_r_2(s_ctx);
-
-            s_ctx->tp_stage = TP_ARGS;
-            s_ctx->been_stages |= TP_METHOD;
-
-            if (!spush(ctx, NULL, PARAMS | TP_METHOD)) {
-                say_error(s_ctx, "'stack' overflow");
-                return 0;
-            }
-
-        } else
-            assert(false);
+        }
 
     } else if (s_ctx->stage == METHOD) {
 
-        s_ctx->stage = START;
+        dd("method: %.*s\n", (int)len, str);
 
-    } else if (s_ctx->stage == ID)
-        BAD_ID_R
-    else
-        assert(false);
+        int rc = 0;
+
+        if (s_ctx->been_stages & PARAMS) {
+
+            const size_t call_pos = (s_ctx->call_end - s_ctx->tp.s);
+            const size_t m_size = len + call_pos + 5;
+
+            char *m = ALLOC(s_ctx, m_size);
+            if (mp_unlikely(!m)) {
+                say_error(s_ctx, "'output' buffer overflow");
+                goto hooking_call_done;
+            }
+
+            struct tp call;
+            tp_init(&call, m, m_size, NULL, NULL);
+            if (mp_unlikely(!tp_call(&call, (char *)str, len))) {
+                say_error(s_ctx, "'output' buffer overflow");
+                goto hooking_call_done;
+            }
+
+            const ssize_t pos_diff = (call.p - call.s) - call_pos;
+            if (mp_unlikely(pos_diff < 0)) {
+                say_error(s_ctx,
+                            "If you see this message know BIG shit happend"
+                            "at line %d", __LINE__);
+                goto hooking_call_done;
+            }
+
+            if (mp_unlikely( (s_ctx->tp.p - s_ctx->tp.s + pos_diff)
+                        > s_ctx->tp.e - s_ctx->tp.s
+                        ) )
+            {
+                say_error(s_ctx, "'output' buffer overflow");
+                goto hooking_call_done;
+            }
+
+            memmove(s_ctx->tp.s + (call.p - call.s) /* already + 5 */,
+                    s_ctx->tp.s + call_pos,
+                    (s_ctx->tp.p - s_ctx->tp.s));
+
+            memcpy(s_ctx->tp.s, m, call.p - call.s);
+
+            /* Shift 'pos' on diff & store new pkt size
+             */
+            s_ctx->tp.p += pos_diff;
+            *s_ctx->tp.size = 0xce;
+            *(uint32_t*)(s_ctx->tp.size + 1)
+                        = mp_bswap_u32(s_ctx->tp.p - s_ctx->tp.size - 5);
+
+            rc = 1;
+
+hooking_call_done:
+            if (mp_likely(m != NULL))
+                FREE(s_ctx, m);
+
+        } else /* 'method' before 'params'.
+                *  Just reset tp's positions
+                */
+        {
+            s_ctx->tp.p = s_ctx->tp.s;
+            s_ctx->tp.sync = 0;
+            s_ctx->tp.size = NULL;
+
+            if (mp_unlikely(!tp_call(&s_ctx->tp, (char *)str, len))) {
+                say_error(s_ctx, "'output' buffer overflow");
+                return 0;
+            }
+
+            rc = 1;
+        }
+
+        dd("METHOD END\n");
+
+        s_ctx->stage = START;
+        s_ctx->been_stages |= METHOD;
+
+        return rc;
+    }
 
     return 1;
 }
@@ -320,15 +339,12 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
 
         dd("key: %.*s\n", (int)len, key);
 
-        if (mp_likely(s_ctx->tp_stage == TP_ARGS)) {
-            sinc_if_map(s_ctx);
+        sinc_if_map(s_ctx);
 
-            if (mp_unlikely(!tp_encode_str(&s_ctx->tp, (char *)key, len)))
-                say_overflow_r_2(s_ctx);
-        } else
-            BAD_TNT_METHOD_R
+        if (mp_unlikely(!tp_encode_str(&s_ctx->tp, (char *)key, len)))
+            say_overflow_r_2(s_ctx);
 
-    } else if (s_ctx->stage != ID && s_ctx->stage != METHOD) {
+    } else if (s_ctx->stage == START) {
 
         if (len == sizeof("params") - 1
             && key[0] == 'p'
@@ -340,7 +356,6 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
         {
             dd("PARAMS STAGE\n");
             s_ctx->stage = PARAMS;
-            s_ctx->tp_stage = TP_METHOD;
             s_ctx->been_stages |= PARAMS;
         }
         else if (len == sizeof("id") - 1
@@ -361,7 +376,6 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
         {
             dd("METHOD STAGE\n");
             s_ctx->stage = METHOD;
-            s_ctx->been_stages |= METHOD;
         }
         else
         {
@@ -371,7 +385,8 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
                 l, key);
             return 0;
         }
-    }
+    } else
+        s_ctx->stage = START;
 
     return 1;
 }
@@ -381,33 +396,27 @@ yajl_start_map(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    if (mp_likely(s_ctx->stage == PARAMS)) {
+    if (mp_unlikely(s_ctx->stage != PARAMS))
+        return 1;
 
-        if (mp_likely(s_ctx->tp_stage == TP_ARGS)) {
+    dd("map open '{'\n");
 
-            dd("map open '{'\n");
+    sinc_if_array(s_ctx);
 
-            sinc_if_array(s_ctx);
+    bool r = false;
+    if (mp_unlikely(s_ctx->size == 0))
+        r = spush(s_ctx, s_ctx->tp.p, TYPE_MAP | PARAMS);
+    else
+        r = spush(s_ctx, s_ctx->tp.p, TYPE_MAP);
+    if (mp_unlikely(!r)) {
+        say_error(s_ctx, "'stack' overflow");
+        return 0;
+    }
 
-            bool r = false;
-            if (mp_unlikely(s_ctx->size == 0))
-                r = spush(s_ctx, s_ctx->tp.p, TYPE_MAP | PARAMS);
-            else
-                r = spush(s_ctx, s_ctx->tp.p, TYPE_MAP);
-            if (mp_unlikely(!r)) {
-                say_error(s_ctx, "'stack' overflow");
-                return 0;
-            }
+    if (mp_unlikely(s_ctx->tp.e < s_ctx->tp.p + 1 + sizeof(uint32_t)))
+        say_overflow_r_2(s_ctx);
 
-            if (mp_unlikely(s_ctx->tp.e < s_ctx->tp.p + 1 + sizeof(uint32_t)))
-                say_overflow_r_2(s_ctx);
-
-            tp_add(&s_ctx->tp, 1 + sizeof(uint32_t));
-        } else
-            BAD_TNT_METHOD_R
-
-    } else if (s_ctx->stage == ID)
-        BAD_ID_R
+    tp_add(&s_ctx->tp, 1 + sizeof(uint32_t));
 
     return 1;
 }
@@ -417,28 +426,23 @@ static int
 yajl_end_map(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
+    if (mp_unlikely(s_ctx->stage != PARAMS))
+        return 1;
 
-    if (mp_likely(s_ctx->stage == PARAMS)) {
+    stack_item_t *item = spop(s_ctx);
+    if (mp_likely(item != NULL)) {
 
-        if (mp_likely(s_ctx->tp_stage == TP_ARGS)) {
+        dd("map close, count %d '}'\n", (int)item->count);
 
-            stack_item_t *item = spop(s_ctx);
-            if (item && !(item->type & TP_METHOD)) {
+        *(item->ptr++) = 0xdf;
+        *(uint32_t *) item->ptr = mp_bswap_u32(item->count);
 
-                dd("map close, count %d '}'\n", (int)item->count);
-
-                *(item->ptr++) = 0xdf;
-                *(uint32_t *) item->ptr = mp_bswap_u32(item->count);
-
-             if (mp_unlikely(item->type & PARAMS)) {
-                    s_ctx->stage = START;
-                    s_ctx->tp_stage = TP_START;
-                }
-            }
-
-        } else
-            BAD_TNT_METHOD_R
-    }
+        if (mp_unlikely(item->type & PARAMS)) {
+            dd("PARAMS END\n");
+            s_ctx->stage = START;
+        }
+    } else
+        s_ctx->stage = START;
 
     return 1;
 }
@@ -448,36 +452,27 @@ yajl_start_array(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    if (mp_likely(s_ctx->stage != PARAMS))
+    if (mp_unlikely(s_ctx->stage != PARAMS))
         return 1;
 
-    if (mp_unlikely(s_ctx->tp_stage == TP_METHOD)) {
+    dd("array open '['\n");
 
-        return 1;
+    sinc_if_array(s_ctx);
 
-    } else if (s_ctx->tp_stage == TP_ARGS) {
+    bool r = false;
+    if (mp_unlikely(s_ctx->size == 0))
+        r = spush(s_ctx, s_ctx->tp.p, TYPE_ARRAY | PARAMS);
+    else
+        r = spush(s_ctx, s_ctx->tp.p, TYPE_ARRAY);
+    if (mp_unlikely(!r)) {
+        say_error(s_ctx, "'stack' overflow");
+        return 0;
+    }
 
-        dd("array open '['\n");
+    if (mp_unlikely(s_ctx->tp.e < s_ctx->tp.p + 1 + sizeof(uint32_t)))
+        say_overflow_r_2(s_ctx);
 
-        sinc_if_array(s_ctx);
-
-        bool r = false;
-        if (mp_unlikely(s_ctx->size == 0))
-            r = spush(s_ctx, s_ctx->tp.p, TYPE_ARRAY | PARAMS);
-        else
-            r = spush(s_ctx, s_ctx->tp.p, TYPE_ARRAY);
-        if (mp_unlikely(!r)) {
-            say_error(s_ctx, "'stack' overflow");
-            return 0;
-        }
-
-        if (mp_unlikely(s_ctx->tp.e < s_ctx->tp.p + 1 + sizeof(uint32_t)))
-            say_overflow_r_2(s_ctx);
-
-        tp_add(&s_ctx->tp, 1 + sizeof(uint32_t));
-
-    } else
-        BAD_TNT_METHOD_R
+    tp_add(&s_ctx->tp, 1 + sizeof(uint32_t));
 
     return 1;
 }
@@ -490,27 +485,19 @@ yajl_end_array(void *ctx)
     if (mp_unlikely(s_ctx->stage != PARAMS))
         return 1;
 
-    stack_item_t *item = stop(s_ctx);
-    if (item && item->type & TP_METHOD)
-        s_ctx->stage = START;
+    stack_item_t *item = spop(s_ctx);
+    if (mp_likely(item != NULL)) {
+        dd("array close, count %d ']'\n", item->count);
 
-    if (mp_likely(s_ctx->tp_stage == TP_ARGS)) {
+        *(item->ptr++) = 0xdd;
+        *(uint32_t *) item->ptr = mp_bswap_u32(item->count);
 
-        stack_item_t *item = spop(s_ctx);
-        if (item && !(item->type & TP_METHOD)) {
-            dd("array close, count %d ']'\n", item->count);
-
-            *(item->ptr++) = 0xdd;
-            *(uint32_t *) item->ptr = mp_bswap_u32(item->count);
-
-            if (item->type & PARAMS)
-                s_ctx->tp_stage = TP_START;
-
-            s_ctx->been_stages |= TP_ARGS;
+        if (mp_unlikely(item->type & PARAMS)) {
+            dd("PARAMS END\n");
+            s_ctx->stage = START;
         }
-
     } else
-        BAD_TNT_METHOD_R
+        s_ctx->stage = START;
 
     return 1;
 }
@@ -524,21 +511,23 @@ yajl_json2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
     };
 
     yajl_ctx_t *ctx = tc->mf.alloc(tc->mf.ctx, sizeof(yajl_ctx_t));
-    if (mp_unlikely(ctx == NULL))
+    if (mp_unlikely(!ctx))
         goto error_exit;
 
     memset(ctx, 0 , sizeof(yajl_ctx_t));
 
     ctx->stage = START;
-    ctx->tp_stage = TP_START;
 
     ctx->output_size = output_size;
     tp_init(&ctx->tp, (char *)output, output_size, NULL, NULL);
 
+    tp_call(&ctx->tp, "t", 1);
+    ctx->call_end = ctx->tp.s + (ctx->tp.p - ctx->tp.s);
+
     ctx->size = 0;
     ctx->allocated = 16;
     ctx->stack = tc->mf.alloc(tc->mf.ctx, sizeof(stack_item_t) * 16);
-    if (ctx->stack == NULL)
+    if (mp_unlikely(!ctx->stack))
         goto error_exit;
 
     size_t i = 0;
@@ -549,14 +538,14 @@ yajl_json2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
     }
 
     ctx->yaf = tc->mf.alloc(tc->mf.ctx, sizeof(yajl_alloc_funcs));
-    if (!ctx->yaf)
+    if (mp_unlikely(!ctx->yaf))
         goto error_exit;
 
     *ctx->yaf = (yajl_alloc_funcs){tc->mf.alloc, tc->mf.realloc,
         tc->mf.free, tc->mf.ctx };
 
     ctx->hand = yajl_alloc(&callbacks, ctx->yaf, (void *)ctx);
-    if (mp_unlikely(ctx->hand == NULL))
+    if (mp_unlikely(!ctx->hand))
         goto error_exit;
 
     ctx->tc = tc;
@@ -585,20 +574,21 @@ static void
 yajl_json2tp_free(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
-    if (s_ctx) {
-        tp_transcode_t * tc = s_ctx->tc;
+    if (mp_unlikely(!s_ctx))
+        return;
 
-        if (s_ctx->stack)
-            FREE(s_ctx, s_ctx->stack);
+    tp_transcode_t * tc = s_ctx->tc;
 
-        if (s_ctx->yaf)
-            FREE(s_ctx, s_ctx->yaf);
+    if (mp_likely(s_ctx->stack != NULL))
+        FREE(s_ctx, s_ctx->stack);
 
-        if (mp_likely(s_ctx->hand != NULL))
-            yajl_free(s_ctx->hand);
+    if (mp_likely(s_ctx->yaf != NULL))
+        FREE(s_ctx, s_ctx->yaf);
 
-        tc->mf.free(tc->mf.ctx, s_ctx);
-    }
+    if (mp_likely(s_ctx->hand != NULL))
+        yajl_free(s_ctx->hand);
+
+    tc->mf.free(tc->mf.ctx, s_ctx);
 }
 
 static enum tt_result
@@ -617,12 +607,10 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
         if (s_ctx->tc->errmsg[0] == 0) {
             stat = yajl_complete_parse(s_ctx->hand);
             unsigned char *err = yajl_get_error(s_ctx->hand, 0,
-                        input_, input_size);
-            int l = strlen((char *)err);
-            if (l > 0) {
-                l -= 1; /* skip \n */
-                say_error(s_ctx, "%.*s", l, (char *)err);
-            }
+                                                input_, input_size);
+            const int l = strlen((char *)err);
+            if (l > 0)
+                say_error(s_ctx, "%.*s", l - 1 /* skip \n */, (char *)err);
             yajl_free_error(s_ctx->hand, err);
         }
 
@@ -637,6 +625,10 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
 static enum tt_result
 yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
 {
+    static const char * unknown_error =
+                                    "json _must_ contain 'method':'tnt_call',"
+                                    "'params':object ";
+
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
     char *p = &s_ctx->tc->errmsg[0];
@@ -645,24 +637,18 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
     const yajl_status stat = yajl_complete_parse(s_ctx->hand);
     if (mp_unlikely(stat != yajl_status_ok)) {
 
-        if (s_ctx->tc->errmsg[0] == 0) {
-            p += snprintf(p, e - p, "json _must_ contain 'method':str,"
-                        "'params': ['tnt_method', arg1, ... argN]");
-        }
+        if (s_ctx->tc->errmsg[0] == 0)
+            p += snprintf(p, e - p, "%s", unknown_error);
 
         return TP_TRANSCODE_ERROR;
     }
 
     if (mp_unlikely(
         !(s_ctx->been_stages & METHOD
-            && s_ctx->been_stages & PARAMS
-            && s_ctx->been_stages & TP_METHOD
-            && s_ctx->been_stages & TP_ARGS)
-        || !s_ctx->been_stages
-    ))
+            && s_ctx->been_stages & PARAMS)
+        || !s_ctx->been_stages))
     {
-        p += snprintf(p, e - p, "json _must_ contain 'method':str,"
-                        "'params': ['tnt_method', arg1, ... argN]");
+        p += snprintf(p, e - p, "%s", unknown_error);
         return TP_TRANSCODE_ERROR;
     }
 
@@ -692,23 +678,26 @@ static void*
 tp2json_create(tp_transcode_t *tc, char *output, size_t output_size)
 {
     tp2json_t *ctx = tc->mf.alloc(tc->mf.ctx, sizeof(tp2json_t));
-    if (mp_likely(ctx != NULL)) {
-        ctx->pos = ctx->output = output;
-        ctx->end = output + output_size;
-        ctx->tc = tc;
-        ctx->tp_reply_stage = true;
-    }
+    if (mp_unlikely(!ctx))
+        return NULL;
+
+    ctx->pos = ctx->output = output;
+    ctx->end = output + output_size;
+    ctx->tc = tc;
+    ctx->tp_reply_stage = true;
+
     return ctx;
 }
 
 static void
 tp2json_free(void *ctx_)
 {
-    if (ctx_) {
-        tp2json_t *ctx = ctx_;
-        tp_transcode_t * tc = ctx->tc;
-        tc->mf.free(tc->mf.ctx, ctx);
-    }
+    tp2json_t *ctx = ctx_;
+    if (mp_unlikely(!ctx))
+        return;
+
+    tp_transcode_t * tc = ctx->tc;
+    tc->mf.free(tc->mf.ctx, ctx);
 }
 
 static enum tt_result
