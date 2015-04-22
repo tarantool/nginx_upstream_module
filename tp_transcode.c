@@ -6,8 +6,7 @@
 #include "tp.h"
 #include "tp_transcode.h"
 
-#define VERBOSE 1
-#if defined VERBOSE
+#if defined DEBUG
 #define dd(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define dd(...)
