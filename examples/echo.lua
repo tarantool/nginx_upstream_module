@@ -1,6 +1,6 @@
 json=require('json');
 
-function echo(a)
+function call(a)
   if type(a) == 'table' then
     return  {{a}}
   end

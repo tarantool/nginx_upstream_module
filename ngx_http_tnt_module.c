@@ -849,6 +849,8 @@ ngx_http_set_input_parse_errmsg(ngx_http_request_t *r,
         ngx_snprintf(ctx->errmsg.data, ctx->errmsg.len, ERR_RES_FMT,
                      ctx->in_t.errcode, ctx->in_t.errmsg);
 
+        dd("parse error: %.*s", (int)ctx->errmsg.len, ctx->errmsg.data);
+
     }
 
     return NGX_OK;

@@ -44,7 +44,7 @@
             var $input = $('#input');
             var call = JSON.stringify({
               method: 'call',
-              params: ['echo', [JSON.parse($input.val())]],
+              params: ['echo', JSON.parse($input.val())],
               id: ++id
             });
 
