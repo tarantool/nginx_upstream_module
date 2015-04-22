@@ -67,13 +67,14 @@ typedef struct tp_transcode {
   tp_codec_t codec;
   mem_fun_t mf;
   char errmsg[128];
+  int errcode;
 } tp_transcode_t;
 
 /** Returns codes
  */
 enum tt_result {
   TP_TRANSCODE_OK    = 1,
-  TP_TRANSCODE_ERROR = 2
+  TP_TRANSCODE_ERROR
 };
 
 ssize_t

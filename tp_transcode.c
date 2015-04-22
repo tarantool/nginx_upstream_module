@@ -6,6 +6,7 @@
 #include "tp.h"
 #include "tp_transcode.h"
 
+#define DEBUG
 #if defined DEBUG
 #define dd(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -39,7 +40,14 @@ while (0)
 
 enum { MAX_STACK_SIZE = 254 - 1 };
 enum type { TYPE_MAP = 1, TYPE_ARRAY = 2 };
-enum stage { START = 0, PARAMS = 4, ID = 8, METHOD = 16 };
+enum stage {
+    INIT        = 0,
+    BATCH       = 1,
+    WAIT_NEXT   = 2,
+    PARAMS      = 4,
+    ID          = 8,
+    METHOD      = 16
+};
 
 typedef struct {
     char *ptr;
@@ -200,7 +208,7 @@ yajl_integer(void *ctx, long long v)
         }
 
         s_ctx->id = v;
-        s_ctx->stage = START;
+        s_ctx->stage = WAIT_NEXT;
     }
 
     return 1;
@@ -320,7 +328,7 @@ hooking_call_done:
 
         dd("METHOD END\n");
 
-        s_ctx->stage = START;
+        s_ctx->stage = WAIT_NEXT;
         s_ctx->been_stages |= METHOD;
 
         return rc;
@@ -334,6 +342,11 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
+    if (mp_unlikely(s_ctx->stage == INIT)) {
+        dd("MESSAGE START\n");
+        s_ctx->stage = WAIT_NEXT;
+    }
+
     if (mp_likely(s_ctx->stage == PARAMS)) {
 
         dd("key: %.*s\n", (int)len, key);
@@ -343,7 +356,7 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
         if (mp_unlikely(!tp_encode_str(&s_ctx->tp, (char *)key, len)))
             say_overflow_r_2(s_ctx);
 
-    } else if (s_ctx->stage == START) {
+    } else if (s_ctx->stage == WAIT_NEXT) {
 
         if (len == sizeof("params") - 1
             && key[0] == 'p'
@@ -377,15 +390,9 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
             s_ctx->stage = METHOD;
         }
         else
-        {
-            const int l = len > 32 ? 32 : len;
-            say_error(s_ctx,
-                "unknown key '%.*s', allowed: 'method', 'params', 'id'",
-                l, key);
-            return 0;
-        }
+            dd("SKIPING: %.*s\n", (int)len, key);
     } else
-        s_ctx->stage = START;
+        s_ctx->stage = WAIT_NEXT;
 
     return 1;
 }
@@ -438,10 +445,10 @@ yajl_end_map(void *ctx)
 
         if (mp_unlikely(item->type & PARAMS)) {
             dd("PARAMS END\n");
-            s_ctx->stage = START;
+            s_ctx->stage = WAIT_NEXT;
         }
     } else
-        s_ctx->stage = START;
+        s_ctx->stage = WAIT_NEXT;
 
     return 1;
 }
@@ -450,6 +457,11 @@ static int
 yajl_start_array(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
+
+    if (mp_unlikely(s_ctx->stage == INIT)) {
+        say_error(s_ctx, "Batch not suported yet");
+        return 0;
+    }
 
     if (mp_unlikely(s_ctx->stage != PARAMS))
         return 1;
@@ -493,10 +505,10 @@ yajl_end_array(void *ctx)
 
         if (mp_unlikely(item->type & PARAMS)) {
             dd("PARAMS END\n");
-            s_ctx->stage = START;
+            s_ctx->stage = WAIT_NEXT;
         }
     } else
-        s_ctx->stage = START;
+        s_ctx->stage = WAIT_NEXT;
 
     return 1;
 }
@@ -515,7 +527,7 @@ yajl_json2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
 
     memset(ctx, 0 , sizeof(yajl_ctx_t));
 
-    ctx->stage = START;
+    ctx->stage = INIT;
 
     ctx->output_size = output_size;
     tp_init(&ctx->tp, (char *)output, output_size, NULL, NULL);
@@ -604,6 +616,7 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
     if (mp_unlikely(stat != yajl_status_ok)) {
 
         if (s_ctx->tc->errmsg[0] == 0) {
+            s_ctx->tc->errcode = -32700;
             stat = yajl_complete_parse(s_ctx->hand);
             unsigned char *err = yajl_get_error(s_ctx->hand, 0,
                                                 input_, input_size);
@@ -624,38 +637,36 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
 static enum tt_result
 yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
 {
-    static const char * unknown_error =
-                                    "json _must_ contain 'method':'tnt_call',"
-                                    "'params':object ";
-
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
     char *p = &s_ctx->tc->errmsg[0];
     char *e = &s_ctx->tc->errmsg[0] + sizeof(s_ctx->tc->errmsg) - 1;
 
     const yajl_status stat = yajl_complete_parse(s_ctx->hand);
-    if (mp_unlikely(stat != yajl_status_ok)) {
-
-        if (s_ctx->tc->errmsg[0] == 0)
-            p += snprintf(p, e - p, "%s", unknown_error);
-
+    if (mp_likely(stat == yajl_status_ok)) {
+        tp_reqid(&s_ctx->tp, s_ctx->id);
+        *complete_msg_size = tp_used(&s_ctx->tp);
+        return TP_TRANSCODE_OK;
+    } else if (s_ctx->tc->errmsg[0] != 0) {
+        p += snprintf(p, e - p, "%s", s_ctx->tc->errmsg);
+        s_ctx->tc->errcode = -32000;
         return TP_TRANSCODE_ERROR;
     }
 
-    if (mp_unlikely(
-        !(s_ctx->been_stages & METHOD
-            && s_ctx->been_stages & PARAMS)
-        || !s_ctx->been_stages))
-    {
-        p += snprintf(p, e - p, "%s", unknown_error);
-        return TP_TRANSCODE_ERROR;
+    if (mp_unlikely(!(s_ctx->been_stages & METHOD))) {
+        p += snprintf(p, e - p, "Method not found");
+    } else if (mp_unlikely(!(s_ctx->been_stages & PARAMS))) {
+        p += snprintf(p, e - p, "Params not found");
+    } else if (mp_unlikely(!(s_ctx->been_stages & ID))) {
+        p += snprintf(p, e - p, "Id not found");
+    } else {
+        p += snprintf(p, e - p,
+                "call _must_ contains 'method':'tnt_call',"
+                "'params':object ");
     }
 
-    tp_reqid(&s_ctx->tp, s_ctx->id);
-
-    *complete_msg_size = tp_used(&s_ctx->tp);
-
-    return TP_TRANSCODE_OK;
+    s_ctx->tc->errcode = -32600;
+    return TP_TRANSCODE_ERROR;
 }
 
 /**
@@ -935,6 +946,7 @@ tp2json_transcode(void *ctx_, const char *in, size_t in_size)
     return TP_TRANSCODE_OK;
 
 error_exit:
+    ctx->tc->errcode = -32700;
     ctx->pos = ctx->output;
     return TP_TRANSCODE_ERROR;
 }
@@ -1026,6 +1038,8 @@ tp_transcode_init(tp_transcode_t *t, char *output, size_t output_size,
     t->codec.ctx = t->codec.create(t, output, output_size);
     if (mp_unlikely(!t->codec.ctx))
         return TP_TRANSCODE_ERROR;
+
+    t->errcode = -32700;
 
     return TP_TRANSCODE_OK;
 }

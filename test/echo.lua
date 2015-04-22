@@ -1,10 +1,7 @@
 json=require('json');
 
-function echo(a)
-  if type(a) == 'table' then
-    return  {{a}}
-  end
-  return {a}
+function call(a,a1,a2,a3)
+  return {a, a1, a2, a3}
 end
 
 function big_echo()

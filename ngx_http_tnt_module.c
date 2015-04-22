@@ -57,6 +57,8 @@ static inline ngx_int_t ngx_http_tnt_read_greetings(ngx_http_request_t *r,
 static inline ngx_int_t ngx_http_tnt_say_error(ngx_http_request_t *r,
     ngx_http_tnt_ctx_t *ctx, ngx_int_t code);
 static inline void ngx_http_tnt_cleanup(ngx_http_request_t *r);
+static inline ngx_int_t ngx_http_set_input_parse_errmsg(ngx_http_request_t *r,
+    ngx_http_tnt_ctx_t *ctx);
 
 static ngx_int_t ngx_http_tnt_create_request(ngx_http_request_t *r);
 static ngx_int_t ngx_http_tnt_reinit_request(ngx_http_request_t *r);
@@ -74,43 +76,30 @@ static char *ngx_http_tnt_pass(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 
 
-static size_t JSON_RPC_MAGIC = sizeof(
-    "{"
-        "'error': {"
-            "'code':18446744073709551615,"
-            "'message':''"
-        "},"
-        "'result':{}, "
-        "'id':18446744073709551615"
-    "}") - 1;
+static size_t JSON_RPC_MAGIC = sizeof("{"
+                        "'error': {"
+                            "'code':-XXXXX,"
+                            "'message':''"
+                        "},"
+                        "'result':{},"
+                        "'id':4294967295"
+                    "}") - 1;
 
 static const u_char REQUEST_TOO_LARGE[] = "{"
-                        "\"result\":null,"
                         "\"error\":{"
+                            "\"code\":-32001,"
                             "\"message\":"
                                 "\"Request too large, consider increasing your "
                                 "server's setting 'client_body_buffer_size'\""
-                            "}"
-                        "}";
+                        "}"
+                    "}";
 
-static const u_char UNKNOWN_PARSE_ERROR[] = "{\"result\":null,"
-                                                "\"error\":{"
-                                                    "\"message\":"
-                                                    "\"Unknown parse error\""
-                                                "}"
-                                            "}";
-
-static const char ERR_RES_FMT[] = "{"
-                                        "\"result\":null,"
-                                        "\"error\":{"
-                                            "\"message\":\"%s\""
-                                            "}"
-                                        "}";
-
-static const size_t ERR_RES_SIZE = sizeof("{'result':null,"
-                                                "'error':{'message':''}"
-                                            "}") - 1;
-
+static const u_char UNKNOWN_PARSE_ERROR[] = "{"
+                        "\"error\":{"
+                            "\"code\":-32002,"
+                            "\"message\":\"Unknown parse error\""
+                        "}"
+                    "}";
 
 static ngx_conf_bitmask_t  ngx_http_tnt_next_upstream_masks[] = {
     { ngx_string("error"), NGX_HTTP_UPSTREAM_FT_ERROR },
@@ -358,16 +347,8 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         {
             dd("[input] failed: '%s'", ctx->in_t.errmsg);
 
-            if (ctx->in_t.errmsg[0] != 0) {
-                ctx->errmsg.len = ngx_strlen(ctx->in_t.errmsg) + ERR_RES_SIZE;
-                ctx->errmsg.data = ngx_palloc(r->pool, ctx->errmsg.len);
-                if (ctx->errmsg.data == NULL) {
-                    goto error_exit;
-                }
-
-                ngx_snprintf(ctx->errmsg.data, ctx->errmsg.len, ERR_RES_FMT,
-                        ctx->in_t.errmsg);
-
+            if (ngx_http_set_input_parse_errmsg(r, ctx) == NGX_ERROR) {
+                return NGX_ERROR;
             }
 
             ctx->state = INPUT_JSON_PARSE_FAILED;
@@ -387,16 +368,8 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
     {
         dd("[input] failed to complete");
 
-        if (ctx->in_t.errmsg[0] != 0) {
-            ctx->errmsg.len = ngx_strlen(ctx->in_t.errmsg) + ERR_RES_SIZE;
-            ctx->errmsg.data = ngx_palloc(r->pool, ctx->errmsg.len);
-            if (ctx->errmsg.data == NULL) {
-                goto error_exit;
-            }
-
-            ngx_snprintf(ctx->errmsg.data, ctx->errmsg.len, ERR_RES_FMT,
-                    ctx->in_t.errmsg);
-
+        if (ngx_http_set_input_parse_errmsg(r, ctx) == NGX_ERROR) {
+            return NGX_ERROR;
         }
 
         ctx->state = INPUT_JSON_PARSE_FAILED;
@@ -847,6 +820,39 @@ ngx_http_tnt_read_greetings(ngx_http_request_t *r,
     return NGX_ERROR;
 }
 
+
+static inline ngx_int_t
+ngx_http_set_input_parse_errmsg(ngx_http_request_t *r,
+                                ngx_http_tnt_ctx_t *ctx)
+{
+    static const char ERR_RES_FMT[] = "{"
+                        "\"error\":{"
+                            "\"code\":%d,"
+                            "\"message\":\"%s\""
+                        "}"
+                    "}";
+
+    static const size_t ERR_RES_SIZE = sizeof("{"
+                        "'error':{"
+                            "'message':'',"
+                            "'code':-XXXXX"
+                        "}"
+                    "}") - 1;
+
+    if (ctx->in_t.errmsg[0] != 0) {
+        ctx->errmsg.len = ngx_strlen(ctx->in_t.errmsg) + ERR_RES_SIZE;
+        ctx->errmsg.data = ngx_palloc(r->pool, ctx->errmsg.len);
+        if (ctx->errmsg.data == NULL) {
+            return NGX_ERROR;
+        }
+
+        ngx_snprintf(ctx->errmsg.data, ctx->errmsg.len, ERR_RES_FMT,
+                     ctx->in_t.errcode, ctx->in_t.errmsg);
+
+    }
+
+    return NGX_OK;
+}
 
 static inline ngx_int_t ngx_http_tnt_say_error(ngx_http_request_t *r,
                                                ngx_http_tnt_ctx_t *ctx,
