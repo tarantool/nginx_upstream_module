@@ -6,7 +6,7 @@ import traceback
 import os
 
 URL = 'http://127.0.0.1:8081/tnt'
-VERBOSE = True
+VERBOSE = False
 
 def request_raw(data):
     out = '{}'
@@ -49,7 +49,7 @@ def echo_check(r, bad_request_expected = False):
     else:
         assert(rc == 200), 'echo_check expected HTTP code 200'
         assert('result' in res), 'expected result'
-        assert(res['result'][0] == r['params'][1]), \
+        assert(res['result'][0] == r['params']), \
             'echo_check result must be same as params'
 
 ###
