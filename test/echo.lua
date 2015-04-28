@@ -1,16 +1,26 @@
 json=require('json');
 
-function call(a,a1,a2,a3)
-  return {a, a1, a2, a3}
+function echo_1(a)
+  print (a)
+  return {a}
 end
 
-function big_echo()
+function ret_4096()
   local out = {}
-  for i = 0, 100000 do
-    out[i] = "string";
+  for i = 0, 801 do
+    out[i] = i;
   end
-  return {{out}};
+  return {{out, "101234567891234567"}};
 end
+
+function ret_4095()
+  local out = {}
+  for i = 0, 801 do
+    out[i] = i;
+  end
+  return {{out, "10123456789123456"}};
+end
+
 
 box.cfg {
     log_level = 5;

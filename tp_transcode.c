@@ -42,7 +42,6 @@ enum { MAX_STACK_SIZE = 254 - 1 };
 enum type { TYPE_MAP = 1, TYPE_ARRAY = 2 };
 enum stage {
     INIT        = 0,
-    BATCH       = 1,
     WAIT_NEXT   = 2,
     PARAMS      = 4,
     ID          = 8,
@@ -68,17 +67,64 @@ typedef struct {
     struct tp tp;
 
     enum stage stage;
+    bool batch_mode_on;
 
     int been_stages;
 
     uint32_t id;
 
     tp_transcode_t *tc;
-    char *call_end;
 } yajl_ctx_t;
 
+static inline char*
+tp_call_wof(struct tp *p)
+{
+    int sz = 5 +
+            mp_sizeof_map(2) +
+            mp_sizeof_uint(TP_CODE) +
+            mp_sizeof_uint(TP_CALL) +
+            mp_sizeof_uint(TP_SYNC) +
+            5 +
+            mp_sizeof_map(2);
+    if (tpunlikely(tp_ensure(p, sz) == -1))
+        return NULL;
+    p->size = p->p;
+    char *h = mp_encode_map(p->p + 5, 2);
+    h = mp_encode_uint(h, TP_CODE);
+    h = mp_encode_uint(h, TP_CALL);
+    h = mp_encode_uint(h, TP_SYNC);
+    p->sync = h;
+    *h = 0xce;
+    *(uint32_t*)(h + 1) = 0;
+    h += 5;
+    h = mp_encode_map(h, 2);
+    return tp_add(p, sz);
+}
+
+static inline char*
+tp_call_wof_add_func(struct tp *p, const char *function, int len)
+{
+    int sz = mp_sizeof_uint(TP_FUNCTION) +
+                mp_sizeof_str(len);
+    if (tpunlikely(tp_ensure(p, sz) == -1))
+        return NULL;
+    char *h = mp_encode_uint(p->p, TP_FUNCTION);
+    h = mp_encode_str(h, function, len);
+    return tp_add(p, sz);
+}
+
+static inline char*
+tp_call_wof_add_params(struct tp *p)
+{
+    int sz = mp_sizeof_uint(TP_TUPLE);
+    if (tpunlikely(tp_ensure(p, sz) == -1))
+        return NULL;
+    mp_encode_uint(p->p, TP_TUPLE);
+    return tp_add(p, sz);
+}
+
 static inline bool
-spush(yajl_ctx_t *s,  char *ptr, int mask)
+spush(yajl_ctx_t *s, char *ptr, int mask)
 {
     if (mp_likely(s->size < MAX_STACK_SIZE)) {
 
@@ -207,7 +253,8 @@ yajl_integer(void *ctx, long long v)
             return 0;
         }
 
-        s_ctx->id = v;
+        tp_reqid(&s_ctx->tp, v);
+        s_ctx->been_stages |= ID;
         s_ctx->stage = WAIT_NEXT;
     }
 
@@ -253,85 +300,16 @@ yajl_string(void *ctx, const unsigned char * str, size_t len)
 
     } else if (s_ctx->stage == METHOD) {
 
-        dd("method: %.*s\n", (int)len, str);
+        dd("METHOD: %.*s\n", (int)len, str);
 
-        int rc = 0;
-
-        if (s_ctx->been_stages & PARAMS) {
-
-            const size_t call_pos = (s_ctx->call_end - s_ctx->tp.s);
-            const size_t m_size = len + call_pos + 5;
-
-            char *m = ALLOC(s_ctx, m_size);
-            if (mp_unlikely(!m)) {
-                say_error(s_ctx, "'output' buffer overflow");
-                goto hooking_call_done;
-            }
-
-            struct tp call;
-            tp_init(&call, m, m_size, NULL, NULL);
-            if (mp_unlikely(!tp_call(&call, (char *)str, len))) {
-                say_error(s_ctx, "'output' buffer overflow");
-                goto hooking_call_done;
-            }
-
-            const ssize_t pos_diff = (call.p - call.s) - call_pos;
-            if (mp_unlikely(pos_diff < 0)) {
-                say_error(s_ctx,
-                            "If you see this message know BIG shit happend"
-                            "at line %d", __LINE__);
-                goto hooking_call_done;
-            }
-
-            if (mp_unlikely( (s_ctx->tp.p - s_ctx->tp.s + pos_diff)
-                        > s_ctx->tp.e - s_ctx->tp.s
-                        ) )
-            {
-                say_error(s_ctx, "'output' buffer overflow");
-                goto hooking_call_done;
-            }
-
-            memmove(s_ctx->tp.s + (call.p - call.s) /* already + 5 */,
-                    s_ctx->tp.s + call_pos,
-                    (s_ctx->tp.p - s_ctx->tp.s));
-
-            memcpy(s_ctx->tp.s, m, call.p - call.s);
-
-            /* Shift 'pos' on diff & store new pkt size
-             */
-            s_ctx->tp.p += pos_diff;
-            *s_ctx->tp.size = 0xce;
-            *(uint32_t*)(s_ctx->tp.size + 1)
-                        = mp_bswap_u32(s_ctx->tp.p - s_ctx->tp.size - 5);
-
-            rc = 1;
-
-hooking_call_done:
-            if (mp_likely(m != NULL))
-                FREE(s_ctx, m);
-
-        } else /* 'method' before 'params'.
-                *  Just reset tp's positions
-                */
-        {
-            s_ctx->tp.p = s_ctx->tp.s;
-            s_ctx->tp.sync = 0;
-            s_ctx->tp.size = NULL;
-
-            if (mp_unlikely(!tp_call(&s_ctx->tp, (char *)str, len))) {
-                say_error(s_ctx, "'output' buffer overflow");
-                return 0;
-            }
-
-            rc = 1;
-        }
+        if (mp_unlikely(
+                !tp_call_wof_add_func(&s_ctx->tp, (const char *)str, len)))
+                say_overflow_r_2(s_ctx);
 
         dd("METHOD END\n");
 
         s_ctx->stage = WAIT_NEXT;
         s_ctx->been_stages |= METHOD;
-
-        return rc;
     }
 
     return 1;
@@ -345,6 +323,9 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
     if (mp_unlikely(s_ctx->stage == INIT)) {
         dd("MESSAGE START\n");
         s_ctx->stage = WAIT_NEXT;
+        ++s_ctx->tc->batch_size;
+        if (!tp_call_wof(&s_ctx->tp))
+            return 0;
     }
 
     if (mp_likely(s_ctx->stage == PARAMS)) {
@@ -367,8 +348,11 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
             && key[5] == 's')
         {
             dd("PARAMS STAGE\n");
+
+            if (mp_unlikely(!tp_call_wof_add_params(&s_ctx->tp)))
+                say_overflow_r_2(s_ctx);
+
             s_ctx->stage = PARAMS;
-            s_ctx->been_stages |= PARAMS;
         }
         else if (len == sizeof("id") - 1
             && key[0] == 'i'
@@ -376,7 +360,6 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
         {
             dd("ID STAGE\n");
             s_ctx->stage = ID;
-            s_ctx->been_stages |= ID;
         }
         else if (len == sizeof("method") - 1
                 && key[0] == 'm'
@@ -432,6 +415,15 @@ static int
 yajl_end_map(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
+
+    if ((s_ctx->been_stages & (PARAMS | ID | METHOD))
+            == (PARAMS | ID | METHOD))
+    {
+        dd("WAIT NEXT BATCH\n");
+        s_ctx->stage = INIT;
+        s_ctx->been_stages = 0;
+    }
+
     if (mp_unlikely(s_ctx->stage != PARAMS))
         return 1;
 
@@ -446,9 +438,10 @@ yajl_end_map(void *ctx)
         if (mp_unlikely(item->type & PARAMS)) {
             dd("PARAMS END\n");
             s_ctx->stage = WAIT_NEXT;
+            s_ctx->been_stages |= PARAMS;
         }
     } else
-        s_ctx->stage = WAIT_NEXT;
+        assert(false);
 
     return 1;
 }
@@ -459,8 +452,8 @@ yajl_start_array(void *ctx)
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
     if (mp_unlikely(s_ctx->stage == INIT)) {
-        say_error(s_ctx, "Batch not suported yet");
-        return 0;
+        s_ctx->batch_mode_on = true;
+        return 1;
     }
 
     if (mp_unlikely(s_ctx->stage != PARAMS))
@@ -506,9 +499,10 @@ yajl_end_array(void *ctx)
         if (mp_unlikely(item->type & PARAMS)) {
             dd("PARAMS END\n");
             s_ctx->stage = WAIT_NEXT;
+            s_ctx->been_stages |= PARAMS;
         }
     } else
-        s_ctx->stage = WAIT_NEXT;
+        assert(false);
 
     return 1;
 }
@@ -531,9 +525,6 @@ yajl_json2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
 
     ctx->output_size = output_size;
     tp_init(&ctx->tp, (char *)output, output_size, NULL, NULL);
-
-    tp_call(&ctx->tp, "t", 1);
-    ctx->call_end = ctx->tp.s + (ctx->tp.p - ctx->tp.s);
 
     ctx->size = 0;
     ctx->allocated = 16;
@@ -644,7 +635,6 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
 
     const yajl_status stat = yajl_complete_parse(s_ctx->hand);
     if (mp_likely(stat == yajl_status_ok)) {
-        tp_reqid(&s_ctx->tp, s_ctx->id);
         *complete_msg_size = tp_used(&s_ctx->tp);
         return TP_TRANSCODE_OK;
     } else if (s_ctx->tc->errmsg[0] != 0) {
@@ -878,8 +868,7 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
 
     if (ctx->tp_reply_stage) {
 
-        rc = tp_reply(&ctx->r, in, in_size);
-        if (rc <= 0) {
+        if (tp_reply(&ctx->r, in, in_size) <= 0) {
             say_error(ctx, "tarantool message parse error");
             goto error_exit;
         }
@@ -930,6 +919,21 @@ tp2json_transcode(void *ctx_, const char *in, size_t in_size)
 
     /* Message len */
     enum tt_result rc = tp2json_transcode_internal(ctx, &it, end);
+    if (mp_unlikely(rc == TP_TRANSCODE_ERROR))
+        goto error_exit;
+
+    /* Header */
+    rc = tp2json_transcode_internal(ctx, &it, end);
+    if (mp_unlikely(rc == TP_TRANSCODE_ERROR))
+        goto error_exit;
+
+    /* Body */
+    rc = tp2json_transcode_internal(ctx, &it, end);
+    if (mp_unlikely(rc == TP_TRANSCODE_ERROR))
+        goto error_exit;
+
+    /* Message len */
+    rc = tp2json_transcode_internal(ctx, &it, end);
     if (mp_unlikely(rc == TP_TRANSCODE_ERROR))
         goto error_exit;
 
@@ -1048,8 +1052,8 @@ ssize_t
 tp_read_payload(const char * const buf, const char * const end)
 {
     const size_t size = end - buf;
-    if (size == 0 || size < 5)
-        return 0;
+    if (size == 0 || size < 4)
+        return -1;
     const char *p = buf, *test = buf;
     if (mp_check(&test, buf + size))
         return -1;

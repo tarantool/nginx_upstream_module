@@ -1,5 +1,4 @@
-/*
- * Copyright (C)
+/* Copyright (C)
  */
 
 #include <ngx_config.h>
@@ -9,57 +8,71 @@
 #include <tp_transcode.h>
 #include <debug.h>
 
-#if (NGX_HAVE_VARIADIC_MACROS)
-# define log_crit(log, ...) \
-     ngx_log_error_core(NGX_LOG_CRIT, (log), 0, __VA_ARGS__)
-# define crit(...) log_crit(r->connection->log, __VA_ARGS__)
-# else
-/** TODO
- *  Warn. user here
- */
-static inline void crit(...) {}
-#endif // NGX_HAVE_VARIADIC_MACROS
-
 enum ctx_state {
     OK = 0,
+
     INPUT_JSON_PARSE_FAILED,
-    INPUT_TO_LARGE
+    INPUT_TO_LARGE,
+    INPUT_EMPTY,
+
+    READ_PAYLOAD,
+    READ_BODY,
+    SEND_REPLY
 };
 
 
 typedef struct {
     ngx_http_upstream_conf_t upstream;
+    ngx_int_t                index;
 
     size_t                   in_multiplier;
     size_t                   out_multiplier;
-
-    ngx_int_t                index;
 } ngx_http_tnt_loc_conf_t;
 
 
 typedef struct {
-    tp_transcode_t      in_t, out_t;
 
-    ngx_buf_t           *in_cache;
-    ngx_chain_t         *out_chain;
+    struct {
+        u_char mem[6];
+        u_char *p, *e;
+    } payload;
 
-    ssize_t             payload;
-    ngx_int_t           greetings:1;
+    enum ctx_state     state;
+    ngx_buf_t          *in_err, *tp_cache;
+    ssize_t            rest, payload_size;
+    int8_t             rest_batch_size, batch_size;
+    ngx_int_t          greetings:1;
 
-    enum ctx_state      state;
-
-    ngx_str_t errmsg;
 } ngx_http_tnt_ctx_t;
 
 
+/** Pre-filter functions
+ */
+static inline ngx_http_tnt_ctx_t * ngx_http_tnt_create_ctx(
+    ngx_http_request_t *r);
+static inline void ngx_http_tnt_reset_ctx(ngx_http_tnt_ctx_t *ctx);
+static inline ngx_buf_t* ngx_http_set_err(ngx_http_request_t *r,
+    int errcode, const u_char *msg, size_t msglen);
+static inline ngx_int_t ngx_http_tnt_send_err(ngx_http_request_t *r,
+    ngx_http_tnt_ctx_t *ctx, ngx_int_t code);
+
+/** Filter functions
+ */
 static inline ngx_int_t ngx_http_tnt_read_greetings(ngx_http_request_t *r,
     ngx_http_tnt_ctx_t *ctx, ngx_buf_t *b);
-static inline ngx_int_t ngx_http_tnt_say_error(ngx_http_request_t *r,
-    ngx_http_tnt_ctx_t *ctx, ngx_int_t code);
-static inline void ngx_http_tnt_cleanup(ngx_http_request_t *r);
-static inline ngx_int_t ngx_http_set_input_parse_errmsg(ngx_http_request_t *r,
-    ngx_http_tnt_ctx_t *ctx);
+static ngx_int_t ngx_http_tnt_send_reply(ngx_http_request_t *r,
+    ngx_http_upstream_t *u, ngx_http_tnt_ctx_t *ctx);
+static ngx_int_t ngx_http_tnt_filter_reply(ngx_http_request_t *r,
+    ngx_http_upstream_t *u, ngx_buf_t *b);
 
+/** Rest
+ */
+static inline void ngx_http_tnt_cleanup(ngx_http_request_t *r);
+static inline ngx_buf_t * ngx_http_tnt_create_mem_buf(ngx_http_request_t *r,
+                            ngx_http_upstream_t *u, size_t size);
+
+/** Ngx handlers
+ */
 static ngx_int_t ngx_http_tnt_create_request(ngx_http_request_t *r);
 static ngx_int_t ngx_http_tnt_reinit_request(ngx_http_request_t *r);
 static ngx_int_t ngx_http_tnt_process_header(ngx_http_request_t *r);
@@ -76,7 +89,29 @@ static char *ngx_http_tnt_pass(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 
 
-static size_t JSON_RPC_MAGIC = sizeof("{"
+typedef struct ngx_http_tnt_error {
+    const ngx_str_t msg;
+    int code;
+} ngx_http_tnt_error_t;
+
+static const ngx_http_tnt_error_t errors[] = {
+
+    {   ngx_string("Request too large, consider increasing your "
+        "server's setting 'client_body_buffer_size'"),
+        -32001
+    },
+
+    {   ngx_string("Unknown parse error"),
+        -32002
+    }
+};
+
+enum ngx_http_tnt_err_messages_idx {
+    REQUEST_TOO_LARGE   = 0,
+    UNKNOWN_PARSE_ERROR = 1
+};
+
+static size_t RPC_EXTRA_SIZE = sizeof("{"
                         "'error': {"
                             "'code':-XXXXX,"
                             "'message':''"
@@ -85,21 +120,6 @@ static size_t JSON_RPC_MAGIC = sizeof("{"
                         "'id':4294967295"
                     "}") - 1;
 
-static const u_char REQUEST_TOO_LARGE[] = "{"
-                        "\"error\":{"
-                            "\"code\":-32001,"
-                            "\"message\":"
-                                "\"Request too large, consider increasing your "
-                                "server's setting 'client_body_buffer_size'\""
-                        "}"
-                    "}";
-
-static const u_char UNKNOWN_PARSE_ERROR[] = "{"
-                        "\"error\":{"
-                            "\"code\":-32002,"
-                            "\"message\":\"Unknown parse error\""
-                        "}"
-                    "}";
 
 static ngx_conf_bitmask_t  ngx_http_tnt_next_upstream_masks[] = {
     { ngx_string("error"), NGX_HTTP_UPSTREAM_FT_ERROR },
@@ -202,7 +222,8 @@ ngx_module_t  ngx_http_tnt_module = {
     NGX_MODULE_V1_PADDING
 };
 
-
+/** Ngx handlers
+ */
 static ngx_int_t
 ngx_http_tnt_handler(ngx_http_request_t *r)
 {
@@ -256,12 +277,11 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
 {
     ngx_buf_t               *b;
     ngx_chain_t             *body;
+    size_t                  complete_msg_size;
+    tp_transcode_t          tc;
     ngx_http_tnt_ctx_t      *ctx;
-    size_t                  complete_msg_size = 0;
-    size_t                  output_size;
+    ngx_chain_t             *out_chain;
     ngx_http_tnt_loc_conf_t *tlcf;
-
-    tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
     if (r->headers_in.content_length_n == 0) {
         /** XXX
@@ -271,56 +291,47 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
         return NGX_ERROR;
     }
 
-    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
+    ctx = ngx_http_tnt_create_ctx(r);
     if (ctx == NULL) {
-
-        ctx = ngx_palloc(r->pool, sizeof(ngx_http_tnt_ctx_t));
-        if (ctx == NULL) {
-            return NGX_ERROR;
-        }
-
-        memset(ctx, 0, sizeof(ngx_http_tnt_ctx_t));
-
-        ngx_http_set_ctx(r, ctx, ngx_http_tnt_module);
-
-        ctx->out_chain = ngx_alloc_chain_link(r->pool);
-        if (ctx->out_chain == NULL) {
-            return NGX_ERROR;
-        }
-
-        ctx->out_chain->next = NULL;
-
-        output_size = r->headers_in.content_length_n * tlcf->in_multiplier;
-        ctx->out_chain->buf = ngx_create_temp_buf(r->pool, output_size);
-        if (ctx->out_chain->buf == NULL) {
-            crit("[BUG] failed to allocate output buffer, size %ui",
-                    output_size);
-            return NGX_ERROR;
-        }
-        ctx->out_chain->buf->last_in_chain = 1;
-
-        dd("[output] out buffer size %i", (int)output_size);
-
-        if (tp_transcode_init(&ctx->in_t, (char *)ctx->out_chain->buf->start,
-                               output_size, YAJL_JSON_TO_TP, NULL)
-                == TP_TRANSCODE_ERROR)
-        {
-            crit("[BUG] failed to call tp_transcode_init(input)");
-            return NGX_ERROR;
-        }
-
-    } else /* return after NGX_AGAIN */ {
-
-        if (ctx->in_t.codec.create == NULL) {
-            crit("[BUG] ngx_http_tnt_create_request() invalid 'ctx'");
-            goto error_exit;
-        }
-
+        return NGX_ERROR;
     }
 
-    /** Input body transcoding
+    tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
+
+    out_chain = ngx_alloc_chain_link(r->pool);
+    if (out_chain == NULL) {
+        return NGX_ERROR;
+    }
+
+    out_chain->buf = ngx_create_temp_buf(r->pool,
+                        r->headers_in.content_length_n * tlcf->in_multiplier);
+    if (out_chain->buf == NULL) {
+        crit("[BUG?] failed to allocate output buffer, size %ui",
+              r->headers_in.content_length_n * tlcf->in_multiplier);
+        return NGX_ERROR;
+    }
+
+    out_chain->next = NULL;
+    out_chain->buf->memory = 1;
+    out_chain->buf->flush = 1;
+
+    out_chain->buf->pos = out_chain->buf->start;
+    out_chain->buf->last = out_chain->buf->pos;
+    out_chain->buf->last_in_chain = 1;
+
+    /**
+     *  Conv. input json to Tarantool message [
      */
-    ctx->state = OK;
+    if (tp_transcode_init(&tc,
+                          (char *)out_chain->buf->start,
+                          out_chain->buf->end - out_chain->buf->start,
+                          YAJL_JSON_TO_TP,
+                          NULL)
+            == TP_TRANSCODE_ERROR)
+    {
+        crit("[BUG] failed to call tp_transcode_init(input)");
+        return NGX_ERROR;
+    }
 
     for (body = r->upstream->request_bufs; body; body = body->next) {
 
@@ -331,8 +342,12 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
                 "consider increasing your 'client_body_buffer_size' "
                 "setting");
 
-            ctx->errmsg.data = (u_char *)&REQUEST_TOO_LARGE[0];
-            ctx->errmsg.len = sizeof(REQUEST_TOO_LARGE) - 1;
+            const ngx_http_tnt_error_t *e = &errors[REQUEST_TOO_LARGE];
+            ctx->in_err = ngx_http_set_err(r, e->code,
+                                           e->msg.data, e->msg.len);
+            if (ctx->in_err == NULL) {
+                goto error_exit;
+            }
 
             ctx->state = INPUT_TO_LARGE;
 
@@ -342,58 +357,63 @@ ngx_http_tnt_create_request(ngx_http_request_t *r)
             b = body->buf;
         }
 
-        if (tp_transcode(&ctx->in_t, (char *)b->pos, b->last - b->pos)
+        if (tp_transcode(&tc, (char *)b->pos, b->last - b->pos)
                 == TP_TRANSCODE_ERROR)
         {
-            dd("[input] failed: '%s'", ctx->in_t.errmsg);
-
-            if (ngx_http_set_input_parse_errmsg(r, ctx) == NGX_ERROR) {
-                return NGX_ERROR;
+            ctx->in_err = ngx_http_set_err(r, tc.errcode,
+                                           (u_char *)tc.errmsg,
+                                           ngx_strlen(tc.errmsg));
+            if (ctx->in_err == NULL) {
+                goto error_exit;
             }
 
             ctx->state = INPUT_JSON_PARSE_FAILED;
 
             goto read_input_done;
         }
-
     }
 
-    if (tp_transcode_complete(&ctx->in_t, &complete_msg_size)
-            == TP_TRANSCODE_OK)
-    {
-        ctx->out_chain->buf->last =
-                ctx->out_chain->buf->start + complete_msg_size;
-    }
-    else
-    {
+    if (tp_transcode_complete(&tc, &complete_msg_size) == TP_TRANSCODE_OK) {
+
+        out_chain->buf->last = out_chain->buf->start + complete_msg_size;
+
+        if (tc.batch_size > 1) {
+            ctx->rest_batch_size = ctx->batch_size = tc.batch_size;
+        }
+
+        dd("batch_size:%i, complete_msg_size:%i",
+                ctx->batch_size,
+                (int)complete_msg_size);
+
+    } else {
         dd("[input] failed to complete");
 
-        if (ngx_http_set_input_parse_errmsg(r, ctx) == NGX_ERROR) {
-            return NGX_ERROR;
+        ctx->in_err = ngx_http_set_err(r, tc.errcode,
+                                       (u_char *)tc.errmsg,
+                                       ngx_strlen(tc.errmsg));
+        if (ctx->in_err == NULL) {
+            goto error_exit;
         }
 
         ctx->state = INPUT_JSON_PARSE_FAILED;
 
         goto read_input_done;
     }
+    /** ]
+     */
 
 read_input_done:
-    if (ctx->state != OK && ctx->errmsg.data == NULL) {
-        ctx->errmsg.data = (u_char *)&UNKNOWN_PARSE_ERROR[0];
-        ctx->errmsg.len = sizeof(UNKNOWN_PARSE_ERROR) - 1;
-    }
-
-    tp_transcode_free(&ctx->in_t);
+    tp_transcode_free(&tc);
 
     /**
      * Hooking output chain
      */
-    r->upstream->request_bufs = ctx->out_chain;
+    r->upstream->request_bufs = out_chain;
 
     return NGX_OK;
 
 error_exit:
-    tp_transcode_free(&ctx->in_t);
+    tp_transcode_free(&tc);
     return NGX_ERROR;
 }
 
@@ -404,10 +424,10 @@ ngx_http_tnt_reinit_request(ngx_http_request_t *r)
     dd("reinit connection with Tarantool...");
 
     ngx_http_tnt_ctx_t *ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
-    if (ctx != NULL) {
-        ngx_pfree(r->pool, ctx);
-        ngx_http_set_ctx(r, NULL, ngx_http_tnt_module);
+    if (ctx == NULL) {
+        return NGX_OK;
     }
+    ngx_http_tnt_reset_ctx(ctx);
 
     return NGX_OK;
 }
@@ -418,18 +438,14 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
 {
     ngx_http_upstream_t *u = r->upstream;
     ngx_buf_t           *b = &r->upstream->buffer;
+    ngx_http_tnt_ctx_t  *ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
-    ngx_int_t               rc;
-    ngx_http_tnt_ctx_t      *ctx;
-    ngx_http_tnt_loc_conf_t *tlcf;
+    dd("greetings: '%s', buffer size: %i",
+            ctx->greetings ? "yes" : "no",
+            (int)(b->last - b->pos));
 
-    tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
-
-    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
-
-    rc = ngx_http_tnt_read_greetings(r, ctx, b);
-    if (rc != NGX_OK) {
-        return rc;
+    if (ngx_http_tnt_read_greetings(r, ctx, b) != NGX_OK) {
+        return NGX_ERROR;
     }
 
     switch (ctx->state) {
@@ -437,50 +453,20 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
         break;
     case INPUT_TO_LARGE:
     case INPUT_JSON_PARSE_FAILED:
-        return ngx_http_tnt_say_error(r, ctx, NGX_HTTP_BAD_REQUEST);
+    case INPUT_EMPTY:
+        return ngx_http_tnt_send_err(r, ctx, NGX_HTTP_BAD_REQUEST);
     default:
         assert(false);
+        crit("[BUG] unexpected ctx->stage(%i)", ctx->state);
         return NGX_ERROR;
     }
 
-    if (b->last - b->pos == 0) {
-        return NGX_AGAIN;
-    }
-
-    ctx->payload = tp_read_payload((char *)b->pos, (char *)b->last);
-    switch (ctx->payload) {
-    case 0:
-        dd("tp_read_payload() need more bytes .. NGX_AGAIN");
-        return NGX_AGAIN;
-    case -1:
-        crit("[BUG?] tarantool sent invalid 'payload' (i.e. message size)");
-        return NGX_HTTP_UPSTREAM_INVALID_HEADER;
-    default:
-
-        u->headers_in.status_n = 200;
-        u->state->status = 200;
-
-        /** We can't get fair size of outgoing JSON message at this stage - so
-         * just multiply msgpack payload in hope is more or enough
-         * for the JSON message.
-         */
-        u->headers_in.content_length_n = JSON_RPC_MAGIC
-                                        + ctx->payload * tlcf->out_multiplier;
-
-        ctx->in_cache = ngx_create_temp_buf(r->pool, ctx->payload);
-        if (ctx->in_cache == NULL) {
-            return NGX_ERROR;
-        }
-
-        ctx->in_cache->pos = ctx->in_cache->start;
-        ctx->in_cache->memory = 1;
-
-        dd("got 'payload' input len:%i, _magic_ output len:%i",
-            (int)ctx->payload,
-            (int)u->headers_in.content_length_n);
-
-        break;
-    }
+    /** We can't get fair size of outgoing message at this stage - so
+     *  just set upstream to Transfer-Encoding: chunked.
+     */
+    u->headers_in.chunked = 1;
+    u->headers_in.status_n = 200;
+    u->state->status = 200;
 
     return NGX_OK;
 }
@@ -489,16 +475,15 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_tnt_filter_init(void *data)
 {
+    dd("init filter");
+
     ngx_http_request_t  *r = data;
     ngx_http_upstream_t *u = r->upstream;
     ngx_http_tnt_ctx_t  *ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
-    if (ctx == NULL) {
-        crit("[BUG]  ngx_http_tnt_filter_init() invalid 'ctx'");
-        u->length = 0;
-        return NGX_ERROR;
-    }
 
-    u->length = ctx->payload;
+    ctx->state = READ_PAYLOAD;
+    ctx->payload_size = ctx->rest = 0;
+    u->length = -1;
 
     return NGX_OK;
 }
@@ -507,128 +492,22 @@ ngx_http_tnt_filter_init(void *data)
 static ngx_int_t
 ngx_http_tnt_filter(void *data, ssize_t bytes)
 {
+    dd("filter");
+
     ngx_http_request_t   *r = data;
     ngx_http_upstream_t  *u = r->upstream;
     ngx_buf_t            *b = &u->buffer;
 
-    ngx_int_t            rc;
-    ngx_http_tnt_ctx_t   *ctx;
-    ngx_chain_t          *cl, **ll;
+    b->last = b->last + bytes;
 
-    /*
-     * Transcoding tarantool message
-     */
-    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
-    if (ctx == NULL) {
-        crit("[BUG] ngx_http_tnt_filter() invalid 'ctx'");
-        return NGX_ERROR;
+    ngx_int_t rc = NGX_OK;
+    for (;;) {
+        rc = ngx_http_tnt_filter_reply(r, u, b);
+        if (rc != NGX_AGAIN) break;
+        dd("Next message in same input buffer -- merge");
     }
 
-    if (ctx->state != OK) {
-        crit("[BUG] ngx_http_tnt_filter() invalid 'ctx'");
-        return NGX_ERROR;
-    }
-
-    dd("recv bytes:%i, ctx->payload:%i, u->length:%i",
-            (int)bytes,
-            (int)ctx->payload,
-            (int)u->length);
-
-    b->last = b->last + (bytes > ctx->payload ? bytes : ctx->payload);
-    ctx->payload -= bytes;
-    u->length -= bytes;
-
-    if (ctx->in_cache->pos == ctx->in_cache->end) {
-        crit("[BUG] ctx->in_cache overflow");
-        return NGX_ERROR;
-    }
-
-    ctx->in_cache->pos = ngx_copy(ctx->in_cache->pos, b->pos, bytes);
-
-    /* Done with tnt input
-     */
-    if (ctx->payload > 0) {
-        return NGX_OK;
-    }
-
-    if (ctx->payload < 0) {
-        /** Still have a chance to successfully parse incomming message ^_^
-         */
-        crit("[BUG] payload(%i) < 0", ctx->payload);
-        u->length = 0;
-    }
-
-    for (cl = u->out_bufs, ll = &u->out_bufs; cl; cl = cl->next) {
-        ll = &cl->next;
-    }
-
-    *ll = cl = ngx_chain_get_free_buf(r->pool, &u->free_bufs);
-    if (cl == NULL) {
-        return NGX_ERROR;
-    }
-
-    cl->buf = ngx_create_temp_buf(r->pool, u->headers_in.content_length_n);
-    if (cl->buf == NULL) {
-        return NGX_ERROR;
-    }
-
-    cl->buf->memory = 1;
-    cl->buf->flush = 1;
-    cl->buf->tag = u->output.tag;
-    cl->buf->last = cl->buf->end;
-
-    rc = tp_transcode_init(&ctx->out_t, (char *)cl->buf->start,
-                                        u->headers_in.content_length_n,
-                                        TP_REPLY_TO_JSON,
-                                        NULL);
-    if (rc == TP_TRANSCODE_ERROR) {
-        crit("[BUG] failed to call tp_transcode_init(output)");
-        return NGX_ERROR;
-    }
-
-    ngx_int_t result = NGX_OK;
-    rc = tp_transcode(&ctx->out_t, (char *)ctx->in_cache->start,
-                      ctx->in_cache->end - ctx->in_cache->start);
-    switch (rc) {
-    case TP_TRANSCODE_OK: {
-
-        size_t complete_msg_size = 0;
-        rc = tp_transcode_complete(&ctx->out_t, &complete_msg_size);
-        if (rc != TP_TRANSCODE_OK) {
-            crit("[BUG] failed to complete output transcoding");
-            result = NGX_ERROR;
-        } else {
-
-            /** 'erase' trailer
-             */
-            u_char *p = NULL;
-            for (p = cl->buf->start + complete_msg_size;
-                p < cl->buf->end;
-                ++p)
-            {
-                *p = ' ';
-            }
-
-        }
-
-        break;
-    }
-
-    case TP_TRANSCODE_ERROR:
-    default:
-        crit("[BUG] failed to transcode output, err: '%s'", ctx->out_t.errmsg);
-        result = NGX_ERROR;
-        break;
-    }
-
-    tp_transcode_free(&ctx->out_t);
-
-    ctx->payload = 0;
-    ngx_pfree(r->pool, ctx->in_cache);
-    ctx->in_cache = NULL;
-    ctx->state = OK;
-
-    return result;
+    return rc;
 }
 
 
@@ -782,6 +661,125 @@ ngx_http_tnt_pass(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 }
 
 
+/** Pre-filter functions
+ */
+static inline ngx_http_tnt_ctx_t *
+ngx_http_tnt_create_ctx(ngx_http_request_t *r)
+{
+    ngx_http_tnt_ctx_t      *ctx;
+
+    ctx = ngx_palloc(r->pool, sizeof(ngx_http_tnt_ctx_t));
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    ngx_http_tnt_reset_ctx(ctx);
+
+    ngx_http_set_ctx(r, ctx, ngx_http_tnt_module);
+
+    ctx->state = OK;
+
+    return ctx;
+}
+
+
+static inline void
+ngx_http_tnt_reset_ctx(ngx_http_tnt_ctx_t *ctx)
+{
+    ctx->payload.p = &ctx->payload.mem[0];
+    ctx->payload.e = &ctx->payload.mem[sizeof(ctx->payload.mem) - 1];
+
+    ctx->state = OK;
+
+    ctx->in_err = ctx->tp_cache = NULL;
+
+    ctx->rest =
+    ctx->payload_size =
+    ctx->rest_batch_size =
+    ctx->batch_size =
+    ctx->greetings = 0;
+}
+
+
+static inline ngx_buf_t*
+ngx_http_set_err(ngx_http_request_t *r, int errcode, const u_char *msg,
+    size_t len)
+{
+    const size_t msglen = len + sizeof("{"
+                        "'error':{"
+                            "'message':'',"
+                            "'code':-XXXXX"
+                        "}"
+                    "}") - 1;
+
+    ngx_buf_t *b = ngx_create_temp_buf(r->pool, msglen);
+    if (b == NULL) {
+        return NULL;
+    }
+
+    b->memory = 1;
+    b->pos = b->start;
+
+    b->last = ngx_snprintf(b->start, msglen, "{"
+                        "\"error\":{"
+                            "\"code\":%d,"
+                            "\"message\":\"%s\""
+                        "}"
+                    "}",
+                     errcode,
+                     msg);
+
+    return b;
+}
+
+static inline ngx_int_t
+ngx_http_tnt_send_err(ngx_http_request_t *r, ngx_http_tnt_ctx_t *ctx,
+                      ngx_int_t code)
+{
+    ngx_http_upstream_t  *u;
+    ngx_chain_t          *cl, **ll;
+
+    u = r->upstream;
+
+    if (ctx->in_err == NULL) {
+        u->headers_in.status_n = 500;
+        u->state->status = 500;
+        u->headers_in.content_length_n = 0;
+        return NGX_OK;
+    }
+
+    for (cl = u->out_bufs, ll = &u->out_bufs; cl; cl = cl->next) {
+        ll = &cl->next;
+    }
+
+    *ll = cl = ngx_chain_get_free_buf(r->pool, &u->free_bufs);
+    if (cl == NULL) {
+        return NGX_ERROR;
+    }
+
+    cl->buf = ctx->in_err;
+    cl->next = NULL;
+
+    cl->buf->pos = cl->buf->start;
+    cl->buf->end = cl->buf->last;
+
+    cl->buf->flush = 1;
+    cl->buf->memory = 1;
+    cl->buf->tag = u->output.tag;
+    cl->buf->last_in_chain = 1;
+
+    u->headers_in.status_n = code;
+    u->state->status = code;
+    u->headers_in.content_length_n = ctx->in_err->last - ctx->in_err->pos;
+    u->length = 0;
+
+    ctx->state = OK;
+
+    return NGX_OK;
+}
+
+/** Filter functions
+ */
 static inline ngx_int_t
 ngx_http_tnt_read_greetings(ngx_http_request_t *r,
                             ngx_http_tnt_ctx_t *ctx,
@@ -821,91 +819,258 @@ ngx_http_tnt_read_greetings(ngx_http_request_t *r,
 }
 
 
-static inline ngx_int_t
-ngx_http_set_input_parse_errmsg(ngx_http_request_t *r,
-                                ngx_http_tnt_ctx_t *ctx)
+static inline ngx_buf_t *
+ngx_http_tnt_create_mem_buf(ngx_http_request_t *r,
+                            ngx_http_upstream_t *u,
+                            size_t size)
 {
-    static const char ERR_RES_FMT[] = "{"
-                        "\"error\":{"
-                            "\"code\":%d,"
-                            "\"message\":\"%s\""
-                        "}"
-                    "}";
-
-    static const size_t ERR_RES_SIZE = sizeof("{"
-                        "'error':{"
-                            "'message':'',"
-                            "'code':-XXXXX"
-                        "}"
-                    "}") - 1;
-
-    if (ctx->in_t.errmsg[0] != 0) {
-        ctx->errmsg.len = ngx_strlen(ctx->in_t.errmsg) + ERR_RES_SIZE;
-        ctx->errmsg.data = ngx_palloc(r->pool, ctx->errmsg.len);
-        if (ctx->errmsg.data == NULL) {
-            return NGX_ERROR;
-        }
-
-        ngx_snprintf(ctx->errmsg.data, ctx->errmsg.len, ERR_RES_FMT,
-                     ctx->in_t.errcode, ctx->in_t.errmsg);
-
-        dd("parse error: %.*s", (int)ctx->errmsg.len, ctx->errmsg.data);
-
+    ngx_buf_t *b = ngx_create_temp_buf(r->pool, size);
+    if (b == NULL) {
+        return NULL;
     }
 
-    return NGX_OK;
+    b->pos = b->start;
+
+    b->memory = 1;
+    b->flush = 1;
+    b->tag = u->output.tag;
+    b->last = b->end;
+
+    return b;
 }
 
-static inline ngx_int_t ngx_http_tnt_say_error(ngx_http_request_t *r,
-                                               ngx_http_tnt_ctx_t *ctx,
-                                               ngx_int_t code)
+static ngx_int_t
+ngx_http_tnt_send_reply(ngx_http_request_t *r,
+                        ngx_http_upstream_t *u,
+                        ngx_http_tnt_ctx_t *ctx)
 {
-    ngx_http_upstream_t  *u;
-    ngx_chain_t          *cl, **ll;
-
-    u = r->upstream;
-
-    if (ctx->errmsg.data == NULL) {
-        u->headers_in.status_n = 500;
-        u->state->status = 500;
-        u->headers_in.content_length_n = 0;
-        return NGX_OK;
-    }
-
-    u->headers_in.status_n = code;
-    u->state->status = code;
-    u->headers_in.content_length_n = ctx->errmsg.len;
-    u->length = ctx->errmsg.len;
+    tp_transcode_t          tc;
+    ngx_int_t               rc;
+    ngx_chain_t             *cl, **ll;
+    ngx_http_tnt_loc_conf_t *tlcf;
+    ngx_buf_t               *output;
 
     for (cl = u->out_bufs, ll = &u->out_bufs; cl; cl = cl->next) {
         ll = &cl->next;
     }
 
-    *ll = cl = ngx_chain_get_free_buf(r->pool, &u->free_bufs);
+    cl = ngx_chain_get_free_buf(r->pool, &u->free_bufs);
     if (cl == NULL) {
         return NGX_ERROR;
     }
 
-    cl->buf = ngx_create_temp_buf(r->pool, ctx->errmsg.len);
-    if (cl->buf == NULL) {
+    tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
+
+    output = ngx_http_tnt_create_mem_buf(r, u,
+                    (ctx->tp_cache->end - ctx->tp_cache->start)
+                        * tlcf->out_multiplier + RPC_EXTRA_SIZE);
+    if (output == NULL) {
         return NGX_ERROR;
     }
 
-    cl->buf->pos = cl->buf->start;
-    cl->buf->last = ngx_snprintf(cl->buf->start, ctx->errmsg.len,
-                                "%s", ctx->errmsg.data);
-    cl->buf->end = cl->buf->last;
+    if (ctx->batch_size > 0
+        && ctx->rest_batch_size == ctx->batch_size)
+    {
+        *output->pos = '[';
+        ++output->pos;
+    }
 
-    cl->buf->flush = 1;
-    cl->buf->memory = 1;
-    cl->buf->tag = u->output.tag;
+    rc = tp_transcode_init(&tc,
+                           (char *)output->pos, output->end - output->pos,
+                           TP_REPLY_TO_JSON,
+                           NULL);
+    if (rc == TP_TRANSCODE_ERROR) {
+        crit("[BUG] failed to call tp_transcode_init(output)");
+        return NGX_ERROR;
+    }
 
-    ctx->state = OK;
+    rc = tp_transcode(&tc, (char *)ctx->tp_cache->start,
+                      ctx->tp_cache->end - ctx->tp_cache->start);
+    if (rc == TP_TRANSCODE_OK) {
+
+        size_t complete_msg_size = 0;
+        rc = tp_transcode_complete(&tc, &complete_msg_size);
+        if (rc == TP_TRANSCODE_ERROR) {
+
+            crit("[BUG] failed to complete output transcoding");
+
+            ngx_pfree(r->pool, output);
+
+            const ngx_http_tnt_error_t *e = &errors[UNKNOWN_PARSE_ERROR];
+            output = ngx_http_set_err(r, e->code, e->msg.data, e->msg.len);
+            if (output == NULL) {
+                goto error_exit;
+            }
+
+            goto done;
+        }
+
+        output->last = output->pos + complete_msg_size;
+
+    } else if (rc == TP_TRANSCODE_ERROR) {
+
+        crit("[BUG] failed to transcode output, err: '%s'", tc.errmsg);
+
+        ngx_pfree(r->pool, output);
+
+        output = ngx_http_set_err(r,
+                                  tc.errcode,
+                                  (u_char *)tc.errmsg,
+                                  ngx_strlen(tc.errmsg));
+        if (output == NULL) {
+            goto error_exit;
+        }
+    }
+
+done:
+    tp_transcode_free(&tc);
+
+    if (ctx->batch_size > 0) {
+
+        if (ctx->rest_batch_size == 1)
+        {
+            *output->last = ']';
+            ++output->last;
+        }
+        else if (ctx->rest_batch_size <= ctx->batch_size)
+        {
+            *output->last = ',';
+            ++output->last;
+        }
+    }
+
+    output->pos = output->start;
+    output->flush = 1;
+
+    cl->buf = output;
+    cl->buf->last_in_chain = 1;
+    cl->next = NULL;
+
+    *ll = cl;
 
     return NGX_OK;
+
+error_exit:
+    tp_transcode_free(&tc);
+    return NGX_ERROR;
 }
 
 
+static ngx_int_t
+ngx_http_tnt_filter_reply(ngx_http_request_t *r,
+                          ngx_http_upstream_t *u,
+                          ngx_buf_t *b)
+{
+    ngx_http_tnt_ctx_t *ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
+    ssize_t            bytes = b->last - b->pos;
+
+    assert(ctx);
+
+    dd("recv bytes: %i, rest: %i", (int)bytes, (int)ctx->rest);
+
+    if (ctx->state == READ_PAYLOAD) {
+
+        ssize_t payload_rest = ngx_min(ctx->payload.e - ctx->payload.p, bytes);
+        if (payload_rest > 0) {
+            ctx->payload.p = ngx_copy(ctx->payload.p, b->pos, payload_rest);
+            bytes -= payload_rest;
+            b->pos += payload_rest;
+            payload_rest = ctx->payload.e - ctx->payload.p;
+
+            dd("payload rest:%i", (int)payload_rest);
+        }
+
+        if (payload_rest == 0) {
+            ctx->payload_size = tp_read_payload((char *)&ctx->payload.mem[0],
+                                                (char *)ctx->payload.e);
+            if (ctx->payload_size <= 0) {
+                crit("[BUG] tp_read_payload failed, ret:%i",
+                        (int)ctx->payload_size);
+                return NGX_ERROR;
+            }
+
+            ctx->rest = ctx->payload_size - 5 /* - header size */;
+
+            dd("got header payload:%i, rest:%i",
+                    (int)ctx->payload_size,
+                    (int)ctx->rest);
+
+            ctx->tp_cache = ngx_create_temp_buf(r->pool, ctx->payload_size);
+            if (ctx->tp_cache == NULL) {
+                return NGX_ERROR;
+            }
+
+            ctx->tp_cache->pos = ctx->tp_cache->start;
+            ctx->tp_cache->memory = 1;
+
+
+            ctx->tp_cache->pos = ngx_copy(ctx->tp_cache->pos,
+                                          &ctx->payload.mem[0],
+                                          sizeof(ctx->payload.mem) - 1);
+
+            ctx->payload.p = &ctx->payload.mem[0];
+
+            ctx->state = READ_BODY;
+        } else {
+            return NGX_OK;
+        }
+    }
+
+    ngx_int_t rc = NGX_OK;
+    if (ctx->state == READ_BODY) {
+
+        ssize_t rest = ctx->rest - bytes, read_on = bytes;
+        if (rest < 0) {
+            rest *= -1;
+            read_on = bytes - rest;
+            ctx->rest = 0;
+            ctx->state = SEND_REPLY;
+            rc = NGX_AGAIN;
+        } else if (rest == 0) {
+            ctx->state = SEND_REPLY;
+            ctx->rest = 0;
+        } else {
+            ctx->rest -= bytes;
+        }
+
+        ctx->tp_cache->pos = ngx_copy(ctx->tp_cache->pos, b->pos, read_on);
+        b->pos += read_on;
+
+        dd("read_on:%i, ctx->rest:%i, tp_cache size:%i, buf size:%i",
+                (int)read_on,
+                (int)ctx->rest,
+                (int)(ctx->tp_cache->end - ctx->tp_cache->pos),
+                (int)(b->last - b->pos));
+    }
+
+    if (ctx->state == SEND_REPLY) {
+
+        if (ngx_http_tnt_send_reply(r, u, ctx) == NGX_ERROR) {
+            return NGX_ERROR;
+        }
+
+        ctx->state = READ_PAYLOAD;
+        ctx->rest = ctx->payload_size = 0;
+
+        --ctx->rest_batch_size;
+
+        if (ctx->rest_batch_size <= 0) {
+            u->length = 0;
+            ctx->rest_batch_size = 0;
+            ctx->batch_size = 0;
+        }
+
+        ngx_pfree(r->pool, ctx->tp_cache);
+        ctx->tp_cache = NULL;
+
+    }
+
+    return rc;
+}
+
+
+/** Rest
+ */
 static inline void
 ngx_http_tnt_cleanup(ngx_http_request_t *r)
 {
@@ -917,8 +1082,8 @@ ngx_http_tnt_cleanup(ngx_http_request_t *r)
 
     ngx_pfree(r->pool, ctx);
 
-    if (ctx->in_cache != NULL) {
-        ngx_pfree(r->pool, ctx->in_cache);
+    if (ctx->tp_cache != NULL) {
+        ngx_pfree(r->pool, ctx->tp_cache);
     }
 
     ngx_http_set_ctx(r, NULL, ngx_http_tnt_module);

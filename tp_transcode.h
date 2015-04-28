@@ -65,6 +65,7 @@ typedef struct mem_fun {
  */
 typedef struct tp_transcode {
   tp_codec_t codec;
+  uint8_t batch_size;
   mem_fun_t mf;
   char errmsg[128];
   int errcode;
@@ -132,6 +133,7 @@ tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size)
 {
   assert(t);
   assert(t->codec.ctx);
+  *complete_msg_size = 0;
   return t->codec.complete(t->codec.ctx, complete_msg_size);
 }
 
