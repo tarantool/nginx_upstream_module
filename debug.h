@@ -38,4 +38,15 @@ static void dd(const char* fmt, ...) {
 
 #endif // NGX_DEBUG
 
+#if (NGX_HAVE_VARIADIC_MACROS)
+# define log_crit(log, ...) \
+     ngx_log_error_core(NGX_LOG_CRIT, (log), 0, __VA_ARGS__)
+# define crit(...) log_crit(r->connection->log, __VA_ARGS__)
+# else
+/** TODO
+ *  Warn. user here
+ */
+static inline void crit(...) {}
+#endif // NGX_HAVE_VARIADIC_MACROS
+
 #endif
