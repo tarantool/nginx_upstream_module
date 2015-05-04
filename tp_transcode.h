@@ -3,6 +3,8 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,10 +67,11 @@ typedef struct mem_fun {
  */
 typedef struct tp_transcode {
   tp_codec_t codec;
-  uint8_t batch_size;
   mem_fun_t mf;
-  char errmsg[128];
+  char *errmsg;
   int errcode;
+
+  uint8_t batch_size;
 } tp_transcode_t;
 
 /** Returns codes
@@ -125,6 +128,8 @@ tp_transcode_free(tp_transcode_t *t)
 {
   assert(t);
   assert(t->codec.ctx);
+  if (t->errmsg)
+    t->mf.free(t->mf.ctx, t->errmsg);
   t->codec.free(t->codec.ctx);
 }
 

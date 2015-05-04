@@ -10,7 +10,7 @@
   <body>
     <div class='container' style='margin-top:50px;'>
       <div class="input-group input-group-lg">
-        <input type='text' class='form-control' placeholder='{}' aria-describedby='sizing-addon1' id='input'>
+        <input type='text' class='form-control' placeholder='echo [ { "hello": [ "world", "!" ] } ]' aria-describedby='sizing-addon1' id='input'>
         <span class='input-group-btn'>
           <button type='button' class='btn' id='submit'>execute</button>
          </span>
@@ -23,42 +23,50 @@
     <script>
       $(document).ready(function() {
 
-        var id = 0;
-        var $out = $('#output');
+        var id = 0,
+            $input = $('#input'),
+            $output = $('#output')
+            ;
 
         function render(data) {
-          $out.append('<div>[' + data.id + ']' + JSON.stringify(data) + '</div>');
+          $output.append('<div>Ok [' + data.id + ']' + JSON.stringify(data) + '</div>');
         }
 
         function render_error(data, stat, xhr) {
-          if (data.status &&
-              (data.status === 502 || data.status == 500))
-          {
-            $out.append('<div>tarantool backend failure</div>');
-          }
+          var stat = data.status;
+          $output.append('<div> Failed [' + stat + '] ' + data.responseText + '</div>');
         }
 
-        $("#submit").click(function() {
+        $("#submit").click(function(e) {
+
+          e.preventDefault();
+
+          var input_text = $input.val();
+
+          var method = input_text.substring(0, input_text.indexOf("[")),
+              params = input_text.substring(input_text.indexOf("["),
+                                            input_text.lenght);
 
           try {
-            var $input = $('#input');
-            var call = JSON.stringify({
-              method: 'call',
-              params: ['echo', JSON.parse($input.val())],
-              id: ++id
-            });
+
+            var request = {
+              method: method.replace(/ /g,''),
+              id: ++id,
+              params: JSON.parse(params)
+            };
 
             $.ajax({ type: 'POST',
                     contentType: 'application/json; charset=utf-8',
                     dataType: 'json',
-                    url: 'tnt',
-                    data: call,
+                    url: 'echo',
+                    data: JSON.stringify(request),
                     success: render,
-                    error: render_error});
+                    error: render_error });
 
           } catch (e) {
-            $out.append('<div> Error:' + e + '</div>');
+            $output.append('<div>Error: ' + e + '</div>');
           }
+
         });
 
       });

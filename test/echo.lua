@@ -1,11 +1,15 @@
 json=require('json');
 
 function echo_1(a)
-  print (a)
   return {a}
 end
 
+function echo_2(a, b)
+  return {a, b}
+end
+
 function ret_4096()
+  print ("ret_4096")
   local out = {}
   for i = 0, 801 do
     out[i] = i;

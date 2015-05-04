@@ -1,5 +1,4 @@
 {
-  "method":"call",
   "params": [
     "tnt_method", [
       "string1", {
@@ -17,5 +16,6 @@
       "END"
     ]
   ],
+  "method":"call",
   "id":555
 }

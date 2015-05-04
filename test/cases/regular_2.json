@@ -1,0 +1,43 @@
+[{
+  "method":"call",
+  "params": [
+    "tnt_method", [
+      "string1", {
+          "a":1,
+          "b":2,
+          "c":4,
+          "d":[{
+                "aa":"22",
+                "bb":"string"
+              },
+              true,
+              null
+          ]
+      },
+      "END"
+    ]
+  ],
+  "id":555
+},
+{
+  "method":"call",
+  "params": [
+    "tnt_method", [
+      "string1", {
+          "a":1,
+          "b":2,
+          "c":4,
+          "d":[{
+                "aa":"22",
+                "bb":"string"
+              },
+              true,
+              null
+          ]
+      },
+      "END"
+    ]
+  ],
+  "id":555
+}
+]

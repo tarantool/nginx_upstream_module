@@ -6,24 +6,11 @@
 #include "tp.h"
 #include "tp_transcode.h"
 
-#define DEBUG
 #if defined DEBUG
 #define dd(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define dd(...)
 #endif
-
-#define say_error_r(ctx, ...) do { \
-    snprintf((ctx)->tc->errmsg, sizeof((ctx)->tc->errmsg) - 1, __VA_ARGS__); \
-    return TP_TRANSCODE_ERROR; \
-} while (0)
-
-#define say_error(ctx, ...) do \
-    snprintf((ctx)->tc->errmsg, sizeof((ctx)->tc->errmsg) - 1, __VA_ARGS__); \
-while (0)
-
-#define say_overflow_r(c) \
-    say_error_r((c), "line:%d, 'output' buffer overflow", __LINE__)
 
 #define ALLOC(ctx_, size) \
     (ctx_)->tc->mf.alloc((ctx_)->tc->mf.ctx, (size))
@@ -32,6 +19,42 @@ while (0)
 #define FREE(ctx_, mem) \
     (ctx_)->tc->mf.free((ctx_)->tc->mf.ctx, (mem))
 
+enum type { TYPE_MAP = 1, TYPE_ARRAY = 2, TYPE_KEY = 4 };
+
+static inline void
+say_error_(tp_transcode_t *t, int code, const char *e, size_t len)
+{
+    if (mp_unlikely(t->errmsg == NULL))
+        t->mf.free(t->mf.ctx, t->errmsg);
+    t->errmsg = t->mf.alloc(t->mf.ctx, (len + 1) * sizeof(char));
+    if (mp_unlikely(t->errmsg != NULL)) {
+        memcpy(t->errmsg, e, len);
+        *(t->errmsg + len) = '\0';
+    }
+    t->errcode  = code;
+}
+
+#define say_error(ctx, c, e) \
+    say_error_((ctx)->tc, (c), (e), sizeof(e) - 1)
+
+#define say_error_r(ctx, c, e) do { \
+    say_error((ctx), (c), (e)); \
+    return TP_TRANSCODE_ERROR; \
+} while (0)
+
+#define say_overflow_r(c) \
+    say_error_r((c), -32603,  "[BUG?] 'output' buffer overflow")
+
+#define say_overflow_r_2(c) do { \
+    say_error((c), -32603, "[BUG?] 'output' buffer overflow"); \
+    return 0; \
+} while (0)
+
+#define say_wrong_params(ctx) \
+            say_error((ctx), -32700, \
+                  "'params' _must_ be array, 'params' _may_ be empty array")
+
+
 /*
  * CODEC - YAJL_JSON_RPC
  */
@@ -39,7 +62,6 @@ while (0)
 #include <yajl/yajl_gen.h>
 
 enum { MAX_STACK_SIZE = 254 - 1 };
-enum type { TYPE_MAP = 1, TYPE_ARRAY = 2 };
 enum stage {
     INIT        = 0,
     WAIT_NEXT   = 2,
@@ -185,10 +207,6 @@ sinc_if(yajl_ctx_t *s, int cond)
 }
 #define sinc_if_array(s) sinc_if((s), TYPE_ARRAY)
 #define sinc_if_map(s) sinc_if((s), TYPE_MAP)
-#define say_overflow_r_2(c) do { \
-    say_error((c), "'output' buffer overflow"); \
-    return 0; \
-} while (0)
 
 static int
 yajl_null(void *ctx)
@@ -249,7 +267,7 @@ yajl_integer(void *ctx, long long v)
         dd ("id: %lld\n", v);
 
         if (mp_unlikely(v > UINT32_MAX)) {
-            say_error(s_ctx, "'id' _must_ be less than UINT32_t");
+            say_error(s_ctx, -32600, "'id' _must_ be less than UINT32_t");
             return 0;
         }
 
@@ -321,11 +339,21 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
     if (mp_unlikely(s_ctx->stage == INIT)) {
+
         dd("MESSAGE START\n");
+
         s_ctx->stage = WAIT_NEXT;
-        ++s_ctx->tc->batch_size;
-        if (!tp_call_wof(&s_ctx->tp))
+
+        if (mp_unlikely(s_ctx->tc->batch_size == 255)) {
+            say_error(s_ctx, -32600,
+                     "too large batch, max allowed 254 calls per request");
             return 0;
+        }
+
+        ++s_ctx->tc->batch_size;
+
+        if (mp_unlikely(!tp_call_wof(&s_ctx->tp)))
+            say_overflow_r_2(s_ctx);
     }
 
     if (mp_likely(s_ctx->stage == PARAMS)) {
@@ -398,7 +426,7 @@ yajl_start_map(void *ctx)
     else
         r = spush(s_ctx, s_ctx->tp.p, TYPE_MAP);
     if (mp_unlikely(!r)) {
-        say_error(s_ctx, "'stack' overflow");
+        say_error(s_ctx, -32603, "[BUG?] 'stack' overflow");
         return 0;
     }
 
@@ -420,7 +448,9 @@ yajl_end_map(void *ctx)
             == (PARAMS | ID | METHOD))
     {
         dd("WAIT NEXT BATCH\n");
+
         s_ctx->stage = INIT;
+
         s_ctx->been_stages = 0;
     }
 
@@ -436,12 +466,13 @@ yajl_end_map(void *ctx)
         *(uint32_t *) item->ptr = mp_bswap_u32(item->count);
 
         if (mp_unlikely(item->type & PARAMS)) {
-            dd("PARAMS END\n");
-            s_ctx->stage = WAIT_NEXT;
-            s_ctx->been_stages |= PARAMS;
+            say_wrong_params(s_ctx);
+            return 0;
         }
-    } else
-        assert(false);
+    } else {
+        say_wrong_params(s_ctx);
+        return 0;
+    }
 
     return 1;
 }
@@ -469,7 +500,7 @@ yajl_start_array(void *ctx)
     else
         r = spush(s_ctx, s_ctx->tp.p, TYPE_ARRAY);
     if (mp_unlikely(!r)) {
-        say_error(s_ctx, "'stack' overflow");
+        say_error(s_ctx, -32603, "[BUG?] 'stack' overflow");
         return 0;
     }
 
@@ -501,8 +532,10 @@ yajl_end_array(void *ctx)
             s_ctx->stage = WAIT_NEXT;
             s_ctx->been_stages |= PARAMS;
         }
-    } else
-        assert(false);
+    } else {
+        say_wrong_params(s_ctx);
+        return 0;
+    }
 
     return 1;
 }
@@ -606,15 +639,19 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
     yajl_status stat = yajl_parse(s_ctx->hand, input_, input_size);
     if (mp_unlikely(stat != yajl_status_ok)) {
 
-        if (s_ctx->tc->errmsg[0] == 0) {
-            s_ctx->tc->errcode = -32700;
+        if (!s_ctx->tc->errmsg) {
+
             stat = yajl_complete_parse(s_ctx->hand);
             unsigned char *err = yajl_get_error(s_ctx->hand, 0,
                                                 input_, input_size);
-            const int l = strlen((char *)err);
-            if (l > 0)
-                say_error(s_ctx, "%.*s", l - 1 /* skip \n */, (char *)err);
+            const int l = strlen((char *)err) - 1 /* skip \n */;
+            if (l > 0) {
+                s_ctx->tc->errmsg = ALLOC(s_ctx, l);
+                if (mp_likely(s_ctx->tc->errmsg != NULL))
+                    say_error_(s_ctx->tc, 0, (char *)err, l);
+            }
             yajl_free_error(s_ctx->hand, err);
+            s_ctx->tc->errcode = -32700;
         }
 
         return TP_TRANSCODE_ERROR;
@@ -630,32 +667,12 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    char *p = &s_ctx->tc->errmsg[0];
-    char *e = &s_ctx->tc->errmsg[0] + sizeof(s_ctx->tc->errmsg) - 1;
-
     const yajl_status stat = yajl_complete_parse(s_ctx->hand);
     if (mp_likely(stat == yajl_status_ok)) {
         *complete_msg_size = tp_used(&s_ctx->tp);
         return TP_TRANSCODE_OK;
-    } else if (s_ctx->tc->errmsg[0] != 0) {
-        p += snprintf(p, e - p, "%s", s_ctx->tc->errmsg);
-        s_ctx->tc->errcode = -32000;
-        return TP_TRANSCODE_ERROR;
     }
 
-    if (mp_unlikely(!(s_ctx->been_stages & METHOD))) {
-        p += snprintf(p, e - p, "Method not found");
-    } else if (mp_unlikely(!(s_ctx->been_stages & PARAMS))) {
-        p += snprintf(p, e - p, "Params not found");
-    } else if (mp_unlikely(!(s_ctx->been_stages & ID))) {
-        p += snprintf(p, e - p, "Id not found");
-    } else {
-        p += snprintf(p, e - p,
-                "call _must_ contains 'method':'tnt_call',"
-                "'params':object ");
-    }
-
-    s_ctx->tc->errcode = -32600;
     return TP_TRANSCODE_ERROR;
 }
 
@@ -664,14 +681,17 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
  */
 
 typedef struct tp2json {
+    struct tpresponse r;
+
     char *output;
     char *pos;
     char *end;
 
-    struct tpresponse r;
     bool tp_reply_stage;
 
     tp_transcode_t *tc;
+
+    int state;
 } tp2json_t;
 
 static void*
@@ -685,6 +705,7 @@ tp2json_create(tp_transcode_t *tc, char *output, size_t output_size)
     ctx->end = output + output_size;
     ctx->tc = tc;
     ctx->tp_reply_stage = true;
+    ctx->state = 0;
 
     return ctx;
 }
@@ -731,13 +752,23 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
         if (mp_unlikely(len < sizeof("18446744073709551615") - 1))
             say_overflow_r(ctx);
 
-        ctx->pos += snprintf(ctx->pos, len, "%" PRIu64, mp_decode_uint(beg));
+        if ((ctx->state & (TYPE_MAP | TYPE_KEY)) == (TYPE_MAP | TYPE_KEY))
+            ctx->pos += snprintf(ctx->pos, len, "\"%" PRIu64 "\"",
+                                 mp_decode_uint(beg));
+        else
+            ctx->pos += snprintf(ctx->pos, len, "%" PRIu64,
+                                 mp_decode_uint(beg));
         break;
     case MP_INT:
         if (mp_unlikely(len < sizeof("18446744073709551615") - 1))
             say_overflow_r(ctx);
 
-        ctx->pos += snprintf(ctx->pos, len, "%" PRId64, mp_decode_int(beg));
+        if ((ctx->state & (TYPE_MAP | TYPE_KEY)) == (TYPE_MAP | TYPE_KEY))
+            ctx->pos += snprintf(ctx->pos, len, "\"%" PRId64 "\"",
+                                 mp_decode_int(beg));
+        else
+            ctx->pos += snprintf(ctx->pos, len, "%" PRId64,
+                                 mp_decode_int(beg));
         break;
     case MP_STR:
     {
@@ -763,7 +794,7 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
         for (i = 0; i < binlen; i++) {
             unsigned char c = (unsigned char)bin[i];
             ctx->pos +=
-                snprintf(ctx->pos, len, "%c%c", hex[c >> 4], hex[c & 0xF]);
+                snprintf(ctx->pos, len, "\"%c%c\"", hex[c >> 4], hex[c & 0xF]);
         }
         break;
     }
@@ -793,14 +824,21 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
         if (mp_unlikely(len < size + 2/*,{}*/))
             say_overflow_r(ctx);
 
+        ctx->state |= TYPE_MAP;
+
         PUT_CHAR('{')
         uint32_t i = 0;
         for (i = 0; i < size; i++) {
+
             if (i)
                 PUT_CHAR(',')
+
+            ctx->state |= TYPE_KEY;
             rc = tp2json_transcode_internal(ctx, beg, end);
             if (rc != TP_TRANSCODE_OK)
                 return rc;
+
+            ctx->state &= ~TYPE_KEY;
 
             PUT_CHAR(':')
             rc = tp2json_transcode_internal(ctx, beg, end);
@@ -808,6 +846,9 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
                 return rc;
         }
         PUT_CHAR('}')
+
+        ctx->state &= ~TYPE_MAP;
+
         break;
     }
     case MP_BOOL:
@@ -869,12 +910,9 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
     if (ctx->tp_reply_stage) {
 
         if (tp_reply(&ctx->r, in, in_size) <= 0) {
-            say_error(ctx, "tarantool message parse error");
+            say_error(ctx, -32603, "[BUG] tp_reply() failed");
             goto error_exit;
         }
-
-        ctx->pos += snprintf(ctx->output, ctx->end - ctx->output,
-                "{\"id\":%zu,\"result\":", (size_t)tp_getreqid(&ctx->r));
 
         ctx->tp_reply_stage = false;
     }
@@ -883,11 +921,15 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
 
         const int elen = ctx->r.error_end - ctx->r.error;
         ctx->pos += snprintf(ctx->pos, ctx->end - ctx->pos,
-                "{\"error\":{\"msg\":\"%.*s\",\"code\":%d}}",
+                "{\"id\":%zu,\"error\":{\"message\":\"%.*s\",\"code\":%d}",
+                (size_t)tp_getreqid(&ctx->r),
                 elen, ctx->r.error,
                 ctx->r.code);
 
     } else {
+
+        ctx->pos += snprintf(ctx->output, ctx->end - ctx->output,
+                "{\"id\":%zu,\"result\":", (size_t)tp_getreqid(&ctx->r));
 
         const char *it = ctx->r.data;
         rc = tp2json_transcode_internal(ctx, &it, ctx->r.data_end);
@@ -919,21 +961,6 @@ tp2json_transcode(void *ctx_, const char *in, size_t in_size)
 
     /* Message len */
     enum tt_result rc = tp2json_transcode_internal(ctx, &it, end);
-    if (mp_unlikely(rc == TP_TRANSCODE_ERROR))
-        goto error_exit;
-
-    /* Header */
-    rc = tp2json_transcode_internal(ctx, &it, end);
-    if (mp_unlikely(rc == TP_TRANSCODE_ERROR))
-        goto error_exit;
-
-    /* Body */
-    rc = tp2json_transcode_internal(ctx, &it, end);
-    if (mp_unlikely(rc == TP_TRANSCODE_ERROR))
-        goto error_exit;
-
-    /* Message len */
-    rc = tp2json_transcode_internal(ctx, &it, end);
     if (mp_unlikely(rc == TP_TRANSCODE_ERROR))
         goto error_exit;
 

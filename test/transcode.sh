@@ -3,7 +3,7 @@
 #set -x
 
 CUR_PATH=$PWD
-DO_TRANSCODE_OFF=no
+TRANSCODE_OFF=no
 DUMP_RESULT_ONLY=yes
 
 do_trasncode() {
@@ -22,7 +22,7 @@ do_trasncode() {
 
 ####
 rm -f ${CUR_PATH}/test/cases/tc.out > /dev/null
-if [[ x"$DO_TRANSCODE_OFF" != x"yes" ]]; then
+if [[ x"$TRANSCODE_OFF" != x"yes" ]]; then
   for _case in `ls ${CUR_PATH}/test/cases/*json`; do
     do_trasncode $_case
   done
@@ -34,6 +34,7 @@ if [[ x"$d" = x'' ]]; then
   echo "[OK] transcode"
   exit 0
 else
-  echo "[ERROR] transcode $d"
+  echo "[ERROR] transcode"
+  echo "$d"
   exit 1
 fi

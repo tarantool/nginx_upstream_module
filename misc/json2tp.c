@@ -87,10 +87,12 @@ main(int argc, char **argv)
     if (rc == TP_TRANSCODE_OK) {
         size_t complete_msg_size = 0;
         if (tp_transcode_complete(&t, &complete_msg_size)
-            != TP_TRANSCODE_ERROR)
+                != TP_TRANSCODE_ERROR)
             fwrite(output, 1, complete_msg_size, out_file);
-        else
-            fprintf(stderr, "json2tp: failed to complete: '%s'\n", t.errmsg);
+        else {
+            fprintf(stderr, "json2tp: failed to complete, msg: %s\n",
+                    (t.errmsg ? t.errmsg : "unknown error"));
+        }
     }
 
     tp_transcode_free(&t);

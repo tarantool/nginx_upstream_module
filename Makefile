@@ -24,7 +24,7 @@ build: utils
 
 configure-debug:
 	cd $(NGX_PATH) && \
-	./configure --with-cc-opt='-ggdb3 $(INC_FLAGS)'\
+	CFLAGS="-ggdb3 $(INC_FLAGS)" ./configure \
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
 						--with-debug --with-ld-opt='$(LDFLAGS)'
@@ -59,7 +59,7 @@ test: utils build
 	$(CUR_PATH)/test/nginx-tnt.sh
 
 clean:
-	$(MAKE) -C $(NGX_PATH) clean
+	$(MAKE) -C $(NGX_PATH) clean 2>1 || echo "pass"
 	rm -f misc/tp_{send,dump} misc/json2tp
 
 utils: json2tp tp_dump

@@ -3,7 +3,7 @@
 import json
 import urllib2
 import traceback
-import os
+import sys
 
 URL = 'http://127.0.0.1:8081/tnt'
 VERBOSE = False
@@ -16,6 +16,7 @@ def request_raw(data):
 
         res = urllib2.urlopen(req, data)
         out = res.read()
+        out = out + res.read()
         rc = res.getcode()
 
         if VERBOSE:
@@ -28,10 +29,14 @@ def request_raw(data):
     except urllib2.HTTPError, e:
         if e.code == 400:
             out = e.read();
+
+        if VERBOSE:
+            print "code: ", e.code, " recv: '", out, "'"
+
         return (e.code, json.loads(out))
-    except Exception:
+    except Exception, e:
         print traceback.format_exc()
-        return (False, False)
+        return (False, e)
 
 def request(data):
     return request_raw(json.dumps(data))
@@ -43,41 +48,161 @@ def assert_if_not_error(s, code = None):
     if code:
         assert(s['error']['code'] == code), 'expected code'
 
-def echo_check(r, bad_request_expected = False):
-    (rc, res) = request(r)
-    if bad_request_expected == True:
-        assert(rc == 400), 'bad request expected'
-        assert_if_not_error(res)
-    else:
-        assert(rc == 200), 'echo_check expected HTTP code 200'
-        assert('result' in res), 'expected result'
-        assert(res['result'][0] == r['params']), \
-            'echo_check result must be same as params'
+def get_id(o):
+    assert('id' in o), "expected 'id'"
+    return o['id']
+
+def get_id_i(o, i):
+    assert('id' in o[i]), "expected 'id'"
+    return o[i]['id']
+
+def get_result(o):
+    assert('result' in o), "expected 'result'"
+    return o['result'][0]
+
+def get_result_i(o, i):
+    assert('result' in o[i]), "expected 'result'"
+    return o[i]['result'][0]
+
+#
+def batch_cases():
+    (rc, res) = request([
+
+        { 'method': 'ret_4096',
+        'params': [],
+        'id': 1
+        },
+
+        {'method': 'ret_4096',
+        'params': [],
+        'id': 2
+        }
+
+    ])
+    assert(rc == 200), 'expected 200'
+    assert(len(res) == 2), 'expected 2 elements, got %i' % len(res)
+    assert(get_result_i(res, 0)[1] == '101234567891234567')
+    assert(get_result_i(res, 1)[1] == '101234567891234567')
+
+    ##
+    batch = []
+    for i in range(0, 100):
+        batch.append(dict(
+            { 'method': 'echo_1',
+              'params': ["test_string_%i" % i],
+              'id': i
+            }
+        ))
+
+    (rc, res) = request(batch)
+    assert(rc == 200), 'expected 200'
+    assert(len(res) == len(batch)),\
+            'expected %i elements, got %i' % (len(batch), len(res))
+    for i in range(0, len(res)):
+        rr = get_result_i(res, i)
+        id = get_id_i(res, i)
+        assert(rr[0] == batch[i]['params'][0]),\
+                "expected %s, got %s" % (batch[i]['params'][0], rr[0])
+        assert(id == batch[i]['id']),\
+                "expected id %s, got %s" % (batch[i]['id'], id)
+
+    ##
+    (rc, res) = request([
+
+        {'method': 'echo_2',
+        'params': [{"first":1}, {"second":2}],
+        'id': 1
+        },
+
+        {'method': 'ret_4096',
+        'params': [],
+        'id': 2
+        },
+
+        {'method': 'this_function_does_not_exists',
+        'params': [],
+        'id': 3
+        }
+
+    ])
+    assert(rc == 200), 'expected 200'
+    for rr in res:
+        if rr['id'] == 1 or rr['id'] == 3:
+            assert('error' in rr or 'message' in rr), \
+                    'expected %s returns error/message, got %s' % (rr['id'], rr)
+        elif rr['id'] == 2:
+            rr_ = get_result(rr)
+            assert(rr_[1] == '101234567891234567')
+        else:
+            assert False, "unexpected id %s" % rr['id']
+
+    (rc, res) = request_raw('[{"method":"call", "params":["name", __wrong__], ' +
+        '"id":1}, {"method":"call", "params":["name"], "id":2}]');
+    assert(rc == 400), 'expected 400'
+    assert('error' in res), "expected 'error' in res"
+    assert('message' in res['error'] or 'code' in res['error']),\
+            "expected 'message'/'code' in 'error'"
+
+    print "[OK] Batch cases"
+
+batch_cases()
 
 ###
-# Spec. cases
+# Regular cases
+
+#
 (rc, res) = request_raw('{"method":"call", "params":["name", __wrong__], "id":555}');
 assert(rc == 400), 'expected 400'
 assert_if_not_error(res, -32700)
 
+#
 (rc, res) = request_raw('');
 assert(rc == 500), 'expected 500'
 
-###
-# nginx -> tnt request - reply cases
-echo_check({
-    'method': 'call',
-    'params': [ 'echo', [{'a':1,'b':2,'c':[1,2,3,4,5,6,7,8,9]}] ],
-    'id': 555
-    })
-
+#
 bigarray = []
 for i in range(100000): bigarray.append(i)
-echo_check({
-    'method': 'call',
-    'params': [ 'echo', bigarray ],
+(rc, res) = request({
+    'method': 'echo_1',
+    'params': bigarray,
+    'id': 1
+    })
+assert(rc == 400), 'expected 400'
+assert_if_not_error(res, -32001)
+
+#
+(rc, res) = request({
+    'method': 'echo_1',
+    'params': {"wrong": "params"},
     'id': 555
-    }, True)
+    })
+assert(rc == 400), 'expected 400'
+assert_if_not_error(res, -32700)
 
+#
+req = { 'method': 'echo_2',
+    'params': [ 'echo', [{'a':1,'b':2,'c':[1,2,3,4,5,6,7,8,9]}] ],
+    'id': 555
+    }
+(rc, res) = request(req)
+assert(rc == 200), 'expected 200'
+assert(get_result(res)[0] == req['params'][0])
+assert(get_result(res)[1][0]['a'] == req['params'][1][0]['a'])
+assert(get_result(res)[1][0]['b'] == req['params'][1][0]['b'])
+assert(get_result(res)[1][0]['c'] == req['params'][1][0]['c'])
 
-print '[OK] client.py'
+#
+(rc, res) = request({
+    'method': 'echo_2',
+    'params': [],
+    'id': 555
+    })
+assert(rc == 200), 'expected 200'
+
+## TODO fix
+#(rc, res) = request({
+#    'params': [],
+#    'id': 555
+#    })
+
+print '[OK] Regualr cases'

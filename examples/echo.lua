@@ -1,6 +1,6 @@
 json=require('json');
 
-function call(a)
+function echo(a)
   if type(a) == 'table' then
     return  {{a}}
   end
@@ -9,7 +9,7 @@ end
 
 box.cfg {
     log_level = 5;
-    listen = 9999;
+    listen = 10001;
 }
 
 if not box.space.tester then
