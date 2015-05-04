@@ -24,11 +24,12 @@ build: utils
 
 configure-debug:
 	cd $(NGX_PATH) && \
-	CFLAGS="-ggdb3 $(INC_FLAGS)" ./configure \
+	CFLAGS=" -Wall -Werror -ggdb3 $(INC_FLAGS)" ./configure \
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
 						--with-debug --with-ld-opt='$(LDFLAGS)'
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
+	unlink $(PREFIX_PATH)/conf/nginx.conf > /dev/null || echo "pass"
 	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
 	rm -f $(PREFIX_PATH)/conf/nginx.conf
 	ln -s $(PWD)/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf > /dev/null
