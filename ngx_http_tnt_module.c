@@ -431,6 +431,7 @@ ngx_http_tnt_reinit_request(ngx_http_request_t *r)
     if (ctx == NULL) {
         return NGX_OK;
     }
+
     ngx_http_tnt_reset_ctx(ctx);
 
     return NGX_OK;
