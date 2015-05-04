@@ -96,82 +96,30 @@ enum tt_result tp_transcode_init(tp_transcode_t *t,
 
 /** Free struct tp_transcode
  */
-static inline void
-tp_transcode_free(tp_transcode_t *t);
+void tp_transcode_free(tp_transcode_t *t);
 
 /** Feed transcoder (see tp_transcode_init).
  *
  * Returns TP_TRANSCODE_OK if bytes enought for finish transcoding
  * Returns TP_TRANSCODE_ERROR if error occurred
  */
-static inline enum tt_result
-tp_transcode(tp_transcode_t *t, const char *b, size_t s);
+enum tt_result tp_transcode(tp_transcode_t *t, const char *b, size_t s);
 
 /** Finalize transcoding.
  *
  * Returns TP_TRANSCODE_OK if transcoding done
  * Returns TP_TRANSCODE_ERROR if error occurred
  */
-static inline enum tt_result
+enum tt_result
 tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size);
 
 /**
  * Dump Tarantool message to output in JSON format
  * Returns true, false
  */
-static inline bool
+bool
 tp_dump(char *output, size_t output_size,
-        const char *input, size_t input_size);
-
-static inline void
-tp_transcode_free(tp_transcode_t *t)
-{
-  assert(t);
-  assert(t->codec.ctx);
-  if (t->errmsg)
-    t->mf.free(t->mf.ctx, t->errmsg);
-  t->codec.free(t->codec.ctx);
-}
-
-static inline enum tt_result
-tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size)
-{
-  assert(t);
-  assert(t->codec.ctx);
-  *complete_msg_size = 0;
-  return t->codec.complete(t->codec.ctx, complete_msg_size);
-}
-
-static inline enum tt_result
-tp_transcode(tp_transcode_t *t, const char *b, size_t s)
-{
-  assert(t);
-  assert(t->codec.ctx);
-  return t->codec.transcode(t->codec.ctx, b, s);
-}
-
-static inline bool
-tp_dump(char *output, size_t output_size,
-        const char *input, size_t input_size)
-{
-  tp_transcode_t t;
-  if (tp_transcode_init(&t, output, output_size, TP_TO_JSON, NULL)
-      == TP_TRANSCODE_ERROR)
-    return false;
-
-  if (tp_transcode(&t, input, input_size) == TP_TRANSCODE_ERROR) {
-    tp_transcode_free(&t);
-    return false;
-  }
-
-  size_t complete_msg_size = 0;
-  tp_transcode_complete(&t, &complete_msg_size);
-  output[complete_msg_size] = '0';
-
-  tp_transcode_free(&t);
-
-  return complete_msg_size > 0;
-}
+    const char *input, size_t input_size);
 
 #ifdef __cplusplus
 } /* extern "C" */

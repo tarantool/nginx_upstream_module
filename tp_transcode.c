@@ -24,7 +24,7 @@ enum type { TYPE_MAP = 1, TYPE_ARRAY = 2, TYPE_KEY = 4 };
 static inline void
 say_error_(tp_transcode_t *t, int code, const char *e, size_t len)
 {
-    if (mp_unlikely(t->errmsg == NULL))
+    if (mp_unlikely(t->errmsg != NULL))
         t->mf.free(t->mf.ctx, t->errmsg);
     t->errmsg = t->mf.alloc(t->mf.ctx, (len + 1) * sizeof(char));
     if (mp_unlikely(t->errmsg != NULL)) {
@@ -641,7 +641,7 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
     yajl_status stat = yajl_parse(s_ctx->hand, input_, input_size);
     if (mp_unlikely(stat != yajl_status_ok)) {
 
-        if (!s_ctx->tc->errmsg) {
+        if (s_ctx->tc->errmsg == NULL) {
 
             stat = yajl_complete_parse(s_ctx->hand);
             unsigned char *err = yajl_get_error(s_ctx->hand, 0,
@@ -1032,17 +1032,23 @@ tp_codec_t codecs[TP_CODEC_MAX] = {
  * Public API
  */
 
-static void *def_alloc(void *ctx, size_t s) {
+static void *
+def_alloc(void *ctx, size_t s)
+{
     (void)ctx;
     return malloc(s);
 }
 
-static void *def_realloc(void *ctx, void *m, size_t s) {
+static void *
+def_realloc(void *ctx, void *m, size_t s)
+{
     (void)ctx;
     return realloc(m, s);
 }
 
-static void def_free(void *ctx, void *m) {
+static void
+def_free(void *ctx, void *m)
+{
     (void)ctx;
     free(m);
 }
@@ -1075,6 +1081,61 @@ tp_transcode_init(tp_transcode_t *t, char *output, size_t output_size,
     t->errcode = -32700;
 
     return TP_TRANSCODE_OK;
+}
+
+void
+tp_transcode_free(tp_transcode_t *t)
+{
+  assert(t);
+  assert(t->codec.ctx);
+
+  if (mp_unlikely(t->errmsg != NULL)) {
+    t->mf.free(t->mf.ctx, t->errmsg);
+    t->errmsg = NULL;
+  }
+
+  t->codec.free(t->codec.ctx);
+  t->codec.ctx = NULL;
+}
+
+enum tt_result
+tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size)
+{
+  assert(t);
+  assert(t->codec.ctx);
+  *complete_msg_size = 0;
+  return t->codec.complete(t->codec.ctx, complete_msg_size);
+}
+
+enum tt_result
+tp_transcode(tp_transcode_t *t, const char *b, size_t s)
+{
+  assert(t);
+  assert(t->codec.ctx);
+  return t->codec.transcode(t->codec.ctx, b, s);
+}
+
+bool
+tp_dump(char *output, size_t output_size,
+        const char *input, size_t input_size)
+{
+  tp_transcode_t t;
+  if (tp_transcode_init(&t, output, output_size, TP_TO_JSON, NULL)
+          == TP_TRANSCODE_ERROR)
+    return false;
+
+  if (tp_transcode(&t, input, input_size) == TP_TRANSCODE_ERROR) {
+    tp_transcode_free(&t);
+    return false;
+  }
+
+  size_t complete_msg_size = 0;
+  tp_transcode_complete(&t, &complete_msg_size);
+  output[complete_msg_size] = '0';
+
+  tp_transcode_free(&t);
+
+  return complete_msg_size > 0;
 }
 
 ssize_t
