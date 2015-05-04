@@ -98,7 +98,7 @@ typedef struct {
     tp_transcode_t *tc;
 } yajl_ctx_t;
 
-static inline char*
+static inline char *
 tp_call_wof(struct tp *p)
 {
     int sz = 5 +
@@ -123,7 +123,7 @@ tp_call_wof(struct tp *p)
     return tp_add(p, sz);
 }
 
-static inline char*
+static inline char *
 tp_call_wof_add_func(struct tp *p, const char *function, int len)
 {
     int sz = mp_sizeof_uint(TP_FUNCTION) +
@@ -135,7 +135,7 @@ tp_call_wof_add_func(struct tp *p, const char *function, int len)
     return tp_add(p, sz);
 }
 
-static inline char*
+static inline char *
 tp_call_wof_add_params(struct tp *p)
 {
     int sz = mp_sizeof_uint(TP_TUPLE);
@@ -696,6 +696,24 @@ typedef struct tp2json {
     int state;
 } tp2json_t;
 
+static inline int
+code_conv(int code)
+{
+    switch (code) {
+    case 0:
+        break;
+    case 32801:
+        code = -32601;
+        break;
+    default:
+        if (code > 0)
+          code *= -1;
+        break;
+    }
+
+    return code;
+}
+
 static void*
 tp2json_create(tp_transcode_t *tc, char *output, size_t output_size)
 {
@@ -926,7 +944,7 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
                 "{\"id\":%zu,\"error\":{\"message\":\"%.*s\",\"code\":%d}",
                 (size_t)tp_getreqid(&ctx->r),
                 elen, ctx->r.error,
-                ctx->r.code);
+                code_conv(ctx->r.code));
 
     } else {
 
