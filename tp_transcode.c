@@ -401,7 +401,9 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
             s_ctx->stage = METHOD;
         }
         else
+        {
             dd("SKIPING: %.*s\n", (int)len, key);
+        }
     } else
         s_ctx->stage = WAIT_NEXT;
 

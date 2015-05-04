@@ -38,8 +38,7 @@ configure:
 	cd $(NGX_PATH) && \
 	./configure --with-cc-opt='$(INC_FLAGS)'\
 			--add-module='$(MODULE_PATH)'\
-			--with-ld-opt='$(LDFLAGS)' \
-			--test-build-epoll
+			--with-ld-opt='$(LDFLAGS)'
 
 json2tp:
 	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
