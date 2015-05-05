@@ -32,7 +32,7 @@ Beta version.
     
     NOT ALLOWED - POST requests only are allowed.
     
-    BAD REQUEST - json parse error.
+    BAD REQUEST - json parse error, empty request body, etc.
     
     BAD GATEWAY - lost connection with Tarantool server(s);
                   Since both (i.e. json -> tp and tp -> json) parser works async,
