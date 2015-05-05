@@ -32,6 +32,8 @@ Beta version.
     
     NOT ALLOWED - POST requests only are allowed.
     
+    BAD REQUEST - json parse error.
+    
     BAD GATEWAY - lost connection with Tarantool server(s);
                   Since both (i.e. json -> tp and tp -> json) parser works async,
                   this error may appear if 'params' or 'method' not exists in structure of incoming json,
