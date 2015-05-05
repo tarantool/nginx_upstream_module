@@ -1,12 +1,14 @@
 # Tarantool NginX upstream module
 
   Key features:
+  
   * United nginx features and tarantool features over HTTP(S).
   * Load Balancing with elastic configuration.
   * Backup and fail tolerance.
   * All features of Nginx upstream with small overheads.
-  * Notice. websocket currently not supported due to Tarantool limitation.
   * Call tarantool methods via json rpc.
+  
+  Notice. Websocket currently not supported due to Tarantool limitation.
 
   About tarantool: http://tarantool.org
   
@@ -14,7 +16,7 @@
 
 ## Status
 
-Alpha version
+Beta version.
 
 ## Protocol
 
