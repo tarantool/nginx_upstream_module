@@ -19,6 +19,11 @@ yajl:
 	ln -sf src third_party/yajl/yajl
 	cd $(YAJL_PATH); ./configure; make distro
 
+tarantool-c:
+	cd $(TNTC_PATH)
+	git submodule init
+	git submodule update --recursive
+
 build: utils
 	$(MAKE) -C $(NGX_PATH)
 
@@ -63,6 +68,6 @@ clean:
 	rm -f misc/tp_{send,dump} misc/json2tp
 
 utils: json2tp tp_dump
-build-all: yajl configure build utils
-build-all-debug: yajl configure-debug build utils
+build-all: yajl tarantool-c configure build utils
+build-all-debug: yajl tarantool-c configure-debug build utils
 
