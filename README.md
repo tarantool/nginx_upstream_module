@@ -1,7 +1,6 @@
 # Tarantool NginX upstream module
 
   Key features:
-  
   * United nginx features and tarantool features over HTTP(S).
   * Call tarantool methods via json rpc.
   * Load Balancing with elastic configuration.
