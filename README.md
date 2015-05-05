@@ -3,10 +3,10 @@
   Key features:
   
   * United nginx features and tarantool features over HTTP(S).
+  * Call tarantool methods via json rpc.
   * Load Balancing with elastic configuration.
   * Backup and fail tolerance.
-  * All features of Nginx upstream with small overheads.
-  * Call tarantool methods via json rpc.
+  * Small overheads.
   
   Notice. Websocket currently not supported due to Tarantool limitation.
 
