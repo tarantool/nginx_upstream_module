@@ -145,7 +145,7 @@ Beta version.
 
 ### Build from the sources
 
-    $ $ git clone https://github.com/tarantool/nginx_upstream_module.git nginx_upstream_module
+    $ git clone https://github.com/tarantool/nginx_upstream_module.git nginx_upstream_module
     $ cd nginx_upstream_module
     $ git submodule init
     $ git submodule update --recursive
