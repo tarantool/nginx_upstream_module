@@ -81,7 +81,7 @@ Alpha version
 
     $ cd REPO_ROOT
     $ git submodule init
-    $ git submodule update
+    $ git submodule update --recursive
     $ git clone https://github.com/nginx/nginx.git nginx
     $ make build-all # build-all-debug i.e. debug version
 
