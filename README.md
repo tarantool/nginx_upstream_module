@@ -164,10 +164,15 @@ Beta version.
 ## Configuration
 
 ```nginx
-
+    ## Typical configuration, for more see http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
     upstream backend {
-        server 127.0.0.1:9999;
+        server 127.0.0.1:9999 max_fails=1 fail_timeout=30s;
+        server 127.0.0.1:10000;
+
         # ...
+        server 127.0.0.1:10001 backup;                                               
+                                                                                   
+        # ...  
     }
 
     server {
