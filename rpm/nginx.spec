@@ -104,10 +104,12 @@ Not stripped version of nginx built with the debugging log support.
 
 %prep
 %setup -q
-%setup -TD -a 11
+mkdir nginx_upstream_module-%{nginx_tarantool_version}
+cd nginx_upstream_module-%{nginx_tarantool_version}
+%{__tar} zxvf %{SOURCE11}
 
 %build
-make -C %{_builddir}/%{name}-%{version}/v%{nginx_tarantool_version} yajl
+make -C %{_builddir}/%{name}-%{version}/nginx_upstream_module-%{nginx_tarantool_version} yajl
 ./configure \
         --prefix=%{_sysconfdir}/nginx \
         --sbin-path=%{_sbindir}/nginx \
