@@ -3,7 +3,8 @@ ngx_addon_name="ngx_http_tnt_module"
 CORE_INCS="$CORE_INCS $ngx_feature_path \
           "
 
-CORE_LIBS="$CORE_LIBS $ngx_feature_libs -lyajl_s"
+CORE_LIBS="$CORE_LIBS $ngx_feature_libs \
+           $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/lib/libyajl_s.a"
 
 HTTP_MODULES="$HTTP_MODULES               \
               ngx_http_tnt_module         \
@@ -15,4 +16,5 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS                               \
                 "
 
 
-CFLAGS="$CFLAGS -I$ngx_addon_dir"
+CFLAGS="$CFLAGS -I$ngx_addon_dir -I$ngx_addon_dir/third_party \
+                -I$ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/include"

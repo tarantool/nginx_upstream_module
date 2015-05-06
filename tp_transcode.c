@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #define MP_SOURCE 1
-#include "tp.h"
+#include <tarantool-c/src/tp.h>
 #include "tp_transcode.h"
 
 #if defined DEBUG

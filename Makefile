@@ -1,10 +1,10 @@
-CUR_PATH    = $(PWD)
-YAJL_PATH   = $(PWD)/third_party/yajl
-TNTC_PATH   = $(PWD)/third_party/tarantool-c
+CUR_PATH    = $(shell pwd)
+YAJL_PATH   = $(CUR_PATH)/third_party/yajl
+TNTC_PATH   = $(CUR_PATH)/third_party/tarantool-c
 
 NGX_PATH    = nginx
-MODULE_PATH = $(PWD)
-PREFIX_PATH = $(PWD)/test-root
+MODULE_PATH = $(CUR_PATH)
+PREFIX_PATH = $(CUR_PATH)/test-root
 INC_FLAGS   = -I$(TNTC_PATH)/src -I$(TNTC_PATH)/src/msgpuck
 INC_FLAGS  += -I$(YAJL_PATH)/build/yajl-2.1.0/include/
 YAJL_LIB   = $(YAJL_PATH)/build/yajl-2.1.0/lib/libyajl_s.a
@@ -16,6 +16,7 @@ CFLAGS     += -ggdb3 -O0 -Wall -Werror
 all: build
 
 yajl:
+	echo "$(CUR_PATH)" > /dev/null
 	ln -sf src third_party/yajl/yajl
 	cd $(YAJL_PATH); ./configure; make distro
 
@@ -37,7 +38,7 @@ configure-debug:
 	unlink $(PREFIX_PATH)/conf/nginx.conf > /dev/null || echo "pass"
 	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
 	rm -f $(PREFIX_PATH)/conf/nginx.conf
-	ln -s $(PWD)/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf > /dev/null
+	ln -s $(CUR_PATH)/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf > /dev/null
 
 configure:
 	cd $(NGX_PATH) && \
@@ -71,3 +72,12 @@ utils: json2tp tp_dump
 build-all: yajl tarantool-c configure build utils
 build-all-debug: yajl tarantool-c configure-debug build utils
 
+TAG = $(shell git tag --contains)
+
+srpm:
+	tar czf rpm/$(TAG).tar.gz ./* --exclude=.git		\
+								  --exclude=.gitmodules \
+								  --exclude=.gitignore 	\
+								  --exclude=rpm
+	rpmbuild -bs rpm/nginx.spec   --define '_sourcedir ./rpm/'	\
+								  --define '_srcrpmdir ./'
