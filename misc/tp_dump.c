@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 
-#include "tp.h"
+#include <tarantool-c/src/tp.h>
 #include "tp_transcode.h"
 
 void

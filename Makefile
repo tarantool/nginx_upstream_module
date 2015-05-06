@@ -5,7 +5,8 @@ TNTC_PATH   = $(CUR_PATH)/third_party/tarantool-c
 NGX_PATH    = nginx
 MODULE_PATH = $(CUR_PATH)
 PREFIX_PATH = $(CUR_PATH)/test-root
-INC_FLAGS   = -I$(TNTC_PATH)/src -I$(TNTC_PATH)/src/msgpuck
+INC_FLAGS   = -I$(CUR_PATH)/third_party
+INC_FLAGS  += -I$(TNTC_PATH)/src/msgpuck
 INC_FLAGS  += -I$(YAJL_PATH)/build/yajl-2.1.0/include/
 YAJL_LIB   = $(YAJL_PATH)/build/yajl-2.1.0/lib/libyajl_s.a
 LDFLAGS    = -L$(YAJL_PATH)/build/yajl-2.1.0/lib/
@@ -72,7 +73,7 @@ utils: json2tp tp_dump
 build-all: yajl tarantool-c configure build utils
 build-all-debug: yajl tarantool-c configure-debug build utils
 
-TAG = $(shell git tag --contains)
+TAG = $(shell git describe --abbrev=0)
 
 srpm:
 	tar czf rpm/$(TAG).tar.gz ./* --exclude=.git		\
