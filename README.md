@@ -1,13 +1,13 @@
 # Tarantool NginX upstream module
 
   Key features:
-  * United nginx features and tarantool features over HTTP(S).
-  * Call tarantool methods via json rpc.
+  * Benefit from nginx features and tarantool features over HTTP(S).
+  * Call tarantool methods via JSON RPC.
   * Load Balancing with elastic configuration.
-  * Backup and fail tolerance.
-  * Small overheads.
+  * Backup and fault tolerance.
+  * Low overhead.
   
-  Notice. Websocket currently not supported due to Tarantool limitation.
+  Note: Websockets are currently not supported until Tarantool support out-of-bound replies.
 
   About tarantool: http://tarantool.org
   
@@ -19,27 +19,27 @@ Beta version.
 
 ## Protocol
 
-  Module expects json posted over HTTP POST in request body.
+  The module expects JSON posted with HTTP POST and carried in request body.
   
   Server HTTP statuses
   
-    OK - response body contains result or error;
-         error may appear only if something happened within Tarantool,
+    OK - response body contains a result or an error;
+         the error may appear only if something happened within Tarantool,
          for instance: 'method not found'.
     
     INTERNAL SERVER ERROR - may appear in many cases,
                             most of them is 'out of memory' error;
     
-    NOT ALLOWED - POST requests only are allowed.
+    NOT ALLOWED - in reponse to anything but  a POST request.
     
-    BAD REQUEST - json parse error, empty request body, etc.
+    BAD REQUEST - JSON parse error, empty request body, etc.
     
-    BAD GATEWAY - lost connection with Tarantool server(s);
-                  Since both (i.e. json -> tp and tp -> json) parser works async,
-                  this error may appear if 'params' or 'method' not exists in structure of incoming json,
-                  see protocol description for more details.
+    BAD GATEWAY - lost connection to Tarantool server(s);
+                  Since both (i.e. json -> tp and tp -> json) parsers work asynchronouly,
+                  this error may appear if 'params' or 'method' do not exists in tbe structure
+                  of incoming JSON, please see the protocol description for more details.
                   
-                  Notice. This behavior will change in future.
+                  Note: this behavior will change in  the future.
 
 ### Input JSON form
 
