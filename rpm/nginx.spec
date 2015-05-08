@@ -54,18 +54,21 @@ Requires: systemd
 %define nginx_loggroup trusted
 %endif
 
+
+%define nginx_name nginx
+%define nginx_version 1.8.0
 %define nginx_tarantool_version 0.0.3
 
 # end of distribution specific definitions
 
 Summary: High performance web server
-Name: nginx
-Version: 1.8.0
+Name: nginx_tarantool
+Version: %{nginx_version}_%{nginx_tarantool_version}
 Release: 1%{?dist}.ngx
 Vendor: nginx inc.
 URL: http://nginx.org/
 
-Source0: http://nginx.org/download/%{name}-%{version}.tar.gz
+Source0: http://nginx.org/download/%{nginx_name}-%{nginx_version}.tar.gz
 Source1: logrotate
 Source2: nginx.init
 Source3: nginx.sysconf
@@ -80,7 +83,7 @@ Source11: v%{nginx_tarantool_version}.tar.gz
 
 License: 2-clause BSD-like license
 
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+BuildRoot: %{_tmppath}/%{nginx_name}-%{nginx_version}-%{release}-root
 BuildRequires: zlib-devel
 BuildRequires: pcre-devel
 BuildRequires: cmake
@@ -103,13 +106,16 @@ Not stripped version of nginx built with the debugging log support.
 %endif
 
 %prep
-%setup -q
-mkdir nginx_upstream_module-%{nginx_tarantool_version}
-cd nginx_upstream_module-%{nginx_tarantool_version}
+%setup -q -n %{nginx_name}-%{nginx_version}
+mkdir %{_builddir}/nginx-%{nginx_version}/nginx_upstream_module-%{nginx_tarantool_version}
+cd %{_builddir}/nginx-%{nginx_version}/nginx_upstream_module-%{nginx_tarantool_version}
 %{__tar} zxvf %{SOURCE11}
+cd ..
 
 %build
-make -C %{_builddir}/%{name}-%{version}/nginx_upstream_module-%{nginx_tarantool_version} yajl
+make -C %{_builddir}/%{nginx_name}-%{nginx_version}/nginx_upstream_module-%{nginx_tarantool_version} yajl
+cd %{_builddir}/%{nginx_name}-%{nginx_version}
+ls -al
 ./configure \
         --prefix=%{_sysconfdir}/nginx \
         --sbin-path=%{_sbindir}/nginx \
@@ -145,11 +151,11 @@ make -C %{_builddir}/%{name}-%{version}/nginx_upstream_module-%{nginx_tarantool_
         --with-debug \
         %{?with_spdy:--with-http_spdy_module} \
         --with-cc-opt="%{optflags} $(pcre-config --cflags)" \
-        --add-module=%{_builddir}/%{name}-%{version}/nginx_upstream_module-%{nginx_tarantool_version}
+        --add-module=%{_builddir}/%{nginx_name}-%{nginx_version}/nginx_upstream_module-%{nginx_tarantool_version}
         $*
 make %{?_smp_mflags}
-%{__mv} %{_builddir}/%{name}-%{version}/objs/nginx \
-        %{_builddir}/%{name}-%{version}/objs/nginx.debug
+%{__mv} %{_builddir}/%{nginx_name}-%{nginx_version}/objs/nginx \
+        %{_builddir}/%{nginx_name}-%{nginx_version}/objs/nginx.debug
 ./configure \
         --prefix=%{_sysconfdir}/nginx \
         --sbin-path=%{_sbindir}/nginx \
@@ -184,7 +190,7 @@ make %{?_smp_mflags}
         --with-ipv6 \
         %{?with_spdy:--with-http_spdy_module} \
         --with-cc-opt="%{optflags} $(pcre-config --cflags)" \
-        --add-module=%{_builddir}/%{name}-%{version}/nginx_upstream_module-%{nginx_tarantool_version}
+        --add-module=%{_builddir}/%{nginx_name}-%{nginx_version}/nginx_upstream_module-%{nginx_tarantool_version}
         $*
 make %{?_smp_mflags}
 
@@ -245,7 +251,7 @@ make %{?_smp_mflags}
    $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/nginx
 %endif
 
-%{__install} -m644 %{_builddir}/%{name}-%{version}/objs/nginx.debug \
+%{__install} -m644 %{_builddir}/%{nginx_name}-%{nginx_version}/objs/nginx.debug \
    $RPM_BUILD_ROOT%{_sbindir}/nginx.debug
 
 %clean
