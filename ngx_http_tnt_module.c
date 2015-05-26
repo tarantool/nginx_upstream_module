@@ -1,5 +1,33 @@
 /*
- * Copyright (C)
+ * Redistribution and use in source and binary forms, with or
+ * without modification, are permitted provided that the following
+ * conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above
+ *    copyright notice, this list of conditions and the
+ *    following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials
+ *    provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY AUTHORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ * AUTHORS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+ * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Copyright (C) 2015 Tarantool AUTHORS:
+ * please see AUTHORS file.
  */
 
 #include <ngx_config.h>
@@ -47,7 +75,7 @@ typedef struct {
     enum ctx_state     state;
     ngx_buf_t          *in_err, *tp_cache;
     ssize_t            rest, payload_size;
-    int8_t             rest_batch_size, batch_size;
+    int                rest_batch_size, batch_size;
     ngx_int_t          greeting:1;
 
 } ngx_http_tnt_ctx_t;
@@ -723,10 +751,12 @@ ngx_http_tnt_reset_ctx(ngx_http_tnt_ctx_t *ctx)
 
     ctx->in_err = ctx->tp_cache = NULL;
 
-    ctx->rest =
-    ctx->payload_size =
-    ctx->rest_batch_size =
-    ctx->batch_size =
+    ctx->rest = 0;
+    ctx->payload_size = 0;
+
+    ctx->rest_batch_size = 0;
+    ctx->batch_size = 0;
+
     ctx->greeting = 0;
 }
 
