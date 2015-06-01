@@ -6,6 +6,8 @@ misc/tp_send
 misc/json2tp
 *.snap
 *.xlog
-tc.out*
+*.out*
 test/cases/*.tmp
 *.src.rpm
+experemets
+.DS_Store
