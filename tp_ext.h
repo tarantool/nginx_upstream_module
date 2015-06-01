@@ -30,55 +30,60 @@
  * please see AUTHORS file.
  */
 
-#ifndef DEBUG_UTILS_H
-#define DEBUG_UTILS_H 1
+#ifndef TP_EXT_H
+#define TP_EXT_H 1
 
-#include <ngx_config.h>
-#include <ngx_core.h>
+#include <tarantool-c/src/tp.h>
 
-#if defined(NGX_DEBUG)
+#define unlikely mp_unlikely
+#define likely mp_likely
 
-# if (NGX_HAVE_VARIADIC_MACROS)
-# define dd(...) do { \
-        fprintf(stderr, "tnt *** "); \
-        fprintf(stderr, __VA_ARGS__); \
-        fprintf(stderr, " at %s line %d.\n", __FILE__, __LINE__); \
-      } while(0)
-# else
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdarg.h>
-
-static void dd(const char* fmt, ...) {
+static inline char *
+tp_call_wof(struct tp *p)
+{
+    int sz = 5 +
+            mp_sizeof_map(2) +
+            mp_sizeof_uint(TP_CODE) +
+            mp_sizeof_uint(TP_CALL) +
+            mp_sizeof_uint(TP_SYNC) +
+            5 +
+            mp_sizeof_map(2);
+    if (tpunlikely(tp_ensure(p, sz) == -1))
+        return NULL;
+    p->size = p->p;
+    char *h = mp_encode_map(p->p + 5, 2);
+    h = mp_encode_uint(h, TP_CODE);
+    h = mp_encode_uint(h, TP_CALL);
+    h = mp_encode_uint(h, TP_SYNC);
+    p->sync = h;
+    *h = 0xce;
+    *(uint32_t*)(h + 1) = 0;
+    h += 5;
+    h = mp_encode_map(h, 2);
+    return tp_add(p, sz);
 }
 
-# endif
-
-#else
-
-# if (NGX_HAVE_VARIADIC_MACROS)
-# define dd(...)
-# else
-
-#include <stdarg.h>
-
-static void dd(const char* fmt, ...) {
+static inline char *
+tp_call_wof_add_func(struct tp *p, const char *function, int len)
+{
+    int sz = mp_sizeof_uint(TP_FUNCTION) +
+                mp_sizeof_str(len);
+    if (tpunlikely(tp_ensure(p, sz) == -1))
+        return NULL;
+    char *h = mp_encode_uint(p->p, TP_FUNCTION);
+    h = mp_encode_str(h, function, len);
+    return tp_add(p, sz);
 }
 
-# endif
-
-#endif /* NGX_DEBUG */
-
-#if (NGX_HAVE_VARIADIC_MACROS)
-# define log_crit(log, ...) \
-     ngx_log_error_core(NGX_LOG_CRIT, (log), 0, __VA_ARGS__)
-# define crit(...) log_crit(r->connection->log, __VA_ARGS__)
-# else
-/** TODO
- *  Warn. user here
- */
-static inline void crit(...) {}
-#endif /* NGX_HAVE_VARIADIC_MACROS */
+static inline char *
+tp_call_wof_add_params(struct tp *p)
+{
+    int sz = mp_sizeof_uint(TP_TUPLE);
+    if (tpunlikely(tp_ensure(p, sz) == -1))
+        return NULL;
+    mp_encode_uint(p->p, TP_TUPLE);
+    return tp_add(p, sz);
+}
 
 #endif
+

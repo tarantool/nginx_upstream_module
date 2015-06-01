@@ -898,8 +898,8 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
     output = ngx_http_tnt_create_mem_buf(r, u,
-                    (ctx->tp_cache->end - ctx->tp_cache->start)
-                        * tlcf->out_multiplier + OVERHEAD);
+                    (ctx->tp_cache->end - ctx->tp_cache->start + OVERHEAD)
+                        * tlcf->out_multiplier);
     if (output == NULL) {
         return NGX_ERROR;
     }

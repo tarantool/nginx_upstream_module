@@ -31,7 +31,7 @@
  */
 
 #ifndef TP_TRANSCODE_H_INCLUDED
-#define TP_TRANSCODE_H INCLUDED
+#define TP_TRANSCODE_H INCLUDED 1
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -78,7 +78,10 @@ enum tp_codec_type {
    */
   TP_REPLY_TO_JSON,
 
-  /** Tarantool message to JSON
+  /**
+   *  WARNING! TP_TO_JSON must be use only for debug
+   *
+   *  Tarantool message to JSON
    */
   TP_TO_JSON,
 
@@ -121,9 +124,9 @@ tp_read_payload(const char * const buf, const char * const end);
  * Returns TP_TRANSCODE_OK if codec found and initialize well
  */
 enum tt_result tp_transcode_init(tp_transcode_t *t,
-    char *output, size_t output_size,
-    enum tp_codec_type codec,
-    mem_fun_t *mf);
+                                 char *output, size_t output_size,
+                                 enum tp_codec_type codec,
+                                 mem_fun_t *mf);
 
 /** Free struct tp_transcode
  */
@@ -145,12 +148,14 @@ enum tt_result
 tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size);
 
 /**
+ * WARNING! tp_dump() must be use only for debug pupose
+ *
  * Dump Tarantool message to output in JSON format
  * Returns true, false
  */
 bool
 tp_dump(char *output, size_t output_size,
-    const char *input, size_t input_size);
+        const char *input, size_t input_size);
 
 #ifdef __cplusplus
 } /* extern "C" */
