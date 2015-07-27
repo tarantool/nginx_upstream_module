@@ -15,7 +15,7 @@
 
 ## Status
 
-Beta version.
+Gamma/Stable.
 
 ## Protocol
 
