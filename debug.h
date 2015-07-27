@@ -36,7 +36,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
-#if defined(NGX_DEBUG)
+#if defined(MY_DEBUG)
 
 # if (NGX_HAVE_VARIADIC_MACROS)
 # define dd(...) do { \

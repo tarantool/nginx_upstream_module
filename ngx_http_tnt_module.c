@@ -565,6 +565,8 @@ ngx_http_tnt_filter(void *data, ssize_t bytes)
         dd("Next message in same input buffer -- merge");
     }
 
+    u->keepalive = 1;
+
     return rc;
 }
 
