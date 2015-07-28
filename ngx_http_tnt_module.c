@@ -29,7 +29,7 @@
  * Copyright (C) 2015 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
-#define MY_DEBUG 1
+
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
