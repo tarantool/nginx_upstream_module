@@ -66,6 +66,9 @@ def get_result_i(o, i):
 
 #
 def batch_cases():
+
+    print "[+] Batch cases"
+
     (rc, res) = request([
 
         { 'method': 'ret_4096',
@@ -149,11 +152,10 @@ batch_cases()
 
 ###
 # Regular cases
-
+print "[+] Regular cases"
 #
 (rc, res) = request_raw('{"method":"call", "params":["name", __wrong__], "id":555}');
 assert(rc == 400), 'expected 400'
-assert_if_not_error(res, -32700)
 
 #
 (rc, res) = request_raw('');
@@ -199,6 +201,12 @@ assert(get_result(res)[1][0]['c'] == req['params'][1][0]['c'])
     })
 assert(rc == 200), 'expected 200'
 
+(rc, res) = request({
+    'method': 'echo_2',
+    'params': [],
+    'id': 555
+    })
+
 ## TODO fix
 #(rc, res) = request({
 #    'params': [],
@@ -206,3 +214,17 @@ assert(rc == 200), 'expected 200'
 #    })
 
 print '[OK] Regualr cases'
+
+## Segfault regress
+print "[+] Regualr regress cases"
+
+(rc, res) = request_raw('[{"method":"call", "params":["name"], "i');
+assert(rc == 400), 'expected 400'
+assert_if_not_error(res, -32700)
+
+(rc, res) = request_raw('[{"');
+assert(rc == 400), 'expected 400'
+assert_if_not_error(res, -32700)
+
+print '[OK] Segfautl regress cases'
+

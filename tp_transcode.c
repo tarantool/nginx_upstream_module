@@ -682,6 +682,11 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
         return TP_TRANSCODE_OK;
     }
 
+    if (s_ctx->tc->errmsg == NULL) {
+        char errmsg[] = "invalid input json";
+        say_error_(s_ctx->tc, -32700, errmsg, sizeof(errmsg) - 1);
+    }
+
     return TP_TRANSCODE_ERROR;
 }
 

@@ -31,7 +31,7 @@ build: utils
 
 configure-debug:
 	cd $(NGX_PATH) && \
-	CFLAGS=" -Wall -Werror -ggdb3 $(INC_FLAGS)" ./configure \
+	CFLAGS=" -DMY_DEBUG -Wall -Werror -ggdb3 $(INC_FLAGS)" ./configure \
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
 						--with-debug --with-ld-opt='$(LDFLAGS)'
