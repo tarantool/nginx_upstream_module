@@ -1,6 +1,6 @@
-[submodule "third_party/tarantool-c"]
-	path = third_party/tarantool-c
-	url = https://github.com/tarantool/tarantool-c.git
 [submodule "third_party/yajl"]
 	path = third_party/yajl
 	url = https://github.com/lloyd/yajl.git
+[submodule "third_party/msgpuck"]
+	path = third_party/msgpuck
+	url = https://github.com/rtsisyk/msgpuck.git

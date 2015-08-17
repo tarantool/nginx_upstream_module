@@ -5,7 +5,8 @@
 #include <stdlib.h>
 #include <getopt.h>
 
-#include <tarantool-c/src/tp.h>
+#define TP_H_AUTH_OFF 1
+#include "tp.h"
 #include "tp_transcode.h"
 
 void

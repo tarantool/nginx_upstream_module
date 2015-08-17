@@ -33,7 +33,11 @@
 #ifndef TP_EXT_H
 #define TP_EXT_H 1
 
-#include <tarantool-c/src/tp.h>
+#if !defined(TP_H_AUTH_OFF)
+#   define TP_H_AUTH_OFF 1
+#endif // TP_H_AUTH_OFF
+
+#include <tp.h> /* third_party/tp.h */
 
 #define unlikely mp_unlikely
 #define likely mp_likely

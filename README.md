@@ -147,8 +147,7 @@ Gamma/Stable.
 
     $ git clone https://github.com/tarantool/nginx_upstream_module.git nginx_upstream_module
     $ cd nginx_upstream_module
-    $ git submodule init
-    $ git submodule update --recursive
+    $ git submodule update --init --recursive
     $ git clone https://github.com/nginx/nginx.git nginx
     $ make build-all # build-all-debug i.e. debug version
 

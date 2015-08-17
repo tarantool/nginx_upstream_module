@@ -1,17 +1,16 @@
 CUR_PATH    = $(shell pwd)
 YAJL_PATH   = $(CUR_PATH)/third_party/yajl
-TNTC_PATH   = $(CUR_PATH)/third_party/tarantool-c
 
 NGX_PATH    = nginx
 MODULE_PATH = $(CUR_PATH)
 PREFIX_PATH = $(CUR_PATH)/test-root
 INC_FLAGS   = -I$(CUR_PATH)/third_party
-INC_FLAGS  += -I$(TNTC_PATH)/src/msgpuck
-INC_FLAGS  += -I$(YAJL_PATH)/build/yajl-2.1.0/include/
-YAJL_LIB   = $(YAJL_PATH)/build/yajl-2.1.0/lib/libyajl_s.a
-LDFLAGS    = -L$(YAJL_PATH)/build/yajl-2.1.0/lib/
+INC_FLAGS  += -I$(YAJL_PATH)/build/yajl-2.1.0/include
+INC_FLAGS  += -I$(CUR_PATH)/third_party/msgpuck
+YAJL_LIB    = $(YAJL_PATH)/build/yajl-2.1.0/lib/libyajl_s.a
+LDFLAGS     = -L$(YAJL_PATH)/build/yajl-2.1.0/lib
 
-CFLAGS     += -ggdb3 -O0 -Wall -Werror
+DEV_CFLAGS += -ggdb3 -O0 -Wall -Werror
 
 .PHONY: all build
 all: build
@@ -21,20 +20,16 @@ yajl:
 	ln -sf src third_party/yajl/yajl
 	cd $(YAJL_PATH); ./configure; make distro
 
-tarantool-c:
-	cd $(TNTC_PATH)
-	git submodule init
-	git submodule update --recursive
-
 build: utils
 	$(MAKE) -C $(NGX_PATH)
 
 configure-debug:
 	cd $(NGX_PATH) && \
-	CFLAGS=" -DMY_DEBUG -Wall -Werror -ggdb3 $(INC_FLAGS)" ./configure \
+	CFLAGS=" -DMY_DEBUG -Wall -Werror -ggdb3 $(INC_FLAGS)" ./auto/configure \
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
-						--with-debug --with-ld-opt='$(LDFLAGS)'
+						--with-debug \
+						--with-ld-opt='$(LDFLAGS)'
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
 	unlink $(PREFIX_PATH)/conf/nginx.conf > /dev/null || echo "pass"
 	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
@@ -43,19 +38,20 @@ configure-debug:
 
 configure:
 	cd $(NGX_PATH) && \
-	./configure --with-cc-opt='$(INC_FLAGS)'\
+	./auto/configure \
+			--with-cc-opt='$(INC_FLAGS)'\
 			--add-module='$(MODULE_PATH)'\
 			--with-ld-opt='$(LDFLAGS)'
 
 json2tp:
-	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
+	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
 				$(CUR_PATH)/misc/json2tp.c \
 				tp_transcode.c \
 				-o misc/json2tp \
 				-lyajl_s
 
 tp_dump:
-	$(CC) $(CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
+	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
 				$(CUR_PATH)/misc/tp_dump.c \
 				tp_transcode.c \
 				-o misc/tp_dump \
@@ -70,8 +66,8 @@ clean:
 	rm -f misc/tp_{send,dump} misc/json2tp
 
 utils: json2tp tp_dump
-build-all: yajl tarantool-c configure build utils
-build-all-debug: yajl tarantool-c configure-debug build utils
+build-all: yajl configure build utils
+build-all-debug: yajl configure-debug build utils
 
 TAG = $(shell git describe --abbrev=0)
 
