@@ -156,7 +156,7 @@ Gamma/Stable.
   Requirements (for details see REPO_ROOT/Makefile)
 
     libyajl >= 2.0(https://lloyd.github.io/yajl/)
-    libtp (https://github.com/tarantool/tarantool-c)
+    libmsgpuck >= 1.0 (https://github.com/rtsisyk/msgpuck)
 
     $ ./configure --add-module=REPO_ROOT && make
 
