@@ -15,7 +15,7 @@
 
 ## Status
 
-Gamma/Stable.
+v0.1.4 Stable.
 
 ## Protocol
 
