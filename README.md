@@ -7,7 +7,7 @@
   * Backup and fault tolerance.
   * Low overhead.
   
-  Note: Websockets are currently not supported until Tarantool support out-of-bound replies.
+  Note: Websockets are currently not supported until Tarantool support out of band replies.
 
   About tarantool: http://tarantool.org
   
