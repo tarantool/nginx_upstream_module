@@ -59,8 +59,12 @@ enum tp_type {
 
 /* header */
 enum tp_header_key_t {
-	TP_CODE = 0x00,
-	TP_SYNC = 0x01
+  TP_CODE      = 0x00,
+	TP_SYNC      = 0x01,
+	TP_SERVER_ID = 0x02,
+	TP_LSN       = 0x03,
+	TP_TIMESTAMP = 0x04,
+	TP_SCHEMA_ID = 0x05
 };
 
 /* request body */
@@ -70,17 +74,16 @@ enum tp_body_key_t {
 	TP_LIMIT = 0x12,
 	TP_OFFSET = 0x13,
 	TP_ITERATOR = 0x14,
+	TP_INDEX_BASE = 0x15,
 	TP_KEY = 0x20,
 	TP_TUPLE = 0x21,
 	TP_FUNCTION = 0x22,
 	TP_USERNAME = 0x23,
-	TP_EXPRESSION = 0x27,
-	TP_SERVER_ID = 0x02,
-	TP_LSN = 0x03,
-	TP_TIMESTAMP = 0x04,
 	TP_SERVER_UUID = 0x24,
 	TP_CLUSTER_UUID = 0x25,
-	TP_VCLOCK = 0x26
+	TP_VCLOCK = 0x26,
+	TP_EXPRESSION = 0x27,
+	TP_OPS = 0x28
 };
 
 /* response body */
@@ -195,6 +198,7 @@ struct tpresponse {
 	const char *buf;               /* points to beginning of buffer */
 	uint32_t code;                 /* response code (0 is success, or errno if not) */
 	uint32_t sync;                 /* synchronization id */
+	uint32_t schema_id;            /* schema id */
 	const char *error;             /* error message (NULL if not present) */
 	const char *error_end;         /* end of error message (NULL if not present) */
 	const char *data;              /* tuple data (NULL if not present) */
@@ -1738,8 +1742,14 @@ tp_reply(struct tpresponse *r, const char * const buf, size_t size)
 				return -1;
 			r->code = mp_decode_uint(&p);
 			break;
+		case TP_SCHEMA_ID:
+			if (mp_typeof(*p) != MP_UINT)
+				return -1;
+			r->schema_id = mp_decode_uint(&p);
+			break;
 		default:
-			return -1;
+			mp_next(&p);
+			break;
 		}
 		r->bitmap |= (1ULL << key);
 	}

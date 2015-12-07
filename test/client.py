@@ -82,6 +82,7 @@ def batch_cases():
         }
 
     ])
+
     assert(rc == 200), 'expected 200'
     assert(len(res) == 2), 'expected 2 elements, got %i' % len(res)
     assert(get_result_i(res, 0)[1] == '101234567891234567')
@@ -130,12 +131,15 @@ def batch_cases():
     ])
     assert(rc == 200), 'expected 200'
     for rr in res:
-        if rr['id'] == 1 or rr['id'] == 3:
+        if rr['id'] == 3:
             assert('error' in rr or 'message' in rr), \
                     'expected %s returns error/message, got %s' % (rr['id'], rr)
         elif rr['id'] == 2:
             rr_ = get_result(rr)
             assert(rr_[1] == '101234567891234567')
+        elif rr['id'] == 1:
+            rr_ = get_result(rr)
+            assert(rr_ == [{"first":1}, {"second":2}])
         else:
             assert False, "unexpected id %s" % rr['id']
 

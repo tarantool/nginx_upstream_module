@@ -57,9 +57,13 @@ tp_dump:
 				-o misc/tp_dump \
 				-lyajl_s
 
-test: utils build
+test-dev: utils build
 	$(CUR_PATH)/test/transcode.sh
 	$(CUR_PATH)/test/nginx-tnt.sh
+
+test: utils build
+	$(CUR_PATH)/test/transcode.sh
+	$(CUR_PATH)/test/client.py
 
 clean:
 	$(MAKE) -C $(NGX_PATH) clean 2>1 || echo "pass"
