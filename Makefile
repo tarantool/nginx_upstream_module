@@ -31,10 +31,7 @@ configure-debug:
 						--with-debug \
 						--with-ld-opt='$(LDFLAGS)'
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
-	unlink $(PREFIX_PATH)/conf/nginx.conf > /dev/null || echo "pass"
-	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
-	rm -f $(PREFIX_PATH)/conf/nginx.conf
-	ln -s $(CUR_PATH)/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf > /dev/null
+	cp -Rf $(CUR_PATH)/mist/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
 
 configure:
 	cd $(NGX_PATH) && \
@@ -63,7 +60,8 @@ test-dev: utils build
 
 test: utils build
 	$(CUR_PATH)/test/transcode.sh
-	$(CUR_PATH)/test/client.py
+	$(CUR_PATH)/test/basic_features.py
+	$(CUR_PATH)/test/v20_features.py
 
 clean:
 	$(MAKE) -C $(NGX_PATH) clean 2>1 || echo "pass"
