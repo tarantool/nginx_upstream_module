@@ -74,6 +74,10 @@ enum tp_codec_type {
    */
   YAJL_JSON_TO_TP = 0,
 
+  /**
+   */
+  QUERY_TO_TP,
+
   /** Tarantool reply message to JSON
    */
   TP_REPLY_TO_JSON,
@@ -105,8 +109,28 @@ typedef struct tp_transcode {
   char *errmsg;
   int errcode;
 
+  const char *method;
+  size_t method_len;
+
   int batch_size;
+
+  struct {
+    const char *pos;
+    const char *end;
+    size_t len;
+  } data;
 } tp_transcode_t;
+
+/**
+ */
+typedef struct tp_transcode_init_args {
+    char *output;
+    size_t output_size;
+    const char *method;
+    size_t method_len;
+    enum tp_codec_type codec;
+    mem_fun_t *mf;
+} tp_transcode_init_args_t;
 
 /** Returns codes
  */
@@ -120,13 +144,13 @@ tp_read_payload(const char * const buf, const char * const end);
 
 /** Initialize struct tp_transcode.
  *
+ * Warning. 'method' does not copy, tp_transcode_t just hold pointer to memory
+ *
  * Returns TP_TRANSCODE_ERROR if codec not found or create codec failed
  * Returns TP_TRANSCODE_OK if codec found and initialize well
  */
 enum tt_result tp_transcode_init(tp_transcode_t *t,
-                                 char *output, size_t output_size,
-                                 enum tp_codec_type codec,
-                                 mem_fun_t *mf);
+                                 const tp_transcode_init_args_t *args);
 
 /** Free struct tp_transcode
  */
@@ -148,9 +172,15 @@ enum tt_result
 tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size);
 
 /**
+ *
+ */
+void tp_transcode_bind_data(tp_transcode_t *t,
+    const char *data_beg, const char *data_end);
+
+/**
  * WARNING! tp_dump() must be use only for debug pupose
  *
- * Dump Tarantool message to output in JSON format
+ * Dump Tarantool message in JSON format
  * Returns true, false
  */
 bool

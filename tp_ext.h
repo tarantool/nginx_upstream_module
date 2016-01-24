@@ -89,5 +89,22 @@ tp_call_wof_add_params(struct tp *p)
     return tp_add(p, sz);
 }
 
-#endif
+static inline char *
+tp_call_nargs(struct tp *p, const char *method, size_t method_len,
+    size_t nargs)
+{
+    if (!tp_call(p, (const char *)method, (int)method_len))
+      return NULL;
+    return tp_encode_array(p, nargs);
+}
 
+static inline char *
+tp_encode_str_map_item(struct tp *p, const char *key, size_t key_len,
+    const char * value, size_t value_len)
+{
+  if (!tp_encode_str(p, key, key_len))
+      return NULL;
+  return tp_encode_str(p, value, value_len);
+}
+
+#endif

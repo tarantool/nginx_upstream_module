@@ -142,6 +142,8 @@ typedef struct {
     uint32_t id;
 
     tp_transcode_t *tc;
+
+    bool read_method;
 } yajl_ctx_t;
 
 static inline bool
@@ -315,7 +317,7 @@ yajl_string(void *ctx, const unsigned char * str, size_t len)
                 say_overflow_r_2(s_ctx);
         }
 
-    } else if (s_ctx->stage == METHOD) {
+    } else if (s_ctx->read_method && s_ctx->stage == METHOD) {
 
         dd("METHOD: '%.*s' END\n", (int)len, str);
 
@@ -327,7 +329,8 @@ yajl_string(void *ctx, const unsigned char * str, size_t len)
 
         s_ctx->stage = WAIT_NEXT;
         s_ctx->been_stages |= METHOD;
-    }
+    } else
+        s_ctx->stage = WAIT_NEXT;
 
     return 1;
 }
@@ -352,6 +355,13 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
 
         if (unlikely(!tp_call_wof(&s_ctx->tp)))
             say_overflow_r_2(s_ctx);
+
+        if (!s_ctx->read_method) {
+            tp_transcode_t *tc = s_ctx->tc;
+            if (unlikely(!tp_call_wof_add_func(&s_ctx->tp,
+                                             tc->method, tc->method_len)))
+                say_overflow_r_2(s_ctx);
+        }
 
         s_ctx->stage = WAIT_NEXT;
         ++s_ctx->tc->batch_size;
@@ -390,7 +400,8 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
             dd("ID STAGE\n");
             s_ctx->stage = ID;
         }
-        else if (len == sizeof("method") - 1
+        else if (s_ctx->read_method
+                && len == sizeof("method") - 1
                 && key[0] == 'm'
                 && key[1] == 'e'
                 && key[2] == 't'
@@ -448,6 +459,13 @@ yajl_end_map(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
+    if (!s_ctx->read_method
+        && (s_ctx->been_stages & (PARAMS | ID))
+          == (PARAMS | ID))
+    {
+        s_ctx->been_stages |= METHOD;
+    }
+
     if ((s_ctx->been_stages & (PARAMS | ID | METHOD))
             == (PARAMS | ID | METHOD))
     {
@@ -497,9 +515,11 @@ yajl_start_array(void *ctx)
 
     stack_grow_array(s_ctx);
 
-    bool r = false;
-    if (unlikely(s_ctx->size == 0))
+    bool r = false, is_params = false;
+    if (unlikely(s_ctx->size == 0)) {
         r = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY | PARAMS);
+        is_params = true;
+    }
     else
         r = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY);
 
@@ -512,6 +532,18 @@ yajl_start_array(void *ctx)
         say_overflow_r_2(s_ctx);
 
     tp_add(&s_ctx->tp, 1 + sizeof(uint32_t));
+
+    // Bind data here [
+    if (unlikely(is_params)) {
+      tp_transcode_t *tc = s_ctx->tc;
+      if (tc->data.pos && tc->data.len) {
+        if (s_ctx->tp.e - s_ctx->tp.p < tc->data.len)
+            say_overflow_r_2(s_ctx);
+        memcpy(s_ctx->tp.p, tc->data.pos, tc->data.len);
+        tp_add(&s_ctx->tp, tc->data.len);
+      }
+    }
+    // ]
 
     return 1;
 }
@@ -533,6 +565,11 @@ yajl_end_array(void *ctx)
             dd("PARAMS END\n");
             s_ctx->stage = WAIT_NEXT;
             s_ctx->been_stages |= PARAMS;
+            // Increase number of args for binded data [
+            tp_transcode_t *tc = s_ctx->tc;
+            if (tc->data.pos && tc->data.len)
+              ++item->count;
+            // ]
         }
 
         *(item->ptr++) = 0xdd;
@@ -603,6 +640,10 @@ yajl_json2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
     ctx->hand = yajl_alloc(&callbacks, ctx->yaf, (void *)ctx);
     if (unlikely(!ctx->hand))
         goto error_exit;
+
+    ctx->read_method = true;
+    if (tc->method && tc->method_len)
+        ctx->read_method = false;
 
     ctx->tc = tc;
 
@@ -689,6 +730,56 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
 
     return TP_TRANSCODE_ERROR;
 }
+
+
+/**
+ * CODEC - uri query to Tarantool message
+ */
+
+typedef struct query2tp_ctx {
+    char *pos;
+    char *end;
+    tp_transcode_t *tc;
+} query2tp_ctx_t;
+
+static void*
+query2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
+{
+    query2tp_ctx_t *ctx = tc->mf.alloc(tc->mf.ctx, sizeof(query2tp_ctx_t));
+    if (unlikely(!ctx))
+        return NULL;
+
+    ctx->pos =  output;
+    ctx->end = output + output_size;
+    ctx->tc = tc;
+
+    return ctx;
+}
+
+static void
+query2tp_free(void *ctx_)
+{
+    if (unlikely(!ctx_))
+        return;
+    query2tp_ctx_t *ctx = ctx_;
+    tp_transcode_t * tc = ctx->tc;
+    tc->mf.free(tc->mf.ctx, ctx);
+}
+
+enum tt_result
+query2tp_transcode(void *ctx, const char *in, size_t in_size)
+{
+    (void)ctx, (void)in, (void)in_size;
+    return 0;
+}
+
+enum tt_result
+query2tp_complete(void *ctx, size_t *cmpl_msg_size)
+{
+    (void)ctx, (void)cmpl_msg_size;
+    return 0;
+}
+
 
 /**
  * CODEC - Tarantool message to JSON RPC
@@ -1044,6 +1135,11 @@ tp_codec_t codecs[TP_CODEC_MAX] = {
             &yajl_json2tp_complete,
             &yajl_json2tp_free),
 
+    CODEC(&query2tp_create,
+            &query2tp_transcode,
+            &query2tp_complete,
+            &query2tp_free),
+
     CODEC(&tp2json_create,
             &tp_reply2json_transcode,
             &tp2json_complete,
@@ -1083,25 +1179,27 @@ def_free(void *ctx, void *m)
 }
 
 enum tt_result
-tp_transcode_init(tp_transcode_t *t, char *output, size_t output_size,
-    enum tp_codec_type codec, mem_fun_t *mf)
+tp_transcode_init(tp_transcode_t *t, const tp_transcode_init_args_t *args)
 {
     memset(t, 0, sizeof(tp_transcode_t));
 
-    if (unlikely(codec == TP_CODEC_MAX))
+    if (unlikely(args->codec == TP_CODEC_MAX))
         return TP_TRANSCODE_ERROR;
 
-    t->codec = codecs[codec];
+    t->codec = codecs[args->codec];
     if (unlikely(!t->codec.create))
         return TP_TRANSCODE_ERROR;
 
     t->mf.alloc = &def_alloc;
     t->mf.realloc = &def_realloc;
     t->mf.free = &def_free;
-    if (likely(mf != NULL))
-        t->mf = *mf;
+    if (likely(args->mf != NULL))
+        t->mf = *args->mf;
 
-    t->codec.ctx = t->codec.create(t, output, output_size);
+    t->method = args->method;
+    t->method_len = args->method_len;
+
+    t->codec.ctx = t->codec.create(t, args->output, args->output_size);
     if (unlikely(!t->codec.ctx))
         return TP_TRANSCODE_ERROR;
 
@@ -1123,6 +1221,9 @@ tp_transcode_free(tp_transcode_t *t)
 
   t->codec.free(t->codec.ctx);
   t->codec.ctx = NULL;
+
+  t->method = NULL;
+  t->method_len = 0;
 }
 
 enum tt_result
@@ -1142,13 +1243,27 @@ tp_transcode(tp_transcode_t *t, const char *b, size_t s)
   return t->codec.transcode(t->codec.ctx, b, s);
 }
 
+void
+tp_transcode_bind_data(tp_transcode_t *t,
+    const char *data_beg, const char *data_end)
+{
+  assert(t);
+  t->data.pos = data_beg;
+  t->data.end = data_end;
+  t->data.len = data_end - data_beg;
+}
+
 bool
 tp_dump(char *output, size_t output_size,
         const char *input, size_t input_size)
 {
   tp_transcode_t t;
-  if (tp_transcode_init(&t, output, output_size, TP_TO_JSON, NULL)
-          == TP_TRANSCODE_ERROR)
+  tp_transcode_init_args_t args = {
+        .output = output, .output_size = output_size,
+        .method = NULL, .method_len = 0,
+        .codec = TP_TO_JSON, .mf = NULL };
+
+  if (tp_transcode_init(&t, &args) == TP_TRANSCODE_ERROR)
     return false;
 
   if (tp_transcode(&t, input, input_size) == TP_TRANSCODE_ERROR) {

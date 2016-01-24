@@ -60,8 +60,13 @@ main(int argc, char **argv)
     }
 
     tp_transcode_t t;
-    if (tp_transcode_init(&t, output, size, YAJL_JSON_TO_TP, NULL)
-            == TP_TRANSCODE_ERROR)
+    tp_transcode_init_args_t args = {
+        .output = output,
+        .output_size = size,
+        .method = NULL, .method_len = 0,
+        .codec = YAJL_JSON_TO_TP,
+        .mf = NULL };
+    if (tp_transcode_init(&t, &args) == TP_TRANSCODE_ERROR)
     {
         fprintf(stderr, "json2tp: failed to initialize transcode, exiting\n");
         exit(2);
