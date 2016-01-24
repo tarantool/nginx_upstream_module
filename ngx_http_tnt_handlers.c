@@ -44,9 +44,12 @@ ngx_http_tnt_get_output_size(
     ngx_buf_t *request_b)
 {
     (void)ctx;
-    size_t output_size = 0;
+    size_t output_size = ngx_http_tnt_overhead();
 
-    if (r->method & NGX_HTTP_POST) {
+    if (r->method & NGX_HTTP_POST ||
+        ((r->method & NGX_HTTP_PUT || r->method & NGX_HTTP_DELETE)
+          && r->headers_in.content_length_n))
+    {
       output_size += r->headers_in.content_length_n;
     }
 
@@ -389,17 +392,23 @@ void ngx_http_tnt_set_handlers(
 
     switch (r->method) {
     case NGX_HTTP_POST:
-        u->create_request = ngx_http_tnt_post_json_handler;
+        u->create_request = ngx_http_tnt_body_json_handler;
         break;
     default:
-        u->create_request = ngx_http_tnt_query_handler;
+        if ((r->method & NGX_HTTP_PUT || r->method & NGX_HTTP_DELETE)
+            && r->headers_in.content_length_n) {
+          u->create_request = ngx_http_tnt_body_json_handler;
+        }
+        else {
+          u->create_request = ngx_http_tnt_query_handler;
+        }
         break;
     }
 }
 
 
 ngx_int_t
-ngx_http_tnt_post_json_handler(ngx_http_request_t *r)
+ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
 {
     ngx_buf_t               *b, *request_b = NULL;
     ngx_chain_t             *body;
@@ -408,6 +417,7 @@ ngx_http_tnt_post_json_handler(ngx_http_request_t *r)
     ngx_http_tnt_ctx_t      *ctx;
     ngx_chain_t             *out_chain;
     ngx_http_tnt_loc_conf_t *tlcf;
+    ngx_str_t               method;
 
     if (r->headers_in.content_length_n == 0) {
         /** XXX
@@ -439,7 +449,7 @@ ngx_http_tnt_post_json_handler(ngx_http_request_t *r)
     out_chain->buf = ngx_create_temp_buf(r->pool,
                         ngx_http_tnt_get_output_size(r, ctx, tlcf, request_b));
     if (out_chain->buf == NULL) {
-        crit("[BUG?] ngx_http_tnt_post_json_handler -- "
+        crit("[BUG?] ngx_http_tnt_body_json_handler -- "
              "failed to allocate output buffer, size %ui",
              r->headers_in.content_length_n * tlcf->in_multiplier);
         return NGX_ERROR;
@@ -456,11 +466,13 @@ ngx_http_tnt_post_json_handler(ngx_http_request_t *r)
     /**
      *  Conv. input json to Tarantool message [
      */
+    method = ngx_http_tnt_get_method(r, tlcf);
+
     tp_transcode_init_args_t args = {
         .output = (char *)out_chain->buf->start,
         .output_size = out_chain->buf->end - out_chain->buf->start,
-        .method = (char *)tlcf->method.data,
-        .method_len = tlcf->method.len,
+        .method = (char *)method.data,
+        .method_len = method.len,
         .codec = YAJL_JSON_TO_TP,
         .mf = NULL
     };
@@ -470,8 +482,7 @@ ngx_http_tnt_post_json_handler(ngx_http_request_t *r)
         return NGX_ERROR;
     }
 
-    if (request_b != NULL)
-    {
+    if (request_b != NULL) {
         tp_transcode_bind_data(&tc,
                                (const char *)request_b->start,
                                (const char *)request_b->last);
@@ -549,7 +560,7 @@ read_input_done:
               "{\"method\":\"__nginx_needs_fd_event\",\"params\":[]}";
 
         out_chain->buf = ngx_create_temp_buf(r->pool,
-                                    ngx_strlen(fd_event) * tlcf->in_multiplier);
+                                    sizeof(fd_event) * tlcf->in_multiplier);
         if (out_chain->buf == NULL) {
             goto error_exit;
         }
@@ -571,7 +582,7 @@ read_input_done:
                                    fd_event, ngx_strlen(fd_event))
                   != NGX_OK)
         {
-          dd("ngx_http_tnt_send (i.e. file fd event) failed");
+          dd("ngx_http_tnt_send_once (i.e. file fd event) failed");
           goto error_exit;
         }
     }
@@ -816,3 +827,5 @@ get_error_text(int type)
 {
     return &errors[type];
 }
+
+

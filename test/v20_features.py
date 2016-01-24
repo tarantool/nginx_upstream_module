@@ -16,8 +16,46 @@ def post(url, data, headers):
         if headers:
             for header in headers:
                 req.add_header(header, headers[header])
+        req.add_header('Content-Type', 'application/json')
 
         res = urllib2.urlopen(req, json.dumps(data))
+        out = res.read()
+        out = out + res.read()
+        rc = res.getcode()
+
+        if VERBOSE:
+            print "code: ", rc, " recv: '", out, "'"
+
+        if rc != 500:
+            return (rc, json.loads(out))
+
+        return (rc, False)
+    except urllib2.HTTPError, e:
+        if e.code == 400:
+            out = e.read();
+
+        if VERBOSE:
+            print "code: ", e.code, " recv: '", out, "'"
+
+        return (e.code, json.loads(out))
+    except Exception, e:
+        print traceback.format_exc()
+        return (False, e)
+
+def put(url, data, headers):
+    out = '{}'
+    try:
+        req = urllib2.Request(url)
+        req.get_method = lambda: 'PUT'
+        if headers:
+            for header in headers:
+                req.add_header(header, headers[header])
+        if data:
+            req.add_header('Content-Type', 'application/json')
+            res = urllib2.urlopen(req, json.dumps(data))
+        else:
+            res = urllib2.urlopen(req)
+
         out = res.read()
         out = out + res.read()
         rc = res.getcode()
@@ -99,6 +137,12 @@ def post_success(url, data, headers):
     result = get_result(msg)
     return result
 
+def put_success(url, data, headers):
+    (code, msg) = put(url, data, headers)
+    assert(code == 200), 'expected 200'
+    result = get_result(msg)
+    return result
+
 def get_api_fail(url, data, headers):
     (code, msg) = get(url, data, headers)
     assert(code == 200), 'expected 200'
@@ -127,7 +171,6 @@ result = get_success(preset_method_location,
                      headers_in)
 assert_headers(result, headers_in)
 
-
 rest_location = BASE_URL + '/rest_api/echo_2'
 result = get_success(rest_location,
                      {'arg1': 1, 'arg2': 2},
@@ -144,6 +187,23 @@ assert_if_not_error(result, -32601)
 overflow_rest_api_location = BASE_URL + '/overflow_rest_api/echo_2'
 (code, result) = get(overflow_rest_api_location, big_args_in, big_headers_in)
 assert(code == 500), 'expected 500'
+
+# =============
+#
+print('[+] New Put/Delete features')
+
+preset_method_location = BASE_URL + '/preset_method'
+result = put_success(preset_method_location,
+                     {'params': [{"arg1": 1}], 'id': 1},
+                     None)
+assert(result[0]["arg1"] == 1), "expected arg1 == 1"
+
+rest_api_location = BASE_URL + '/rest_api/echo_2'
+result = put_success(rest_api_location,
+                     {'params': [{"arg1": 1}], 'id': 1},
+                     headers_in)
+assert_headers(result, headers_in)
+assert(result[1]['arg1'] == 1), "expected arg1 == 1"
 
 # =============
 #

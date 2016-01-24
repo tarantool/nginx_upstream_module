@@ -90,7 +90,7 @@ void ngx_http_tnt_set_handlers(ngx_http_request_t *r,
 
 /** create tarantool requests handlers [
  */
-ngx_int_t ngx_http_tnt_post_json_handler(ngx_http_request_t *r);
+ngx_int_t ngx_http_tnt_body_json_handler(ngx_http_request_t *r);
 ngx_int_t ngx_http_tnt_query_handler(ngx_http_request_t *r);
 /* ] */
 
@@ -118,5 +118,18 @@ enum ngx_http_tnt_err_messages_idx {
 };
 
 const ngx_http_tnt_error_t *get_error_text(int type);
+
+static inline size_t
+ngx_http_tnt_overhead(void)
+{
+    return sizeof("[{"
+        "'error': {"
+            "'code':-XXXXX,"
+            "'message':''"
+        "},"
+        "[['result':{},"
+        "'id':4294967295]]"
+    "}");
+}
 
 #endif
