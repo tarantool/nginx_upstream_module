@@ -31,7 +31,7 @@ configure-debug:
 						--with-debug \
 						--with-ld-opt='$(LDFLAGS)'
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
-	cp -Rf $(CUR_PATH)/mist/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
+	cp -Rf $(CUR_PATH)/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf || echo
 
 configure:
 	cd $(NGX_PATH) && \

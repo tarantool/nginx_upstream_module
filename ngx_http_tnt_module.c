@@ -92,6 +92,19 @@ static ngx_conf_enum_t  ngx_http_tnt_pass_http_request[] = {
 	{ ngx_null_string, 0 }
 };
 
+static ngx_conf_bitmask_t  ngx_http_tnt_rest_methods[] = {
+    { ngx_string("get"), NGX_HTTP_GET },
+    { ngx_string("post"), NGX_HTTP_POST },
+    { ngx_string("put"), NGX_HTTP_PUT },
+    { ngx_string("delete"), NGX_HTTP_DELETE },
+    { ngx_string("all"), (NGX_CONF_BITMASK_SET
+                          |NGX_HTTP_GET
+                          |NGX_HTTP_POST
+                          |NGX_HTTP_PUT
+                          |NGX_HTTP_DELETE) },
+	{ ngx_null_string, 0 }
+};
+
 static ngx_command_t  ngx_http_tnt_commands[] = {
 
     { ngx_string("tnt_pass"),
@@ -186,6 +199,13 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
       offsetof(ngx_http_tnt_loc_conf_t, pass_http_request),
       &ngx_http_tnt_pass_http_request },
 
+    { ngx_string("tnt_http_rest_methods"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
+      ngx_conf_set_bitmask_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_tnt_loc_conf_t, http_rest_methods),
+      &ngx_http_tnt_rest_methods },
+
       ngx_null_command
 };
 
@@ -230,10 +250,11 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
     ngx_http_upstream_t     *u;
     ngx_http_tnt_loc_conf_t *tlcf;
 
-    if (!(r->method & NGX_HTTP_POST
-          || r->method & NGX_HTTP_GET
-          || r->method & NGX_HTTP_PUT
-          || r->method & NGX_HTTP_DELETE))
+    tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
+
+    if (!(r->method & ngx_http_tnt_allowed_methods)
+        || (r->method & tlcf->http_rest_methods
+              && !tlcf->method.len && r->uri.len <= 1 /* i.e '/' */))
     {
         return NGX_HTTP_NOT_ALLOWED;
     }
@@ -249,11 +270,12 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
     ngx_str_set(&u->schema, "tnt://");
     u->output.tag = (ngx_buf_tag_t) &ngx_http_tnt_module;
 
-    tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
-
     u->conf = &tlcf->upstream;
 
-    ngx_http_tnt_set_handlers(r, u, tlcf);
+    rc = ngx_http_tnt_init_handlers(r, u, tlcf);
+    if (rc != NGX_OK){
+        return rc;
+    }
 
     u->input_filter_init = ngx_http_tnt_filter_init;
     u->input_filter = ngx_http_tnt_filter;
@@ -399,7 +421,7 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                   (size_t) ngx_pagesize);
 
     ngx_conf_merge_bitmask_value(conf->upstream.next_upstream,
-                              prev->upstream.next_upstream,
+                  prev->upstream.next_upstream,
                               (NGX_CONF_BITMASK_SET
                                |NGX_HTTP_UPSTREAM_FT_ERROR
                                |NGX_HTTP_UPSTREAM_FT_TIMEOUT));
@@ -424,6 +446,13 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 
     ngx_conf_merge_uint_value(conf->pass_http_request,
                   prev->pass_http_request, NGX_TNT_CONF_OFF);
+
+    ngx_conf_merge_bitmask_value(conf->http_rest_methods,
+                  prev->http_rest_methods,
+                              (NGX_CONF_BITMASK_SET
+                               |NGX_HTTP_GET
+                               |NGX_HTTP_PUT
+                               |NGX_HTTP_DELETE));
 
     return NGX_CONF_OK;
 }

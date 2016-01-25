@@ -206,27 +206,58 @@ ngx_http_tnt_cleanup(ngx_http_request_t *r, ngx_http_tnt_ctx_t *ctx)
 }
 
 
-static inline ngx_str_t
-ngx_http_tnt_get_method(ngx_http_request_t *r, ngx_http_tnt_loc_conf_t *tlcf)
+static inline ngx_int_t
+ngx_http_tnt_set_method(ngx_http_tnt_ctx_t *ctx,
+                        ngx_http_request_t *r,
+                        ngx_http_tnt_loc_conf_t *tlcf)
 {
-    size_t    len;
-    u_char    *pos, *end;
-    ngx_str_t method = { .data = NULL, .len = 0 };
-    if (tlcf->method.data && tlcf->method.len)
-        method = tlcf->method;
-    else if (r->uri.data && r->uri.len)
-    {
-        len = r->uri.len;
-        end = pos = r->uri.data + len;
-        for (;len; --len, --pos) {
+    u_char *start, *pos, *end;
+
+    if (tlcf->method.data && tlcf->method.len) {
+
+        ctx->preset_method_len = ngx_min(tlcf->method.len,
+                                         sizeof(ctx->preset_method)-1);
+        ngx_copy(ctx->preset_method,
+                 tlcf->method.data,
+                 ctx->preset_method_len);
+
+    } else if (tlcf->http_rest_methods & r->method) {
+
+        if (r->uri.data == NULL || !r->uri.len) {
+            goto error;
+        }
+
+        start = pos = (*r->uri.data == '/'? r->uri.data + 1: r->uri.data);
+        end = r->uri.data + r->uri.len;
+
+        for (;pos != end; ++pos) {
             if (*pos == '/') {
-                method.data = pos + 1;
-                method.len = end - method.data;
+                ctx->preset_method_len = ngx_min(sizeof(ctx->preset_method)-1,
+                                                 (size_t)(pos - start));
+                ngx_copy(ctx->preset_method, start, ctx->preset_method_len);
                 break;
             }
         }
+
+        if (!ctx->preset_method[0]) {
+
+            if (start == end) {
+                goto error;
+            }
+
+            ctx->preset_method_len = ngx_min(sizeof(ctx->preset_method)-1,
+                                            (size_t)(end - start));
+            ngx_copy(ctx->preset_method, start, ctx->preset_method_len);
+        }
     }
-    return method;
+    /* Else -- expect method in the body */
+
+    return NGX_OK;
+
+error:
+    ctx->preset_method[0] = 0;
+    ctx->preset_method_len = 0;
+    return NGX_ERROR;
 }
 
 
@@ -375,15 +406,27 @@ ngx_http_tnt_reset_ctx(ngx_http_tnt_ctx_t *ctx)
     ctx->batch_size = 0;
 
     ctx->greeting = 0;
+
+    ctx->preset_method[0] = 0;
+    ctx->preset_method_len = 0;
 }
 
 
-void ngx_http_tnt_set_handlers(
+ngx_int_t ngx_http_tnt_init_handlers(
     ngx_http_request_t *r,
     ngx_http_upstream_t *u,
     ngx_http_tnt_loc_conf_t *tlcf)
 {
-    (void)tlcf;
+    ngx_http_tnt_ctx_t *ctx;
+
+    ctx = ngx_http_tnt_create_ctx(r);
+    if (ctx == NULL) {
+        return NGX_ERROR;
+    }
+
+    if (ngx_http_tnt_set_method(ctx, r, tlcf) == NGX_ERROR) {
+        return NGX_HTTP_BAD_REQUEST;
+    }
 
     u->reinit_request = ngx_http_tnt_reinit_request;
     u->process_header = ngx_http_tnt_process_header;
@@ -404,6 +447,8 @@ void ngx_http_tnt_set_handlers(
         }
         break;
     }
+
+    return NGX_OK;
 }
 
 
@@ -417,20 +462,16 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
     ngx_http_tnt_ctx_t      *ctx;
     ngx_chain_t             *out_chain;
     ngx_http_tnt_loc_conf_t *tlcf;
-    ngx_str_t               method;
 
     if (r->headers_in.content_length_n == 0) {
         /** XXX
          *  Probably, this case we should handle like 'NOT ALLOWED'?
          */
-        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "empty body");
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "Content-Length empty");
         return NGX_ERROR;
     }
 
-    ctx = ngx_http_tnt_create_ctx(r);
-    if (ctx == NULL) {
-        return NGX_ERROR;
-    }
+    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
@@ -466,13 +507,11 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
     /**
      *  Conv. input json to Tarantool message [
      */
-    method = ngx_http_tnt_get_method(r, tlcf);
-
     tp_transcode_init_args_t args = {
         .output = (char *)out_chain->buf->start,
         .output_size = out_chain->buf->end - out_chain->buf->start,
-        .method = (char *)method.data,
-        .method_len = method.len,
+        .method = (char *)ctx->preset_method,
+        .method_len = ctx->preset_method_len,
         .codec = YAJL_JSON_TO_TP,
         .mf = NULL
     };
@@ -612,10 +651,7 @@ ngx_http_tnt_query_handler(ngx_http_request_t *r)
     struct tp                  tp;
     const ngx_http_tnt_error_t *err = NULL;
 
-    ctx = ngx_http_tnt_create_ctx(r);
-    if (ctx == NULL) {
-        return NGX_ERROR;
-    }
+    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
@@ -644,15 +680,9 @@ ngx_http_tnt_query_handler(ngx_http_request_t *r)
     buf = out_chain->buf;
     tp_init(&tp, (char *)buf->start, buf->end - buf->start, NULL, NULL);
 
-    ngx_str_t method = ngx_http_tnt_get_method(r, tlcf);
-    if (!method.data && !method.len) {
-        crit("[BUG?] ngx_http_tnt_query_handler - ngx_http_tnt_get_method failed");
-        return NGX_ERROR;
-    }
-
     if (!tp_call_nargs(&tp,
-                       (const char *)method.data,
-                       (size_t)method.len, 1))
+                       (const char *)ctx->preset_method,
+                       (size_t)ctx->preset_method_len, 1))
     {
         err = get_error_text(HTTP_REQUEST_TOO_LARGE);
         crit("ngx_http_tnt_query_handler - %s", err->msg.data);

@@ -8,6 +8,14 @@ function echo_2(a, b)
   return {a, b}
 end
 
+function rest_api(a, b)
+  return echo_2(a, b)
+end
+
+function rest_api_get(a, b)
+  return echo_2(a, b)
+end
+
 function ret_4096()
   local out = {}
   for i = 0, 801 do

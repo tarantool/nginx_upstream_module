@@ -52,7 +52,11 @@ typedef struct {
     ngx_str_t                method;
     size_t                   pass_http_request_buffer_size;
     ngx_uint_t               pass_http_request;
+    ngx_uint_t               http_rest_methods;
 } ngx_http_tnt_loc_conf_t;
+
+static const ngx_uint_t ngx_http_tnt_allowed_methods =
+    (NGX_HTTP_POST|NGX_HTTP_GET|NGX_HTTP_PUT|NGX_HTTP_DELETE);
 
 enum ctx_state {
     OK = 0,
@@ -79,14 +83,16 @@ typedef struct ngx_http_tnt_ctx {
     int                rest_batch_size, batch_size;
     ngx_int_t          greeting:1;
 
+    u_char             preset_method[128];
+    u_char             preset_method_len;
 } ngx_http_tnt_ctx_t;
 
 ngx_http_tnt_ctx_t * ngx_http_tnt_create_ctx(ngx_http_request_t *r);
 void ngx_http_tnt_reset_ctx(ngx_http_tnt_ctx_t *ctx);
 
-void ngx_http_tnt_set_handlers(ngx_http_request_t *r,
-                               ngx_http_upstream_t *u,
-                               ngx_http_tnt_loc_conf_t *tlcf);
+ngx_int_t ngx_http_tnt_init_handlers(ngx_http_request_t *r,
+                                     ngx_http_upstream_t *u,
+                                     ngx_http_tnt_loc_conf_t *tlcf);
 
 /** create tarantool requests handlers [
  */

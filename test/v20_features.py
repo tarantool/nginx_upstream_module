@@ -145,7 +145,6 @@ def put_success(url, data, headers):
 
 def get_api_fail(url, data, headers):
     (code, msg) = get(url, data, headers)
-    assert(code == 200), 'expected 200'
     return msg
 
 def assert_headers(result, headers_in):
@@ -171,7 +170,7 @@ result = get_success(preset_method_location,
                      headers_in)
 assert_headers(result, headers_in)
 
-rest_location = BASE_URL + '/rest_api/echo_2'
+rest_location = BASE_URL + '/echo_2'
 result = get_success(rest_location,
                      {'arg1': 1, 'arg2': 2},
                      headers_in)
@@ -179,12 +178,12 @@ for header in headers_in:
     header_from_server = result[0]['headers'][header]
     assert(header_from_server == headers_in[header]), 'expected headers_in'
 
-result = get_api_fail(rest_location + '/method_does_not_exists',
+result = get_success(rest_location + '/method_does_not_exists',
                       {'arg1': 1, 'arg2': 2},
                        headers_in)
-assert_if_not_error(result, -32601)
+assert_headers(result, headers_in)
 
-overflow_rest_api_location = BASE_URL + '/overflow_rest_api/echo_2'
+overflow_rest_api_location = BASE_URL + '/echo_2/overflow_rest_api'
 (code, result) = get(overflow_rest_api_location, big_args_in, big_headers_in)
 assert(code == 500), 'expected 500'
 
@@ -198,7 +197,7 @@ result = put_success(preset_method_location,
                      None)
 assert(result[0]["arg1"] == 1), "expected arg1 == 1"
 
-rest_api_location = BASE_URL + '/rest_api/echo_2'
+rest_api_location = BASE_URL + '/echo_2'
 result = put_success(rest_api_location,
                      {'params': [{"arg1": 1}], 'id': 1},
                      headers_in)
