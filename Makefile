@@ -7,6 +7,7 @@ PREFIX_PATH = $(CUR_PATH)/test-root
 INC_FLAGS   = -I$(CUR_PATH)/third_party
 INC_FLAGS  += -I$(YAJL_PATH)/build/yajl-2.1.0/include
 INC_FLAGS  += -I$(CUR_PATH)/third_party/msgpuck
+INC_FLAGS  += -I$(CUR_PATH)/src
 YAJL_LIB    = $(YAJL_PATH)/build/yajl-2.1.0/lib/libyajl_s.a
 LDFLAGS     = -L$(YAJL_PATH)/build/yajl-2.1.0/lib
 
@@ -43,14 +44,14 @@ configure:
 json2tp:
 	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
 				$(CUR_PATH)/misc/json2tp.c \
-				tp_transcode.c \
+				src/tp_transcode.c \
 				-o misc/json2tp \
 				-lyajl_s
 
 tp_dump:
 	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
 				$(CUR_PATH)/misc/tp_dump.c \
-				tp_transcode.c \
+				src/tp_transcode.c \
 				-o misc/tp_dump \
 				-lyajl_s
 

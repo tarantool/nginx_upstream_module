@@ -11,14 +11,14 @@ HTTP_MODULES="$HTTP_MODULES               \
               ngx_http_tnt_module         \
               "
 
-NGX_ADDON_SRCS="$NGX_ADDON_SRCS                               \
-                $ngx_addon_dir/ngx_http_tnt_module.c          \
-                $ngx_addon_dir/tp_transcode.c                 \
-                $ngx_addon_dir/ngx_http_tnt_handlers.c        \
+NGX_ADDON_SRCS="$NGX_ADDON_SRCS                                   \
+                $ngx_addon_dir/src/ngx_http_tnt_module.c          \
+                $ngx_addon_dir/src/tp_transcode.c                 \
+                $ngx_addon_dir/src/ngx_http_tnt_handlers.c        \
                 "
 
 CFLAGS="$CFLAGS \
-        -I$ngx_addon_dir \
+        -I$ngx_addon_dir/src \
         -I$ngx_addon_dir/third_party \
         -I$ngx_addon_dir/third_party/msgpuck \
         -I$ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/include \
