@@ -473,26 +473,19 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
                         ngx_http_upstream_t *u,
                         ngx_http_tnt_ctx_t *ctx)
 {
-
-    static size_t OVERHEAD = sizeof("{"
-                        "'error': {"
-                            "'code':-XXXXX,"
-                            "'message':''"
-                        "},"
-                        "'result':{},"
-                        "'id':4294967295"
-                    "}") - 1;
-
     tp_transcode_t          tc;
     ngx_int_t               rc;
     ngx_http_tnt_loc_conf_t *tlcf;
     ngx_buf_t               *output;
+    size_t                  output_size;
+
 
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
-    output = ngx_http_tnt_create_mem_buf(r, u,
-                    (ctx->tp_cache->end - ctx->tp_cache->start + OVERHEAD)
-                        * tlcf->out_multiplier);
+    output_size =
+        (ctx->tp_cache->end - ctx->tp_cache->start + ngx_http_tnt_overhead())
+        * tlcf->out_multiplier;
+    output = ngx_http_tnt_create_mem_buf(r, u, output_size);
     if (output == NULL) {
         return NGX_ERROR;
     }

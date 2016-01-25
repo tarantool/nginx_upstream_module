@@ -538,7 +538,7 @@ yajl_start_array(void *ctx)
     if (unlikely(is_params)) {
       tp_transcode_t *tc = s_ctx->tc;
       if (tc->data.pos && tc->data.len) {
-        if (s_ctx->tp.e - s_ctx->tp.p < tc->data.len)
+        if (s_ctx->tp.e - s_ctx->tp.p < (ptrdiff_t)tc->data.len)
             say_overflow_r_2(s_ctx);
         memcpy(s_ctx->tp.p, tc->data.pos, tc->data.len);
         tp_add(&s_ctx->tp, tc->data.len);
