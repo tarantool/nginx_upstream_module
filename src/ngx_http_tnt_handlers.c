@@ -217,9 +217,9 @@ ngx_http_tnt_set_method(ngx_http_tnt_ctx_t *ctx,
 
         ctx->preset_method_len = ngx_min(tlcf->method.len,
                                          sizeof(ctx->preset_method)-1);
-        ngx_copy(ctx->preset_method,
-                 tlcf->method.data,
-                 ctx->preset_method_len);
+        ngx_memcpy(ctx->preset_method,
+                   tlcf->method.data,
+                   ctx->preset_method_len);
 
     } else if (tlcf->http_rest_methods & r->method) {
 
@@ -234,7 +234,7 @@ ngx_http_tnt_set_method(ngx_http_tnt_ctx_t *ctx,
             if (*pos == '/') {
                 ctx->preset_method_len = ngx_min(sizeof(ctx->preset_method)-1,
                                                  (size_t)(pos - start));
-                ngx_copy(ctx->preset_method, start, ctx->preset_method_len);
+                ngx_memcpy(ctx->preset_method, start, ctx->preset_method_len);
                 break;
             }
         }
@@ -247,7 +247,7 @@ ngx_http_tnt_set_method(ngx_http_tnt_ctx_t *ctx,
 
             ctx->preset_method_len = ngx_min(sizeof(ctx->preset_method)-1,
                                             (size_t)(end - start));
-            ngx_copy(ctx->preset_method, start, ctx->preset_method_len);
+            ngx_memcpy(ctx->preset_method, start, ctx->preset_method_len);
         }
     }
     /* Else -- expect method in the body */
@@ -435,6 +435,9 @@ ngx_int_t ngx_http_tnt_init_handlers(
 
     switch (r->method) {
     case NGX_HTTP_POST:
+        if (r->headers_in.content_length_n == 0) {
+            return NGX_HTTP_BAD_REQUEST;
+        }
         u->create_request = ngx_http_tnt_body_json_handler;
         break;
     default:
@@ -462,14 +465,6 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
     ngx_http_tnt_ctx_t      *ctx;
     ngx_chain_t             *out_chain;
     ngx_http_tnt_loc_conf_t *tlcf;
-
-    if (r->headers_in.content_length_n == 0) {
-        /** XXX
-         *  Probably, this case we should handle like 'NOT ALLOWED'?
-         */
-        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "Content-Length empty");
-        return NGX_ERROR;
-    }
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
@@ -857,5 +852,4 @@ get_error_text(int type)
 {
     return &errors[type];
 }
-
 
