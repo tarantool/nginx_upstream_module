@@ -793,11 +793,22 @@ typedef struct tp2json {
     char *pos;
     char *end;
 
-    bool tp_reply_stage;
+    bool first_entry;
 
     tp_transcode_t *tc;
 
     int state;
+
+    /* Encode tarantool message w/o protocol.
+     * i.e. with protocol: {id:, result:TNT_RESULT, ...}, w/o TNT_RESULT
+     */
+    bool pure_result;
+
+    /*
+     *
+     */
+    int multireturn_skip_count;
+    int multireturn_skiped;
 } tp2json_t;
 
 static inline int
@@ -825,11 +836,13 @@ tp2json_create(tp_transcode_t *tc, char *output, size_t output_size)
     if (unlikely(!ctx))
         return NULL;
 
+    memset(ctx, 0, sizeof(tp2json_t));
+
     ctx->pos = ctx->output = output;
     ctx->end = output + output_size;
     ctx->tc = tc;
-    ctx->tp_reply_stage = true;
-    ctx->state = 0;
+    ctx->first_entry = true;
+    ctx->pure_result = false;
 
     return ctx;
 }
@@ -925,19 +938,27 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
     {
         const uint32_t size = mp_decode_array(beg);
 
-        if (unlikely(len < size + 2/*,[]*/))
-            say_overflow_r(ctx);
-
-        PUT_CHAR('[')
-        uint32_t i = 0;
-        for (i = 0; i < size; i++) {
-            if (i)
-                PUT_CHAR(',')
+        if (ctx->multireturn_skiped > 0) {
+            --ctx->multireturn_skiped;
             rc = tp2json_transcode_internal(ctx, beg, end);
             if (rc != TP_TRANSCODE_OK)
                 return rc;
+        } else {
+            if (unlikely(len < size + 2/*,[]*/))
+              say_overflow_r(ctx);
+
+            PUT_CHAR('[')
+            uint32_t i = 0;
+            for (i = 0; i < size; i++) {
+                if (i)
+                    PUT_CHAR(',')
+                rc = tp2json_transcode_internal(ctx, beg, end);
+                if (rc != TP_TRANSCODE_OK)
+                    return rc;
+            }
+            PUT_CHAR(']')
         }
-        PUT_CHAR(']')
+
         break;
     }
     case MP_MAP:
@@ -1011,11 +1032,10 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
         ctx->pos += snprintf(ctx->pos, len, "%f", mp_decode_double(beg));
         break;
     case MP_EXT:
+    default:
         /* TODO What we should do here? */
         mp_next(beg);
         break;
-    default:
-        return TP_TRANSCODE_ERROR;
     }
 
     return TP_TRANSCODE_OK;
@@ -1030,14 +1050,15 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
 
     tp2json_t *ctx = ctx_;
 
-    if (ctx->tp_reply_stage) {
+    if (ctx->first_entry) {
 
         if (tp_reply(&ctx->r, in, in_size) <= 0) {
             say_error(ctx, -32603, "[BUG!] tp_reply() failed");
             goto error_exit;
         }
 
-        ctx->tp_reply_stage = false;
+        ctx->first_entry = false;
+        ctx->multireturn_skiped = ctx->multireturn_skip_count;
     }
 
     if (ctx->r.error) {
@@ -1051,8 +1072,10 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
 
     } else {
 
-        ctx->pos += snprintf(ctx->output, ctx->end - ctx->output,
+        if (!ctx->pure_result) {
+            ctx->pos += snprintf(ctx->output, ctx->end - ctx->output,
                 "{\"id\":%zu,\"result\":", (size_t)tp_getreqid(&ctx->r));
+        }
 
         const char *it = ctx->r.data;
         rc = tp2json_transcode_internal(ctx, &it, ctx->r.data_end);
@@ -1061,8 +1084,10 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
 
     }
 
-    *ctx->pos = '}';
-    ++ctx->pos;
+    if (!ctx->pure_result) {
+        *ctx->pos = '}';
+        ++ctx->pos;
+    }
 
     return TP_TRANSCODE_OK;
 
@@ -1246,12 +1271,25 @@ tp_transcode(tp_transcode_t *t, const char *b, size_t s)
 
 void
 tp_transcode_bind_data(tp_transcode_t *t,
-    const char *data_beg, const char *data_end)
+                       const char *data_beg,
+                       const char *data_end)
 {
   assert(t);
   t->data.pos = data_beg;
   t->data.end = data_end;
   t->data.len = data_end - data_beg;
+}
+
+void
+tp_reply_to_json_set_options(tp_transcode_t *t,
+                             bool pure_result,
+                             int multireturn_skip_count)
+{
+    assert(t);
+    assert(t->codec.ctx);
+    tp2json_t *ctx = t->codec.ctx;
+    ctx->pure_result = pure_result;
+    ctx->multireturn_skip_count = multireturn_skip_count;
 }
 
 bool

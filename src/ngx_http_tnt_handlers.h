@@ -53,6 +53,9 @@ typedef struct {
     size_t                   pass_http_request_buffer_size;
     ngx_uint_t               pass_http_request;
     ngx_uint_t               http_rest_methods;
+
+    ngx_uint_t               pure_result;
+    ngx_uint_t               multireturn_skip_count;
 } ngx_http_tnt_loc_conf_t;
 
 static const ngx_uint_t ngx_http_tnt_allowed_methods =

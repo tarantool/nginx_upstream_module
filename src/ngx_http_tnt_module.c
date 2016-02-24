@@ -86,7 +86,7 @@ static ngx_conf_bitmask_t  ngx_http_tnt_next_upstream_masks[] = {
     { ngx_null_string, 0 }
 };
 
-static ngx_conf_enum_t  ngx_http_tnt_pass_http_request[] = {
+static ngx_conf_enum_t  ngx_http_tnt_on_off_set[] = {
 	{ ngx_string("off"), NGX_TNT_CONF_OFF },
 	{ ngx_string("on"), NGX_TNT_CONF_ON },
 	{ ngx_null_string, 0 }
@@ -197,7 +197,7 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
 	  ngx_conf_set_enum_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_tnt_loc_conf_t, pass_http_request),
-      &ngx_http_tnt_pass_http_request },
+      &ngx_http_tnt_on_off_set },
 
     { ngx_string("tnt_http_rest_methods"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
@@ -205,6 +205,22 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_tnt_loc_conf_t, http_rest_methods),
       &ngx_http_tnt_rest_methods },
+
+    { ngx_string("tnt_pure_result"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF
+          |NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
+	  ngx_conf_set_enum_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_tnt_loc_conf_t, pure_result),
+      &ngx_http_tnt_on_off_set },
+
+    { ngx_string("tnt_multireturn_skip_count"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF
+          |NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_size_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_tnt_loc_conf_t, multireturn_skip_count),
+      NULL },
 
       ngx_null_command
 };
@@ -372,9 +388,11 @@ ngx_http_tnt_create_loc_conf(ngx_conf_t *cf)
     conf->upstream.buffer_size =
     conf->in_multiplier =
     conf->out_multiplier =
-    conf->pass_http_request_buffer_size = NGX_CONF_UNSET_SIZE;
+    conf->pass_http_request_buffer_size =
+    conf->multireturn_skip_count = NGX_CONF_UNSET_SIZE;
 
-    conf->pass_http_request = NGX_CONF_UNSET_UINT;
+    conf->pass_http_request =
+    conf->pure_result = NGX_CONF_UNSET_UINT;
 
     /*
      * The hardcoded values
@@ -454,6 +472,12 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                                |NGX_HTTP_PUT
                                |NGX_HTTP_DELETE));
 
+    ngx_conf_merge_uint_value(conf->pure_result,
+                  prev->pure_result, NGX_TNT_CONF_OFF);
+
+    ngx_conf_merge_size_value(conf->multireturn_skip_count,
+                  prev->multireturn_skip_count, 0);
+
     return NGX_CONF_OK;
 }
 
@@ -508,7 +532,6 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
     ngx_buf_t               *output;
     size_t                  output_size;
 
-
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
     output_size =
@@ -538,6 +561,10 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
         crit("[BUG] failed to call tp_transcode_init(output)");
         return NGX_ERROR;
     }
+
+    tp_reply_to_json_set_options(&tc,
+                                 tlcf->pure_result == NGX_TNT_CONF_ON,
+                                 tlcf->multireturn_skip_count);
 
     rc = tp_transcode(&tc, (char *)ctx->tp_cache->start,
                       ctx->tp_cache->end - ctx->tp_cache->start);

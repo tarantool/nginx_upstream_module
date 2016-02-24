@@ -131,11 +131,21 @@ def get_success(url, data, headers):
     result = get_result(msg)
     return result
 
+def get_success_pure(url, data, headers):
+    (code, msg) = get(url, data, headers)
+    assert(code == 200), 'expected 200'
+    return msg
+
 def post_success(url, data, headers):
     (code, msg) = post(url, data, headers)
     assert(code == 200), 'expected 200'
     result = get_result(msg)
     return result
+
+def post_success_pure(url, data, headers):
+    (code, msg) = post(url, data, headers)
+    assert(code == 200), 'expected 200'
+    return msg
 
 def put_success(url, data, headers):
     (code, msg) = put(url, data, headers)
@@ -150,6 +160,11 @@ def get_api_fail(url, data, headers):
 def assert_headers(result, headers_in):
     for header in headers_in:
         header_from_server = result[0]['headers'][header]
+        assert(header_from_server == headers_in[header]), 'expected headers_in'
+
+def assert_headers_pure(result, headers_in):
+    for header in headers_in:
+        header_from_server = result['headers'][header]
         assert(header_from_server == headers_in[header]), 'expected headers_in'
 
 big_args_in = {}
@@ -230,4 +245,30 @@ assert_headers(result, headers_in)
 overflow_post_api_location = BASE_URL + '/overflow_post_pass_http_request'
 (code, result) = post(overflow_post_api_location, big_args_in, big_headers_in)
 assert(code == 500), 'expected 500'
+
+# ============
+#
+print('[+] Pure & skip count test')
+
+result = get_success_pure(BASE_URL + "/pure_result_rest",
+                          {'arg1': 1, 'arg2': 2},
+                          headers_in)
+assert_headers(result[0], headers_in)
+
+result = get_success_pure(BASE_URL + "/pure_result_rest_skip_count_2",
+                          {'arg1': 1, 'arg2': 2},
+                          headers_in)
+assert_headers_pure(result, headers_in)
+
+result = post_success_pure(BASE_URL + "/post_pure_result",
+                          {'method': 'echo_2', 'params': [1, 2], 'id': 1},
+                          headers_in)
+assert(result[0][0] == 1), "expected [[1,..]]"
+assert(result[0][1] == 2), "expected [[..,2]]"
+
+result = post_success_pure(BASE_URL + "/post_pure_result_skip_count_1",
+                          {'method': 'echo_2', 'params': [1, 2], 'id': 1},
+                          headers_in)
+assert(result[0] == 1), "expected [1,..]"
+assert(result[1] == 2), "expected [..,2]"
 
