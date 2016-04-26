@@ -310,11 +310,8 @@ yajl_string(void *ctx, const unsigned char * str, size_t len)
         dd("string: %.*s\n", (int)len, str);
 
         if (len > 0) {
-
             stack_grow_array(s_ctx);
-
-            if (unlikely(!tp_encode_str(&s_ctx->tp,
-                            (const char *)str, len)))
+            if (unlikely(!tp_encode_str(&s_ctx->tp, (const char *)str, len)))
                 say_overflow_r_2(s_ctx);
         }
 
@@ -325,11 +322,12 @@ yajl_string(void *ctx, const unsigned char * str, size_t len)
         if (unlikely(!tp_call_wof_add_func(&s_ctx->tp,
                                            (const char *)str, len)))
         {
-                say_overflow_r_2(s_ctx);
+            say_overflow_r_2(s_ctx);
         }
 
         s_ctx->stage = WAIT_NEXT;
         s_ctx->been_stages |= METHOD;
+
     } else
         s_ctx->stage = WAIT_NEXT;
 
