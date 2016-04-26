@@ -36,6 +36,7 @@ end
 box.cfg {
     log_level = 5;
     listen = 9999;
+    wal_mode = 'none';
 }
 
 if not box.space.tester then
