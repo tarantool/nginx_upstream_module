@@ -232,3 +232,13 @@ assert_if_not_error(res, -32700)
 
 print '[OK] Segfautl regress cases'
 
+(rc, res) = request_raw('[{"');
+assert(rc == 400), 'expected 400'
+assert_if_not_error(res, -32700)
+
+print '[OK] PWN cases'
+(rc, res) = request_raw('[]');
+assert(rc == 400), 'expected 400'
+
+(rc, res) = request_raw('{}');
+assert(rc == 400), 'expected 400'

@@ -50,6 +50,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+#define DEBUG 1
 #if defined DEBUG
 #define dd(...) fprintf(stderr, __VA_ARGS__)
 #else
@@ -99,6 +100,8 @@ say_error_(tp_transcode_t *t, int code, const char *e, size_t len)
             say_error((ctx), -32700, \
                   "'params' _must_ be array, 'params' _may_ be empty array")
 
+#define say_invalid_json(ctx) \
+            say_error((ctx), -32700, "invalid json")
 
 /*
  * CODEC - YAJL_JSON_RPC
@@ -144,8 +147,15 @@ typedef struct {
 
     tp_transcode_t *tc;
 
+    /* True - read method from input json, False - method was set before
+     */
     bool read_method;
+
+    /* True - if yajl_json2tp_transcode called first time
+     */
+    bool transcode_first_enter;
 } yajl_ctx_t;
+
 
 static inline bool
 stack_push(yajl_ctx_t *s, char *ptr, int mask)
@@ -429,8 +439,6 @@ yajl_start_map(void *ctx)
     if (unlikely(s_ctx->stage != PARAMS))
         return 1;
 
-    dd("map open '{'\n");
-
     stack_grow_array(s_ctx);
 
     bool r = false;
@@ -458,6 +466,9 @@ yajl_end_map(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
+    /** Say we already read method. Otherwise we'll have an error.
+     *  E.g. proto await for "params", "id" and "method".
+     */
     if (!s_ctx->read_method
         && (s_ctx->been_stages & (PARAMS | ID))
           == (PARAMS | ID))
@@ -582,7 +593,9 @@ yajl_end_array(void *ctx)
     return 1;
 }
 
+
 static void yajl_json2tp_free(void *ctx);
+
 
 static void *
 yajl_json2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
@@ -629,12 +642,12 @@ yajl_json2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
     if (unlikely(!ctx->yaf))
         goto error_exit;
 
-    *ctx->yaf = (yajl_alloc_funcs){
-                        tc->mf.alloc,
-                        tc->mf.realloc,
-                        tc->mf.free,
-                        tc->mf.ctx
-                };
+    *ctx->yaf = (yajl_alloc_funcs) {
+        tc->mf.alloc,
+        tc->mf.realloc,
+        tc->mf.free,
+        tc->mf.ctx
+    };
 
     ctx->hand = yajl_alloc(&callbacks, ctx->yaf, (void *)ctx);
     if (unlikely(!ctx->hand))
@@ -643,6 +656,8 @@ yajl_json2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
     ctx->read_method = true;
     if (tc->method && tc->method_len)
         ctx->read_method = false;
+
+    ctx->transcode_first_enter = false;
 
     ctx->tc = tc;
 
@@ -675,6 +690,7 @@ yajl_json2tp_free(void *ctx)
     tc->mf.free(tc->mf.ctx, s_ctx);
 }
 
+
 static enum tt_result
 yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
 {
@@ -683,6 +699,30 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
 #endif
 
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
+
+    /* Some yajl versions does not properly handle(SAX) [] and {}
+     * So! PWN this via bool flag and some checks
+     *
+     * NOTE
+     * 1. Check len(buffer) is wrong.
+     *    We may have a very large buffer which passed to this function by 1-byte.
+     *
+     * 2. If we'll have buffer which passed to this function by 1-byte then
+     *    those checks will pwn my transcoder! Wooo! Any suggestions?
+     *
+     *
+     * 3. Pwn == 'invalid json'
+     */
+    if (unlikely(!s_ctx->transcode_first_enter)) {
+        s_ctx->transcode_first_enter = true;
+        if (unlikely(
+            strncmp(input, "[]", sizeof("[]") - 1) == 0 ||
+            strncmp(input, "{}", sizeof("{}") - 1) == 0))
+        {
+            say_wrong_params(s_ctx);
+            return TP_TRANSCODE_ERROR;
+        }
+    }
 
     const unsigned char *input_ = (const unsigned char *)input;
     yajl_status stat = yajl_parse(s_ctx->hand, input_, input_size);
@@ -722,10 +762,8 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
         return TP_TRANSCODE_OK;
     }
 
-    if (s_ctx->tc->errmsg == NULL) {
-        char errmsg[] = "invalid input json";
-        say_error_(s_ctx->tc, -32700, errmsg, sizeof(errmsg) - 1);
-    }
+    if (s_ctx->tc->errmsg == NULL)
+        say_invalid_json(s_ctx);
 
     return TP_TRANSCODE_ERROR;
 }

@@ -516,6 +516,9 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
         return NGX_ERROR;
     }
 
+    /**
+     * Bind extra data e.g. http headers, uri ...
+     */
     if (request_b != NULL) {
         tp_transcode_bind_data(&tc,
                                (const char *)request_b->start,
