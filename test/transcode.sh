@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e #-x
+#set -e #-x
 
 TRANSCODE_OFF=no
 DUMP_RESULT_ONLY=yes
@@ -37,5 +37,3 @@ if [[ ! x"$diff_result" = x'' ]]; then
 fi
 
 echo "[+] OK"
-exit 0
-
