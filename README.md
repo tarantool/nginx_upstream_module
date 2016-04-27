@@ -18,6 +18,7 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
 =================
   * v0.1.4 - Production ready.
   * v0.2.0 - Stable.
+  * v0.2.1 - Alpha.
 
 ## Content
 =================
