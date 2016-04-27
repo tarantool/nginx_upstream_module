@@ -42,18 +42,25 @@ configure:
 			--with-ld-opt='$(LDFLAGS)'
 
 json2tp:
-	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
+	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
 				$(CUR_PATH)/misc/json2tp.c \
 				src/tp_transcode.c \
 				-o misc/json2tp \
 				-lyajl_s
 
 tp_dump:
-	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS) -I$(CUR_PATH) \
+	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
 				$(CUR_PATH)/misc/tp_dump.c \
 				src/tp_transcode.c \
 				-o misc/tp_dump \
 				-lyajl_s
+
+tp_allowed:
+	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
+				$(CUR_PATH)/test/tp_allowed.c\
+				$(CUR_PATH)/src/tp_allowed_methods.c\
+				-o test/tp_allowed
+	$(CUR_PATH)/test/tp_allowed
 
 test-dev: utils build
 	$(CUR_PATH)/test/transcode.sh

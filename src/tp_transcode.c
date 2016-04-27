@@ -26,7 +26,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015 Tarantool AUTHORS:
+ * Copyright (C) 2015-2016 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
@@ -50,8 +50,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-#define DEBUG 1
-#if defined DEBUG
+#if 0
 #define dd(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define dd(...)

@@ -49,15 +49,35 @@ typedef struct {
     size_t                   in_multiplier;
     size_t                   out_multiplier;
 
+    /** Preset method
+     */
     ngx_str_t                method;
+
+    /** Max allowed query/headers size which can be passed to tarantool
+     */
     size_t                   pass_http_request_buffer_size;
+
+    /** Pass query/headers to tarantool
+     */
     ngx_uint_t               pass_http_request;
+
+    /** On http REST methods
+     */
     ngx_uint_t               http_rest_methods;
+
+    /** Tarantool allowed methods
+     */
+    tp_allowed_methods_t     allowed_methods;
 } ngx_http_tnt_loc_conf_t;
 
-static const ngx_uint_t ngx_http_tnt_allowed_methods =
+
+/** Set of allowed rest methods
+ */
+static const ngx_uint_t ngx_http_tnt_allowed_rest_methods =
     (NGX_HTTP_POST|NGX_HTTP_GET|NGX_HTTP_PUT|NGX_HTTP_DELETE);
 
+/** Current upstream state
+ */
 enum ctx_state {
     OK = 0,
 
@@ -72,17 +92,33 @@ enum ctx_state {
 
 typedef struct ngx_http_tnt_ctx {
 
+    /** Reference to Tarantool payload e.g. size of TP message
+     */
     struct {
         u_char mem[6];
         u_char *p, *e;
     } payload;
 
     enum ctx_state     state;
+    /** in_err - error buffer
+     *  tp_cache - buffer for store parts of TP message
+     */
     ngx_buf_t          *in_err, *tp_cache;
+
+    /** rest - how many bytes until transcoding is end
+     *  payload_size - payload as int val
+     *  rest_batch_size - how many parts until batch is end
+     *  batch_size - number of parts in batch
+     */
     ssize_t            rest, payload_size;
     int                rest_batch_size, batch_size;
+
+    /** Greeting from tarantool
+     */
     ngx_int_t          greeting:1;
 
+    /** preset method & len
+     */
     u_char             preset_method[128];
     u_char             preset_method_len;
 } ngx_http_tnt_ctx_t;
@@ -110,7 +146,7 @@ ngx_buf_t* ngx_http_tnt_set_err(ngx_http_request_t *r,
                                 const u_char *msg,
                                 size_t msglen);
 
-/**
+/** Rrror & error code holder, functions [[
  */
 typedef struct ngx_http_tnt_error {
     const ngx_str_t msg;
@@ -124,7 +160,11 @@ enum ngx_http_tnt_err_messages_idx {
 };
 
 const ngx_http_tnt_error_t *get_error_text(int type);
+/** ]]
+ */
 
+/** Size of JSON proto overhead
+ */
 static inline size_t
 ngx_http_tnt_overhead(void)
 {

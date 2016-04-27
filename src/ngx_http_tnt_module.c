@@ -33,7 +33,9 @@
 #include <ngx_config.h>
 
 #include <debug.h>
+#include <tp_allowed_methods.h>
 #include <ngx_http_tnt_handlers.h>
+
 
 /** Filter functions
  */
@@ -77,6 +79,10 @@ static char *ngx_http_tnt_pass(
     ngx_command_t *cmd,
     void *conf);
 
+static char *ngx_http_tnt_set_allowed_methods(
+    ngx_conf_t *cf,
+    ngx_command_t *cmd,
+    void *conf);
 
 static ngx_conf_bitmask_t  ngx_http_tnt_next_upstream_masks[] = {
     { ngx_string("error"), NGX_HTTP_UPSTREAM_FT_ERROR },
@@ -206,6 +212,13 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
       offsetof(ngx_http_tnt_loc_conf_t, http_rest_methods),
       &ngx_http_tnt_rest_methods },
 
+    { ngx_string("tnt_http_allowed_methods"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_1MORE,
+      ngx_http_tnt_set_allowed_methods,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_tnt_loc_conf_t, allowed_methods),
+      NULL },
+
       ngx_null_command
 };
 
@@ -252,7 +265,7 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
 
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
-    if (!(r->method & ngx_http_tnt_allowed_methods)
+    if (!(r->method & ngx_http_tnt_allowed_rest_methods)
         || (r->method & tlcf->http_rest_methods
               && !tlcf->method.len && r->uri.len <= 1 /* i.e '/' */))
     {
@@ -489,6 +502,30 @@ ngx_http_tnt_pass(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     if (clcf->name.data[clcf->name.len - 1] == '/') {
         clcf->auto_redirect = 1;
+    }
+
+    return NGX_CONF_OK;
+}
+
+
+static char *
+ngx_http_tnt_set_allowed_methods(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_http_tnt_loc_conf_t *mlcf = conf;
+    tp_allowed_methods_t    *tam  = &mlcf->allowed_methods;
+
+    ngx_str_t     *value;
+    ngx_uint_t    i;
+
+    if (!tam->head)
+        tp_allowed_methods_init(tam);
+
+    value = cf->args->elts;
+
+    for (i = 1; i < cf->args->nelts; i++) {
+        if (!tp_allowed_methods_add(tam, value[i].data, value[i].len)) {
+            return NGX_CONF_ERROR;
+        }
     }
 
     return NGX_CONF_OK;

@@ -8,6 +8,7 @@ misc/json2tp
 *.xlog
 *.out*
 test/cases/*.tmp
+test/tp_allowed
 *.src.rpm
 experemets
 .DS_Store

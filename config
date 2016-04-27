@@ -15,6 +15,7 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS                                   \
                 $ngx_addon_dir/src/ngx_http_tnt_module.c          \
                 $ngx_addon_dir/src/tp_transcode.c                 \
                 $ngx_addon_dir/src/ngx_http_tnt_handlers.c        \
+                $ngx_addon_dir/src/tp_allowed_methods.c           \
                 "
 
 CFLAGS="$CFLAGS \

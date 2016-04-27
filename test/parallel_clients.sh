@@ -1,7 +1,8 @@
 #!/bin/bash
 
 for i in {1..10}; do
-  ./test/client.py &
+  ./test/basic_features.py &
+  ./test/v20_features.py &
 done
 
 for i in `jobs -p`; do

@@ -37,6 +37,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include <tp_allowed_methods.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -193,4 +195,4 @@ tp_dump(char *output, size_t output_size,
 
 /* }}} */
 
-#endif
+#endif /* TP_TRANSCODE_H_INCLUDED */
