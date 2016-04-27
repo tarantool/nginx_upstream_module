@@ -1,6 +1,5 @@
 # Tarantool NginX upstream module
 =================
-
   Key features:
   * Benefit from nginx features and tarantool features over HTTP(S).
   * Call tarantool methods via JSON RPC or REST.
@@ -24,6 +23,7 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
 =================
 * [REST](#rest)
 * [JSON](#json)
+* [Compilation and install](#compilation-and-install)
 * [Directives](#directives)
   * [tnt_pass](#tnt_pass)
   * [tnt_http_rest_methods](#tnt_http_rest_methods)
@@ -44,7 +44,6 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
 
 ## REST
 =================
-
   NOTE: since v0.2.0
 
   With this module you can call Tarantool stored procedure via HTTP GET,POST,PUT,DELETE
@@ -89,7 +88,6 @@ end
 
 ## JSON
 =================
-
   NOTE: since v0.1.4
 
   The module expects JSON posted with HTTP POST, PUT(since v0.2.0) and carried in request body.
@@ -256,8 +254,6 @@ end
 ```
 ## Directives
 =================
-
-
 tnt_pass
 ------------
 **syntax:** *tnt_pass UPSTREAM*
@@ -492,8 +488,7 @@ The 0 value turns off this limitation.
 [Content](#content)
 
 ## Performance Tuning
-  ==================
-
+==================
 * Use [HttpUpstreamKeepaliveModule](http://wiki.nginx.org/HttpUpstreamKeepaliveModule)) with this module.
   ** Use [keepalive](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive).
   ** use [keepalive_requests](http://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests).
@@ -506,7 +501,6 @@ The 0 value turns off this limitation.
 
 ## Examples
 =================
-
 Python test: test/basic_features.py, test/v20_feautres.py, nginx.dev.conf.
 
 Client side javascript example: example/echo.html, example/echo.lua.
