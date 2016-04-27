@@ -489,10 +489,10 @@ The 0 value turns off this limitation.
 
 ## Performance Tuning
 ==================
-* Use [HttpUpstreamKeepaliveModule](http://wiki.nginx.org/HttpUpstreamKeepaliveModule)) with this module.
-  ** Use [keepalive](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive).
-  ** use [keepalive_requests](http://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests).
-* Using multiple instance of Tarantool servers on your multi-core machines.
+* Use [HttpUpstreamKeepaliveModule](http://wiki.nginx.org/HttpUpstreamKeepaliveModule).
+  * Use [keepalive](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive).
+  * use [keepalive_requests](http://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests).
+* Use multiple instance of Tarantool servers on your multi-core machines.
 * Turn off nginx, Tarantool unnecessary logging.
 * Tune Linux Network.
 * Tune nginx buffers.
