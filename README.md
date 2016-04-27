@@ -1,8 +1,9 @@
 # Tarantool NginX upstream module
+=================
 
   Key features:
   * Benefit from nginx features and tarantool features over HTTP(S).
-  * Call tarantool methods via JSON RPC.
+  * Call tarantool methods via JSON RPC or REST.
   * Load Balancing with elastic configuration.
   * Backup and fault tolerance.
   * Low overhead.
@@ -14,12 +15,83 @@
   About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
 
 ## Status
+=================
 
-v0.1.4 Stable.
+v0.1.4 - Production ready.
+v0.2.0 - Stable.
 
-## Protocol
+## Content
+=================
+* [Communicate via REST](#rest)
+* [Communicate via JSON](#json)
+* [Directives](#directives)
+  * [tnt_pass](#tnt_pass)
+  * [tnt_http_rest_methods](#tnt_http_rest_methods)
+  * [tnt_pass_http_request](#tnt_pass_http_request)
+  * [tnt_pass_http_request_buffer_size](#tnt_pass_http_request_buffer_size)
+  * [tnt_method](#tnt_method)
+  * [tnt_http_allowed_methods - experemental](#tnt_http_allowed_methods)
+  * [tnt_send_timeout](#tnt_send_timeout)
+  * [tnt_read_timeout](#tnt_read_timeout)
+  * [tnt_buffer_size](#tnt_buffer_size)
+  * [tnt_next_upstream](#tnt_next_upstream)
+  * [tnt_connect_timeout](#tnt_connect_timeout)
+  * [tnt_next_upstream](#tnt_next_upstream)
+  * [tnt_next_upstream_tries](#tnt_next_upstream_tries)
+  * [tnt_next_upstream_timeout](#tnt_next_upstream_timeout)
+* [Examples](#examples)
 
-  The module expects JSON posted with HTTP POST and carried in request body.
+## Communicate via REST
+=================
+
+  NOTE: since v0.2.0
+ 
+  With this module you can call Tarantool stored procedure via HTTP GET,POST,PUT,DELETE
+  e.g. call Tarantool stored procedure via HTTP REST
+  
+  Example
+  ```nginx
+    upstream backend {
+      # Tarantool hosts
+      server 127.0.0.1:9999;
+    }
+
+    server {
+      # GET | POST | PUT | DELETE tnt_test?q=1&q=2&q=3
+      location /tnt_rest {
+        # REST mode on
+        tnt_http_rest_methods get post put delete; # or all
+        
+        # Pass http headers and uri
+        tnt_http_passhttp_request on;
+        
+        # Module on
+        tnt_pass backend;
+      }
+    }
+
+```
+
+```lua
+-- Tarantool procudure
+function tnt_rest(req)
+ req.headers -- http headers
+ req.uri -- uri
+ return { 'ok' }
+end
+
+```
+
+```bash
+ $> wget NGX_HOST/tnt_rest?arg1=1&argN=N
+```
+ 
+## Communicate via JSON
+=================
+
+  NOTE: since v0.1.4
+
+  The module expects JSON posted with HTTP POST, PUT(since v0.2.0) and carried in request body.
   
   Server HTTP statuses
   
@@ -181,17 +253,246 @@ v0.1.4 Stable.
     }
 
 ```
+## Directives
+=================
 
+
+tnt_pass
+------------
+**syntax:** *tnt_pass UPSTREAM*
+
+**default:** *no*
+
+**context:** *location*
+
+Specify the Tarantool server backend. 
+
+```nginx
+  location = /tnt {
+    tnt_pass 127.0.0.1:9999;
+  }
+
+  upstream tnt_upstream {
+     127.0.0.1:9999;
+  };
+
+ location = /tnt_next {
+     tnt_pass tnt_upstream;
+ }
+```
+
+[Back to TOC](#table-of-contents)
+
+tnt_http_rest_methods
+----------------
+**syntax:** *tnt_http_rest_methods get, post, put, delete, all*
+
+**default:** *no*
+
+**context:** *location*
+
+Allow to accept one or many of RESTs methods.
+If `tnt_method` not set then name of Tarantool stored procedure are first part of url path.
+
+Example
+```nginx
+  location tnt {
+    tnt_http_rest_methods get;
+    tnt_pass 127.0.0.1:9999;
+  }
+```
+
+```bash
+  # Call tarantool_stored_procedure_name()
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1 
+```
+
+[Back to TOC](#table-of-contents)
+
+tnt_pass_http_request
+------------------
+**syntax:** *tnt_pass_http_request [on|off]*
+
+**default:** *no*
+
+**context:** *location, location if*
+
+Allow to pass to Tarantool stored procedure HTTP headers and query.
+
+Examples
+```nginx
+  location tnt {
+    # Also tnt_pass_http_request can mix with JSON communication
+    tnt_http_rest_methods get;
+    
+    # [on|of]
+    tnt_pass_http_request on;
+    tnt_pass 127.0.0.1:9999;
+  }
+```
+```lua
+  function tarantool_stored_procedure_name(req, ...)
+    req.headers -- lua table
+    req.query -- string
+    return { 'OK' }
+  end
+```
+```bash
+  # Call tarantool_stored_procedure_name()
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1 
+```
+
+[Back to TOC](#table-of-contents)
+
+tnt_pass_http_request_buffer_size
+------------------------
+**syntax:** *tnt_pass_http_request_buffer_size SIZE*
+
+**default:** *4k, 8k*
+
+**context:** *location*
+
+Specify the size of the buffer used for `tnt_pass_http_request`.
+
+[Back to TOC](#table-of-contents)
+
+tnt_method
+-----------
+**syntax:** *tnt_method STR*
+
+**default:** *no*
+
+**context:** *location, location if*
+
+Specify the Tarantool call method.
+
+Examples
+```nginx
+  location tnt {
+    # Also tnt_pass_http_request can mix with JSON communication [[
+    tnt_http_rest_methods get;
+    tnt_method tarantool_stored_procedure_name;
+    #]]
+    
+    # [on|of]
+    tnt_pass_http_request on;
+    tnt_pass 127.0.0.1:9999;
+  }
+```
+```lua
+  function tarantool_stored_procedure_name(req, ...)
+    req.headers -- lua table
+    req.query -- string
+    return { 'OK' }
+  end
+```
+```bash
+  # OK Call tarantool_stored_procedure_name()
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1 
+  
+  # Error Call tarantool_stored_procedure_XXX()
+  $> wget NGINX_HOST/tarantool_stored_procedure_XXX/some/mega/path?q=1 
+```
+[Back to TOC](#table-of-contents)
+
+tnt_send_timeout
+-------------------
+**syntax:** *tnt_send_timeout TIME*
+
+**default:** *60s*
+
+**context:** *http, server, location*
+
+The timeout for sending TCP requests to the Tarantool server, in seconds by default.
+
+It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
+
+[Back to TOC](#table-of-contents)
+
+tnt_read_timeout
+-------------------
+**syntax:** *tnt_read_timeout TIME*
+
+**default:** *60s*
+
+**context:** *http, server, location*
+
+The timeout for reading TCP responses from the Tarantool server, in seconds by default.
+
+It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
+
+[Back to TOC](#table-of-contents)
+
+tnt_connect_timeout
+----------------------
+**syntax:** *tnt_connect_timeout TIME*
+
+**default:** *60s*
+
+**context:** *http, server, location*
+
+The timeout for connecting to the Tarantool server, in seconds by default.
+
+It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
+
+This time must be less than 597 hours.
+
+[Back to TOC](#table-of-contents)
+
+tnt_buffer_size
+------------------
+**syntax:** *tnt_buffer_size SIZE*
+
+**default:** *4k, 8k*
+
+**context:** *http, server, location*
+
+This buffer size is used for reading Tarantool replies, but it's not required to be as big as the largest possible Tarantool reply.
+
+This default size is the page size, may be 4k or 8k.
+
+[Back to TOC](#table-of-contents)
+
+tnt_next_upstream
+--------------------
+**syntax:** *tnt_next_upstream [ error | timeout | invalid_response | off ]*
+
+**default:** *error timeout*
+
+**context:** *http, server, location*
+
+Specify which failure conditions should cause the request to be forwarded to another
+upstream server. Applies only when the value in [tnt_pass](#tnt_pass) is an upstream with two or more
+servers.
+
+[Back to TOC](#table-of-contents)
+
+tnt_next_upstream_tries
+--------------------
+**syntax:** *tnt_next_upstream_tries SIZE*
+
+**default:** *0*
+
+**context:** *http, server, location*
+
+Limits the number of possible tries for passing a request to the next server. The 0 value turns off this limitation.
+
+tnt_next_upstream_timeout
+--------------------
+**syntax:** *tnt_next_upstream_timeout TIME*
+
+**default:** *0*
+
+**context:** *http, server, location*
+Limits the time during which a request can be passed to the next server. The 0 value turns off this limitation.
+
+[Back to TOC](#table-of-contents)
 ## Examples
+=================
 
-  Python minimalistic example/test: test/client.py.
+  Python test: test/basic_features.py, test/v20_feautres.py, nginx.dev.conf.
   
-  Client side javascript example: example/echo.html.
-  
-  For those examples Tarantool must be launched with {example,test}/echo.lua and this module with "location = '/tnt'".
-
-
-
+  Client side javascript example: example/echo.html, example/echo.lua.
 
 Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues
 We also warmly welcome your feedback in the discussion mailing list, tarantool@googlegroups.com.
