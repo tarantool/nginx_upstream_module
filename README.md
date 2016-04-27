@@ -278,7 +278,7 @@ Specify the Tarantool server backend.
  }
 ```
 
-[Content](#content)
+[BOT](#content)
 
 tnt_http_rest_methods
 ----------------
@@ -304,7 +304,7 @@ Example
   $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
 ```
 
-[Content](#content)
+[BOT](#content)
 
 tnt_pass_http_request
 ------------------
@@ -339,7 +339,7 @@ Examples
   $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
 ```
 
-[Content](#content)
+[BOT](#content)
 
 tnt_pass_http_request_buffer_size
 ------------------------
@@ -351,7 +351,7 @@ tnt_pass_http_request_buffer_size
 
 Specify the size of the buffer used for `tnt_pass_http_request`.
 
-[Content](#content)
+[BOT](#content)
 
 tnt_method
 -----------
@@ -390,7 +390,7 @@ Examples
   # Error Call tarantool_stored_procedure_XXX()
   $> wget NGINX_HOST/tarantool_stored_procedure_XXX/some/mega/path?q=1
 ```
-[Content](#content)
+[BOT](#content)
 
 tnt_send_timeout
 -------------------
@@ -404,7 +404,7 @@ The timeout for sending TCP requests to the Tarantool server, in seconds by defa
 It's wise to always explicitly specify the time unit to avoid confusion.
 Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 
-[Content](#content)
+[BOT](#content)
 
 tnt_read_timeout
 -------------------
@@ -419,7 +419,7 @@ The timeout for reading TCP responses from the Tarantool server, in seconds by d
 It's wise to always explicitly specify the time unit to avoid confusion.
 Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 
-[Content](#content)
+[BOT](#content)
 
 tnt_connect_timeout
 ----------------------
@@ -435,7 +435,7 @@ It's wise to always explicitly specify the time unit to avoid confusion.
 Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 This time must be less than 597 hours.
 
-[Content](#content)
+[BOT](#content)
 
 tnt_buffer_size
 ------------------
@@ -448,7 +448,7 @@ tnt_buffer_size
 This buffer size is used for reading Tarantool replies,
 but it's not required to be as big as the largest possible Tarantool reply.
 
-[Content](#content)
+[BOT](#content)
 
 tnt_next_upstream
 --------------------
@@ -462,7 +462,7 @@ Specify which failure conditions should cause the request to be forwarded to ano
 upstream server. Applies only when the value in [tnt_pass](#tnt_pass) is an upstream with two or more
 servers.
 
-[Content](#content)
+[BOT](#content)
 
 tnt_next_upstream_tries
 --------------------
@@ -485,7 +485,7 @@ tnt_next_upstream_timeout
 Limits the time during which a request can be passed to the next server.
 The 0 value turns off this limitation.
 
-[Content](#content)
+[BOT](#content)
 
 ## Performance Tuning
 ==================
@@ -497,7 +497,7 @@ The 0 value turns off this limitation.
 * Tune Linux Network.
 * Tune nginx buffers.
 
-[Content](#content)
+[BOT](#content)
 
 ## Examples
 =================
@@ -505,7 +505,8 @@ Python test: test/basic_features.py, test/v20_feautres.py, nginx.dev.conf.
 
 Client side javascript example: example/echo.html, example/echo.lua.
 
-[Content](#content)
+[BOT](#content)
 
-Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues
+================
+Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues.
 We also warmly welcome your feedback in the discussion mailing list, tarantool@googlegroups.com.
