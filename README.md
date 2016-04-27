@@ -38,16 +38,17 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
   * [tnt_next_upstream](#tnt_next_upstream)
   * [tnt_next_upstream_tries](#tnt_next_upstream_tries)
   * [tnt_next_upstream_timeout](#tnt_next_upstream_timeout)
+* [Performance tuning](#performance-tuning)
 * [Examples](#examples)
 
 ## REST
 =================
 
   NOTE: since v0.2.0
- 
+
   With this module you can call Tarantool stored procedure via HTTP GET,POST,PUT,DELETE
   e.g. call Tarantool stored procedure via HTTP REST
-  
+
   Example
   ```nginx
     upstream backend {
@@ -60,10 +61,10 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
       location /tnt_rest {
         # REST mode on
         tnt_http_rest_methods get post put delete; # or all
-        
+
         # Pass http headers and uri
         tnt_http_passhttp_request on;
-        
+
         # Module on
         tnt_pass backend;
       }
@@ -84,32 +85,32 @@ end
 ```bash
  $> wget NGX_HOST/tnt_rest?arg1=1&argN=N
 ```
- 
+
 ## JSON
 =================
 
   NOTE: since v0.1.4
 
   The module expects JSON posted with HTTP POST, PUT(since v0.2.0) and carried in request body.
-  
+
   Server HTTP statuses
-  
+
     OK - response body contains a result or an error;
          the error may appear only if something happened within Tarantool,
          for instance: 'method not found'.
-    
+
     INTERNAL SERVER ERROR - may appear in many cases,
                             most of them is 'out of memory' error;
-    
+
     NOT ALLOWED - in reponse to anything but  a POST request.
-    
+
     BAD REQUEST - JSON parse error, empty request body, etc.
-    
+
     BAD GATEWAY - lost connection to Tarantool server(s);
                   Since both (i.e. json -> tp and tp -> json) parsers work asynchronouly,
                   this error may appear if 'params' or 'method' do not exists in tbe structure
                   of incoming JSON, please see the protocol description for more details.
-                  
+
                   Note: this behavior will change in  the future.
 
 ### Input JSON form
@@ -123,13 +124,13 @@ end
     "params"
 
       Here is a Structured array. Each element is a argument of Tarantool "call".
-      
+
 
     "id"
-    
+
       An identifier established by the Client MUST contain an unsigned Number not
       greater than unsigned int.
-      
+
       MAY be 0.
 
     These are required fields.
@@ -141,13 +142,13 @@ end
     "result"
 
       Tarantool executing result as json object/array etc.
-      
+
       MAY be null or undefined.
 
     "id"
 
       Request id is returned back.
-      
+
       MAY be null or undefined.
 
 
@@ -160,31 +161,31 @@ end
       If this field exists input message _probably_ did not pass to Tarantool backend.
 
       See "message"/"code" field for details.
-      
-      
+
+
 ### Example
 
       Syntax:
-      
+
       --> data sent to Server
       <-- data sent to Client
-      
+
       rpc call 1:
       --> { "method": "echo", "params": [42, 23], "id": 1 }
       <-- { "result": [42, 23], "id": 1 }
-      
-      rpc call 2: 
+
+      rpc call 2:
       --> { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
       <-- { "result": [ [ {"hello": "world"} ], "!" ], "id": 2 }
-      
+
       rpc call of non-existent method:
-      --> { "method": "echo_2", "id": 1 } 
+      --> { "method": "echo_2", "id": 1 }
       <-- { "error": {"code": -32601, "message": "Method not found"}, "id": 1 }
-      
+
       rpc call with invalid JSON:
       --> { "method": "echo", "params": [1, 2, 3, __wrong__ ] }
       <-- { "error": { "code": -32700, "message": "Parse error" } }
-      
+
       rpc call Batch:
       --> [
             { "method": "echo", "params": [42, 23], "id": 1 },
@@ -194,7 +195,7 @@ end
             { "result": [42, 23], "id": 1 },
             { "result": [ [ {"hello": "world"} ], "!" ], "id": 2 }
       ]
-      
+
       rpc call Batch of non-existent method:
        --> [
             { "method": "echo_2", "params": [42, 23], "id": 1 },
@@ -204,7 +205,7 @@ end
             { "error": {"code": -32601, "message": "Method not found"}, "id": 1 },
             { "result": [ [ {"hello": "world"} ], "!" ], "id": 2 }
       ]
-      
+
       rpc call Batch with invalid JSON:
       --> [
             { "method": "echo", "params": [42, 23, __wrong__], "id": 1 },
@@ -240,9 +241,9 @@ end
         server 127.0.0.1:10000;
 
         # ...
-        server 127.0.0.1:10001 backup;                                               
-                                                                                   
-        # ...  
+        server 127.0.0.1:10001 backup;
+
+        # ...
     }
 
     server {
@@ -264,7 +265,7 @@ tnt_pass
 
 **context:** *location*
 
-Specify the Tarantool server backend. 
+Specify the Tarantool server backend.
 
 ```nginx
   location = /tnt {
@@ -303,7 +304,7 @@ Example
 
 ```bash
   # Call tarantool_stored_procedure_name()
-  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1 
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
 ```
 
 [Content](#content)
@@ -323,7 +324,7 @@ Examples
   location tnt {
     # Also tnt_pass_http_request can mix with JSON communication
     tnt_http_rest_methods get;
-    
+
     # [on|of]
     tnt_pass_http_request on;
     tnt_pass 127.0.0.1:9999;
@@ -338,7 +339,7 @@ Examples
 ```
 ```bash
   # Call tarantool_stored_procedure_name()
-  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1 
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
 ```
 
 [Content](#content)
@@ -372,7 +373,7 @@ Examples
     tnt_http_rest_methods get;
     tnt_method tarantool_stored_procedure_name;
     #]]
-    
+
     # [on|of]
     tnt_pass_http_request on;
     tnt_pass 127.0.0.1:9999;
@@ -387,10 +388,10 @@ Examples
 ```
 ```bash
   # OK Call tarantool_stored_procedure_name()
-  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1 
-  
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
+
   # Error Call tarantool_stored_procedure_XXX()
-  $> wget NGINX_HOST/tarantool_stored_procedure_XXX/some/mega/path?q=1 
+  $> wget NGINX_HOST/tarantool_stored_procedure_XXX/some/mega/path?q=1
 ```
 [Content](#content)
 
@@ -403,8 +404,8 @@ tnt_send_timeout
 **context:** *http, server, location*
 
 The timeout for sending TCP requests to the Tarantool server, in seconds by default.
-
-It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
+It's wise to always explicitly specify the time unit to avoid confusion.
+Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 
 [Content](#content)
 
@@ -418,7 +419,8 @@ tnt_read_timeout
 
 The timeout for reading TCP responses from the Tarantool server, in seconds by default.
 
-It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
+It's wise to always explicitly specify the time unit to avoid confusion.
+Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 
 [Content](#content)
 
@@ -432,8 +434,8 @@ tnt_connect_timeout
 
 The timeout for connecting to the Tarantool server, in seconds by default.
 
-It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
-
+It's wise to always explicitly specify the time unit to avoid confusion.
+Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 This time must be less than 597 hours.
 
 [Content](#content)
@@ -446,9 +448,8 @@ tnt_buffer_size
 
 **context:** *http, server, location*
 
-This buffer size is used for reading Tarantool replies, but it's not required to be as big as the largest possible Tarantool reply.
-
-This default size is the page size, may be 4k or 8k.
+This buffer size is used for reading Tarantool replies,
+but it's not required to be as big as the largest possible Tarantool reply.
 
 [Content](#content)
 
@@ -474,7 +475,8 @@ tnt_next_upstream_tries
 
 **context:** *http, server, location*
 
-Limits the number of possible tries for passing a request to the next server. The 0 value turns off this limitation.
+Limits the number of possible tries for passing a request to the next server.
+The 0 value turns off this limitation.
 
 tnt_next_upstream_timeout
 --------------------
@@ -483,7 +485,21 @@ tnt_next_upstream_timeout
 **default:** *0*
 
 **context:** *http, server, location*
-Limits the time during which a request can be passed to the next server. The 0 value turns off this limitation.
+Limits the time during which a request can be passed to the next server.
+The 0 value turns off this limitation.
+
+[Content](#content)
+
+## Performance Tuning
+  ==================
+
+* Use [HttpUpstreamKeepaliveModule](http://wiki.nginx.org/HttpUpstreamKeepaliveModule)) with this module.
+  ** Use [keepalive](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive).
+  ** use [keepalive_requests](http://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests).
+* Using multiple instance of Tarantool servers on your multi-core machines.
+* Turn off nginx, Tarantool unnecessary logging.
+* Tune Linux Network.
+* Tune nginx buffers.
 
 [Content](#content)
 
