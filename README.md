@@ -7,23 +7,22 @@
   * Load Balancing with elastic configuration.
   * Backup and fault tolerance.
   * Low overhead.
-  
-  Note: Websockets are currently not supported until Tarantool support out of band replies.
 
-  About tarantool: http://tarantool.org
-  
-  About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
+Note: Websockets are currently not supported until Tarantool support out of band replies.
+
+About tarantool: http://tarantool.org
+
+About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
 
 ## Status
 =================
-
-v0.1.4 - Production ready.
-v0.2.0 - Stable.
+  * v0.1.4 - Production ready.
+  * v0.2.0 - Stable.
 
 ## Content
 =================
-* [Communicate via REST](#rest)
-* [Communicate via JSON](#json)
+* [REST](#rest)
+* [JSON](#json)
 * [Directives](#directives)
   * [tnt_pass](#tnt_pass)
   * [tnt_http_rest_methods](#tnt_http_rest_methods)
@@ -41,7 +40,7 @@ v0.2.0 - Stable.
   * [tnt_next_upstream_timeout](#tnt_next_upstream_timeout)
 * [Examples](#examples)
 
-## Communicate via REST
+## REST
 =================
 
   NOTE: since v0.2.0
@@ -86,7 +85,7 @@ end
  $> wget NGX_HOST/tnt_rest?arg1=1&argN=N
 ```
  
-## Communicate via JSON
+## JSON
 =================
 
   NOTE: since v0.1.4
@@ -281,7 +280,7 @@ Specify the Tarantool server backend.
  }
 ```
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_http_rest_methods
 ----------------
@@ -307,7 +306,7 @@ Example
   $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1 
 ```
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_pass_http_request
 ------------------
@@ -342,7 +341,7 @@ Examples
   $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1 
 ```
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_pass_http_request_buffer_size
 ------------------------
@@ -354,7 +353,7 @@ tnt_pass_http_request_buffer_size
 
 Specify the size of the buffer used for `tnt_pass_http_request`.
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_method
 -----------
@@ -393,7 +392,7 @@ Examples
   # Error Call tarantool_stored_procedure_XXX()
   $> wget NGINX_HOST/tarantool_stored_procedure_XXX/some/mega/path?q=1 
 ```
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_send_timeout
 -------------------
@@ -407,7 +406,7 @@ The timeout for sending TCP requests to the Tarantool server, in seconds by defa
 
 It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_read_timeout
 -------------------
@@ -421,7 +420,7 @@ The timeout for reading TCP responses from the Tarantool server, in seconds by d
 
 It's wise to always explicitly specify the time unit to avoid confusion. Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_connect_timeout
 ----------------------
@@ -437,7 +436,7 @@ It's wise to always explicitly specify the time unit to avoid confusion. Time un
 
 This time must be less than 597 hours.
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_buffer_size
 ------------------
@@ -451,7 +450,7 @@ This buffer size is used for reading Tarantool replies, but it's not required to
 
 This default size is the page size, may be 4k or 8k.
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_next_upstream
 --------------------
@@ -465,7 +464,7 @@ Specify which failure conditions should cause the request to be forwarded to ano
 upstream server. Applies only when the value in [tnt_pass](#tnt_pass) is an upstream with two or more
 servers.
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
 
 tnt_next_upstream_tries
 --------------------
@@ -486,13 +485,16 @@ tnt_next_upstream_timeout
 **context:** *http, server, location*
 Limits the time during which a request can be passed to the next server. The 0 value turns off this limitation.
 
-[Back to TOC](#table-of-contents)
+[Content](#contents)
+
 ## Examples
 =================
 
-  Python test: test/basic_features.py, test/v20_feautres.py, nginx.dev.conf.
-  
-  Client side javascript example: example/echo.html, example/echo.lua.
+Python test: test/basic_features.py, test/v20_feautres.py, nginx.dev.conf.
+
+Client side javascript example: example/echo.html, example/echo.lua.
+
+[Content](#contents)
 
 Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues
 We also warmly welcome your feedback in the discussion mailing list, tarantool@googlegroups.com.
