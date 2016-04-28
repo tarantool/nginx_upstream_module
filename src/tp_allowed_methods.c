@@ -99,7 +99,8 @@ void
 tp_allowed_methods_free(tp_allowed_methods_t *tam)
 {
     assert(tam);
-    for (struct link__ *it = tam->head; it; it = it->next)
+    struct link__ *it = tam->head;
+    for (; it; it = it->next)
         free_link(it);
     tam->head = tam->tail = NULL;
 }
@@ -113,7 +114,8 @@ tp_allowed_methods_is_allow(const tp_allowed_methods_t *tam,
     assert(tam);
     if (!tam->head /* - OFF */)
         return true;
-    for (struct link__ *it = tam->head; it; it = it->next) {
+    struct link__ *it = tam->head;
+    for (; it; it = it->next) {
       if (it->name && it->len == len &&
               strcmp((const char *)it->name, (const char *)name) == 0)
           return true;
