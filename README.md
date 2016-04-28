@@ -274,7 +274,7 @@ Specify the Tarantool server backend.
      127.0.0.1:9999;
   };
 
- location = /tnt_next {
+ location = /tnt_next_location {
      tnt_pass tnt_upstream;
  }
 ```
