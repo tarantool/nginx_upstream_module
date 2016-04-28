@@ -50,8 +50,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-static void dd(const char* fmt, ...) {
-}
+static inline void dd(const char* fmt, ...) { }
 
 # endif
 
@@ -63,8 +62,7 @@ static void dd(const char* fmt, ...) {
 
 #include <stdarg.h>
 
-static void dd(const char* fmt, ...) {
-}
+static inline void dd(const char* fmt, ...) { }
 
 # endif
 
