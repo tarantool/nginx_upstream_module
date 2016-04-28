@@ -8,7 +8,7 @@
   * Low overhead.
 
 Note: Websockets are currently not supported until Tarantool support out of band replies.
-
+tnt_http_passhttp_request
 About tarantool: http://tarantool.org
 
 About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
@@ -64,7 +64,7 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
         tnt_http_rest_methods get post put delete; # or all
 
         # Pass http headers and uri
-        tnt_http_passhttp_request on;
+        tnt_pass_http_request on;
 
         # Module on
         tnt_pass backend;
