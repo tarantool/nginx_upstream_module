@@ -58,7 +58,7 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
     }
 
     server {
-      # GET | POST | PUT | DELETE tnt_test?q=1&q=2&q=3
+      # HTTP [GET | POST | PUT | DELETE] /tnt_rest?q=1&q=2&q=3
       location /tnt_rest {
         # REST mode on
         tnt_http_rest_methods get post put delete; # or all
