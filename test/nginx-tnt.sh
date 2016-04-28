@@ -14,7 +14,7 @@ for i in {1..10}; do
       echo "[-] $WORK_DIR/basic_features.py failed" && exit 1
     )
   $WORK_DIR/v20_features.py 1> /dev/null || (
-      echo "[-] $WORK_DIR/basic_features.py failed" && exit 1
+      echo "[-] $WORK_DIR/v20_features.py failed" && exit 1
     )
 done
 
@@ -25,7 +25,7 @@ for i in {1..3}; do
     )` &
   clients_pids="$clients_pids $!"
   `$WORK_DIR/v20_features.py 1> /dev/null || (
-      echo "[-] $WORK_DIR/basic_features.py failed" && exit 1
+      echo "[-] $WORK_DIR/v20_features.py failed" && exit 1
     )` &
   clients_pids="$clients_pids $!"
 done
