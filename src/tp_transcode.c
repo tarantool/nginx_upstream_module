@@ -761,8 +761,9 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
         return TP_TRANSCODE_OK;
     }
 
-    if (s_ctx->tc->errmsg == NULL)
+    if (s_ctx->tc->errmsg == NULL) {
         say_invalid_json(s_ctx);
+    }
 
     return TP_TRANSCODE_ERROR;
 }
