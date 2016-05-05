@@ -513,6 +513,7 @@ Client side javascript example: example/echo.html, example/echo.lua.
 ## Copyright & License
 =================
 [LICENSE](https://github.com/tarantool/nginx_upstream_module/blob/master/LICENSE)
+
 [BOT](#content)
 
 ## See also
