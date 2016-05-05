@@ -42,6 +42,7 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
   * [tnt_next_upstream_timeout](#tnt_next_upstream_timeout)
 * [Performance tuning](#performance-tuning)
 * [Examples](#examples)
+* [Copyright & License](#copyright--license)
 * [See also](#see-also)
 
 ## REST
@@ -509,6 +510,9 @@ Client side javascript example: example/echo.html, example/echo.lua.
 
 [BOT](#content)
 
+## Copyright & License
+=================
+[LICENSE](https://github.com/tarantool/nginx_upstream_module/blob/master/LICENSE)
 [BOT](#content)
 
 ## See also
