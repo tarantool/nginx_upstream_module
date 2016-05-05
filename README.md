@@ -18,7 +18,7 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
   * v0.1.4 - Production ready.
   * v0.2.0 - Stable.
   * v0.2.1 - Stable.
-  * v0.2.2 - Experemental.
+  * v0.2.2 - Stable.
 
 ## Content
 =================
@@ -507,6 +507,17 @@ Python test: test/basic_features.py, test/v20_feautres.py, nginx.dev.conf.
 Client side javascript example: example/echo.html, example/echo.lua.
 
 [BOT](#content)
+
+[BOT](#content)
+
+## See also
+=================
+  * [Tarantool](http://tarantool.org) homepage.
+  * [lua-resty-tarantool](https://github.com/perusio/lua-resty-tarantool)
+  * Tarantool [proto](http://tarantool.org/doc/dev_guide/box-protocol.html?highlight=protocol)
+
+[BOT](#content)
+
 
 ================
 Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues.
