@@ -42,6 +42,7 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
   * [tnt_next_upstream_timeout](#tnt_next_upstream_timeout)
 * [Performance tuning](#performance-tuning)
 * [Examples](#examples)
+* [See also](#see-also)
 
 ## REST
 =================
