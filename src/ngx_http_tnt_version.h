@@ -26,57 +26,13 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015 Tarantool AUTHORS:
+ * Copyright (C) 2015-2016 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
-#ifndef DEBUG_UTILS_H
-#define DEBUG_UTILS_H 1
+#ifndef NGX_HTTP_TNT_VERSION_H
+#define NGX_HTTP_TNT_VERSION_H 1
 
-#include <ngx_config.h>
-#include <ngx_core.h>
-
-#if defined(MY_DEBUG)
-
-# if (NGX_HAVE_VARIADIC_MACROS)
-# define dd(...) do { \
-        fprintf(stderr, "tnt *** "); \
-        fprintf(stderr, __VA_ARGS__); \
-        fprintf(stderr, " at %s line %d.\n", __FILE__, __LINE__); \
-      } while(0)
-# else
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdarg.h>
-
-static inline void dd(const char* fmt, ...) { }
-
-# endif
-
-#else
-
-# if (NGX_HAVE_VARIADIC_MACROS)
-# define dd(...)
-# else
-
-#include <stdarg.h>
-
-static inline void dd(const char* fmt, ...) { }
-
-# endif
-
-#endif /* MY_DEBUG */
-
-#if (NGX_HAVE_VARIADIC_MACROS)
-# define log_crit(log, ...) \
-     ngx_log_error_core(NGX_LOG_CRIT, (log), 0, __VA_ARGS__)
-# define crit(...) log_crit(r->connection->log, __VA_ARGS__)
-# else
-/** TODO
- *  Warn. user here
- */
-static inline void crit(...) {}
-#endif /* NGX_HAVE_VARIADIC_MACROS */
+#define NGX_HTTP_TNT_MODULE_VERSION_STRING "v0.2.3"
 
 #endif

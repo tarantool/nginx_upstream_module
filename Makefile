@@ -21,25 +21,41 @@ yajl:
 	ln -sf src third_party/yajl/yajl
 	cd $(YAJL_PATH); ./configure; make distro
 
-build: utils
-	$(MAKE) -C $(NGX_PATH)
+gen_version:
+	$(shell cat $(MODULE_PATH)/src/ngx_http_tnt_version.h.in | sed 's/@VERSION_STRING@/"$(shell git describe --tags --dirty)"/g' > $(MODULE_PATH)/src/ngx_http_tnt_version.h)
 
-configure-debug:
-	cd $(NGX_PATH) && \
-	CFLAGS=" -DMY_DEBUG -Wall -Werror -ggdb3 $(INC_FLAGS)" ./auto/configure \
-						--prefix=$(PREFIX_PATH) \
-						--add-module=$(MODULE_PATH) \
-						--with-debug \
-						--with-ld-opt='$(LDFLAGS)'
-	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
-	cp -Rf $(CUR_PATH)/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf || echo
+build: gen_version utils
+	$(MAKE) -C $(NGX_PATH)
 
 configure:
 	cd $(NGX_PATH) && \
 	./auto/configure \
 			--with-cc-opt='$(INC_FLAGS)'\
-			--add-module='$(MODULE_PATH)'\
-			--with-ld-opt='$(LDFLAGS)'
+			--add-module='$(MODULE_PATH)'
+
+configure-as-dynamic:
+	cd $(NGX_PATH) && \
+		./auto/configure --add-dynamic-module='$(MODULE_PATH)'
+
+configure-debug:
+	cd $(NGX_PATH) && \
+	CFLAGS=" -DMY_DEBUG -Wall -Werror -ggdb3 " ./auto/configure \
+						--prefix=$(PREFIX_PATH) \
+						--add-module=$(MODULE_PATH) \
+						--with-debug
+	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
+	cp -Rf $(CUR_PATH)/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf || echo
+
+configure-as-dynamic-debug:
+	cd $(NGX_PATH) && \
+	CFLAGS=" -DMY_DEBUG -Wall -Werror -ggdb3 " ./auto/configure \
+						--prefix=$(PREFIX_PATH) \
+						--add-dynamic-module=$(MODULE_PATH) \
+						--with-debug
+	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs $(PREFIX_PATH)/modules
+#	cp -f $(CUR_PATH)/nginx/objs/ngx_http_tnt_module.so $(PREFIX_PATH)/modules/ngx_http_tnt_module.so
+	cp -f $(CUR_PATH)/nginx/objs/ngx_http_tnt_module.so /usr/local/nginx/modules/ngx_http_tnt_module.so
+	cp -f $(CUR_PATH)/misc/nginx.dev.dyn.conf $(PREFIX_PATH)/conf/nginx.conf
 
 json2tp:
 	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
@@ -62,29 +78,29 @@ tp_allowed:
 				-o test/tp_allowed
 	$(CUR_PATH)/test/tp_allowed
 
-test-dev: utils build
+test-dev-man: utils build
 	$(CUR_PATH)/test/transcode.sh
 	$(CUR_PATH)/test/nginx-tnt.sh
 
-test: utils build
+test-man: utils build
 	$(CUR_PATH)/test/transcode.sh
 	$(CUR_PATH)/test/basic_features.py
 	$(CUR_PATH)/test/v20_features.py
+
+#test-auto: utils build
+#	$(shell $(MODULE_PATH)/test/auto.sh)
+
+#test: test-auto
+#check: test
 
 clean:
 	$(MAKE) -C $(NGX_PATH) clean 2>1 || echo "pass"
 	rm -f misc/tp_{send,dump} misc/json2tp
 
 utils: json2tp tp_dump
+
 build-all: yajl configure build utils
+build-all-dynamic: yajl configure-as-dynamic build utils
+
 build-all-debug: yajl configure-debug build utils
-
-TAG = $(shell git describe --abbrev=0)
-
-srpm:
-	tar czf rpm/$(TAG).tar.gz ./* --exclude=.git		\
-								  --exclude=.gitmodules \
-								  --exclude=.gitignore 	\
-								  --exclude=rpm
-	rpmbuild -bs rpm/nginx.spec   --define '_sourcedir ./rpm/'	\
-								  --define '_srcrpmdir ./'
+build-all-dynamic-debug: yajl configure-as-dynamic-debug build utils
