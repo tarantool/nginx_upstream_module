@@ -542,4 +542,5 @@ Client side javascript example: example/echo.html, example/echo.lua.
 
 ================
 Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues.
+
 We also warmly welcome your feedback in the discussion mailing list, tarantool@googlegroups.com.
