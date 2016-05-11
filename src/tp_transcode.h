@@ -174,10 +174,16 @@ enum tt_result
 tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size);
 
 /**
- *
  */
 void tp_transcode_bind_data(tp_transcode_t *t,
     const char *data_beg, const char *data_end);
+
+/*
+ */
+void
+tp_reply_to_json_set_options(tp_transcode_t *t,
+                             bool pure_result,
+                             int multireturn_skip_count);
 
 /**
  * WARNING! tp_dump() must be use only for debug pupose

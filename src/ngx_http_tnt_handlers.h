@@ -79,6 +79,10 @@ typedef struct {
     /** Tarantool allowed methods
      */
     tp_allowed_methods_t     allowed_methods;
+
+    ngx_uint_t               pure_result;
+    ngx_uint_t               multireturn_skip_count;
+
 } ngx_http_tnt_loc_conf_t;
 
 
