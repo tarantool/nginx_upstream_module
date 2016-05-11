@@ -80,12 +80,13 @@ tp_allowed:
 
 test-dev-man: utils build
 	$(CUR_PATH)/test/transcode.sh
-	$(CUR_PATH)/test/nginx-tnt.sh
+	$(CUR_PATH)/test/run_all.sh
 
 test-man: utils build
 	$(CUR_PATH)/test/transcode.sh
 	$(CUR_PATH)/test/basic_features.py
 	$(CUR_PATH)/test/v20_features.py
+	$(CUR_PATH)/test/v23_features.py
 
 #test-auto: utils build
 #	$(shell $(MODULE_PATH)/test/auto.sh)
