@@ -261,13 +261,84 @@ error:
 }
 
 
-static inline ngx_int_t
-ngx_http_tnt_get_request_data(ngx_http_request_t *r, struct tp *tp)
+typedef struct ngx_http_tnt_next_arg {
+  u_char *it, *value;
+} ngx_http_tnt_next_arg_t;
+
+static inline ngx_http_tnt_next_arg_t
+ngx_http_tnt_get_next_arg(u_char *it, u_char *end)
 {
+    ngx_http_tnt_next_arg_t next_arg = { .it = end, .value = NULL };
+
+    for ( ; it != end; ++it) {
+
+        if (*it == '=') {
+            next_arg.value = it + 1;
+            continue;
+        } else if (*it == '&') {
+            next_arg.it = it;
+            break;
+        }
+
+    }
+
+    return next_arg;
+}
+
+
+static inline ngx_int_t
+ngx_http_tnt_encode_query_args(
+        ngx_http_request_t *r,
+        struct tp *tp,
+        ngx_uint_t *args_items)
+{
+    u_char *arg_begin, *end;
+
+    if (r->args.len == 0) {
+        return NGX_OK;
+    }
+
+    arg_begin = r->args.data;
+    end = arg_begin + r->args.len;
+
+    ngx_http_tnt_next_arg_t arg = { .it = arg_begin, .value = NULL };
+
+    for (; arg.it < end; ) {
+
+        arg = ngx_http_tnt_get_next_arg(arg.it, end);
+
+        const int value_len = arg.it - arg.value;
+        if (arg.value && value_len > 0) {
+            ++(*args_items);
+            if (!tp_encode_str_map_item(
+                        tp,
+                        (const char *)arg_begin, arg.value - arg_begin - 1,
+                        (const char *)arg.value, value_len))
+            {
+                dd("parse args: tp_encode_str_map_item failed");
+                return NGX_ERROR;
+            }
+        }
+
+        arg_begin = ++arg.it;
+    }
+
+    return NGX_OK;
+}
+
+
+static inline ngx_int_t
+ngx_http_tnt_get_request_data(
+        ngx_http_request_t *r,
+        ngx_http_tnt_loc_conf_t *tlcf,
+        struct tp *tp)
+{
+    /* TODO
+     */
     char            *root_map_place;
-    char            *headers_map_place;
+    char            *map_place;
     size_t          root_items;
-    size_t          headers_items;
+    size_t          map_items;
     ngx_list_part_t *part;
     ngx_table_elt_t *h;
 
@@ -275,7 +346,10 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r, struct tp *tp)
     root_map_place = tp->p;
     tp_add(tp, 1 + sizeof(uint32_t));
 
+    /** Encode raw uri
+     */
     ++root_items;
+
     if (!tp_encode_str_map_item(tp,
                                 "uri", sizeof("uri")-1,
                                 (const char*)r->unparsed_uri.data,
@@ -284,14 +358,47 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r, struct tp *tp)
         return NGX_ERROR;
     }
 
+    /** Encode query args
+     */
+    if (tlcf->pass_http_request & NGX_TNT_CONF_PARSE_ARGS) {
+
+        ++root_items;
+
+        if (!tp_encode_str(tp, "args", sizeof("args")-1)) {
+            dd("parse args: tp_encode_str failed");
+            return NGX_ERROR;
+        }
+        map_place = tp->p;
+        if (!tp_add(tp, 1 + sizeof(uint32_t))) {
+            dd("parse args: tp_add failed");
+            return NGX_ERROR;
+        }
+
+        map_items = 0;
+
+        if (ngx_http_tnt_encode_query_args(r, tp, &map_items) == NGX_ERROR) {
+            dd("parse args: encode query args");
+            return NGX_ERROR;
+        }
+
+        *(map_place++) = 0xdf;
+        *(uint32_t *) map_place = mp_bswap_u32(map_items);
+    }
+
+    /** Encode http headers
+     */
     ++root_items;
+
     if (!tp_encode_str(tp, "headers", sizeof("headers")-1)) {
+        dd("parse headers: tp_encode_str failed");
         return NGX_ERROR;
     }
 
-    headers_items = 0;
-    headers_map_place = tp->p;
+    map_items = 0;
+    map_place = tp->p;
+
     if (!tp_add(tp, 1 + sizeof(uint32_t))) {
+        dd("parse headers: tp_add failed");
         return NGX_ERROR;
     }
 
@@ -312,20 +419,21 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r, struct tp *tp)
                 i = 0;
             }
 
-            ++headers_items;
+            ++map_items;
             if (!tp_encode_str_map_item(tp,
                                         (const char *)h[i].key.data,
                                         h[i].key.len,
                                         (const char *)h[i].value.data,
                                         h[i].value.len))
             {
+                dd("parse headers: tp_encode_str_map_item failed");
                 return NGX_ERROR;
             }
         }
     }
 
-    *(headers_map_place++) = 0xdf;
-    *(uint32_t *) headers_map_place = mp_bswap_u32(headers_items);
+    *(map_place++) = 0xdf;
+    *(uint32_t *) map_place = mp_bswap_u32(map_items);
 
     *(root_map_place++) = 0xdf;
     *(uint32_t *) root_map_place = mp_bswap_u32(root_items);
@@ -358,7 +466,7 @@ ngx_http_tnt_get_request_data_map(
     tp_init(&tp, (char *)b->start, b->end - b->start, NULL, NULL);
     tp.size = tp.p;
 
-    rc = ngx_http_tnt_get_request_data(r, &tp);
+    rc = ngx_http_tnt_get_request_data(r, tlcf, &tp);
     if (rc != NGX_OK) {
         return NULL;
     }
@@ -475,7 +583,7 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
         return NGX_ERROR;
     }
 
-    if (tlcf->pass_http_request == NGX_TNT_CONF_ON) {
+    if (tlcf->pass_http_request & NGX_TNT_CONF_ON) {
         request_b = ngx_http_tnt_get_request_data_map(r, tlcf);
         if (request_b == NULL) {
             return NGX_ERROR;
@@ -687,7 +795,7 @@ ngx_http_tnt_query_handler(ngx_http_request_t *r)
         return NGX_ERROR;
     }
 
-    rc = ngx_http_tnt_get_request_data(r, &tp);
+    rc = ngx_http_tnt_get_request_data(r, tlcf, &tp);
     if (rc != NGX_OK) {
         err = get_error_text(HTTP_REQUEST_TOO_LARGE);
         crit("ngx_http_tnt_query_handler - %s", err->msg.data);

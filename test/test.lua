@@ -32,6 +32,9 @@ function ret_4095()
   return {{out, "10123456789123456"}};
 end
 
+function rest_api_parse_query_args(http_request_full)
+  return {http_request_full}
+end
 
 box.cfg {
     log_level = 5;

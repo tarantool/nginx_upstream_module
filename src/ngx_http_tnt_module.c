@@ -92,9 +92,10 @@ static ngx_conf_bitmask_t  ngx_http_tnt_next_upstream_masks[] = {
     { ngx_null_string, 0 }
 };
 
-static ngx_conf_enum_t  ngx_http_tnt_pass_http_request[] = {
-	{ ngx_string("off"), NGX_TNT_CONF_OFF },
+static ngx_conf_bitmask_t ngx_http_tnt_pass_http_request_masks[] = {
 	{ ngx_string("on"), NGX_TNT_CONF_ON },
+	{ ngx_string("off"), NGX_TNT_CONF_OFF },
+	{ ngx_string("parse_args"), NGX_TNT_CONF_PARSE_ARGS },
 	{ ngx_null_string, 0 }
 };
 
@@ -199,11 +200,11 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
 
     { ngx_string("tnt_pass_http_request"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF
-          |NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
-	  ngx_conf_set_enum_slot,
+          |NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_1MORE,
+	  ngx_conf_set_bitmask_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_tnt_loc_conf_t, pass_http_request),
-      &ngx_http_tnt_pass_http_request },
+      &ngx_http_tnt_pass_http_request_masks },
 
     { ngx_string("tnt_http_rest_methods"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
@@ -387,8 +388,6 @@ ngx_http_tnt_create_loc_conf(ngx_conf_t *cf)
     conf->out_multiplier =
     conf->pass_http_request_buffer_size = NGX_CONF_UNSET_SIZE;
 
-    conf->pass_http_request = NGX_CONF_UNSET_UINT;
-
     /*
      * The hardcoded values
      */
@@ -457,7 +456,7 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_size_value(conf->pass_http_request_buffer_size,
                   prev->pass_http_request_buffer_size, 4096*2);
 
-    ngx_conf_merge_uint_value(conf->pass_http_request,
+    ngx_conf_merge_bitmask_value(conf->pass_http_request,
                   prev->pass_http_request, NGX_TNT_CONF_OFF);
 
     ngx_conf_merge_bitmask_value(conf->http_rest_methods,

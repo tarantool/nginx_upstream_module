@@ -38,8 +38,9 @@
 #include <tp_transcode.h>
 
 typedef enum ngx_tnt_conf_states {
-    NGX_TNT_CONF_ON = 0,
-    NGX_TNT_CONF_OFF = 1
+    NGX_TNT_CONF_ON         = 0x0001,
+    NGX_TNT_CONF_OFF        = 0x0002,
+    NGX_TNT_CONF_PARSE_ARGS = 0x0004
 } ngx_tnt_conf_states_e;
 
 typedef struct {
@@ -58,6 +59,16 @@ typedef struct {
     size_t                   pass_http_request_buffer_size;
 
     /** Pass query/headers to tarantool
+     *
+     *  If set Tarantool get query args as lua table, e.g.
+     *  /tnt_method?arg1=X&arg2=123
+     *
+     *  Tarantool
+     *  function tnt_method(http_req)
+     *  {
+     *    http_req['args']['arg1'] -- eq 'Y'
+     *    http_req['args']['arg2'] -- eq '123'
+     *  }
      */
     ngx_uint_t               pass_http_request;
 

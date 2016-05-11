@@ -26,7 +26,7 @@ __headers=" \
           "
 
 __old_style_build=yes
-if test -n "$ngx_module_link"; then
+if ! test -n "$ngx_module_link"; then
   __old_style_build=no
 fi
 
