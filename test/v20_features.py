@@ -248,7 +248,7 @@ assert(code == 500), 'expected 500'
 
 # ============
 #
-print('[+] Pure & skip count test')
+print('[+] >>Experimental<< Pure & skip count test')
 
 result = get_success_pure(BASE_URL + "/pure_result_rest",
                           {'arg1': 1, 'arg2': 2},
