@@ -19,7 +19,7 @@ all: build
 yajl:
 	echo "$(CUR_PATH)" > /dev/null
 	ln -sf src third_party/yajl/yajl
-	cd $(YAJL_PATH); ./configure; make distro
+	cd $(YAJL_PATH); CFLAGS=" -fPIC" ./configure; make distro
 
 gen_version:
 	$(shell cat $(MODULE_PATH)/src/ngx_http_tnt_version.h.in | sed 's/@VERSION_STRING@/"$(shell git describe --tags --dirty)"/g' > $(MODULE_PATH)/src/ngx_http_tnt_version.h)

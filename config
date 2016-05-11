@@ -12,10 +12,10 @@ __include_paths=" \
           "
 
 __sources=" \
-          $__module_src_dir/src/ngx_http_tnt_module.c   \
-          $__module_src_dir/src/tp_transcode.c          \
-          $__module_src_dir/src/ngx_http_tnt_handlers.c \
-          $__module_src_dir/src/tp_allowed_methods.c    \
+          $__module_src_dir/ngx_http_tnt_module.c   \
+          $__module_src_dir/tp_transcode.c          \
+          $__module_src_dir/ngx_http_tnt_handlers.c \
+          $__module_src_dir/tp_allowed_methods.c    \
           "
 __headers=" \
           $__module_src_dir/debug.h                 \
@@ -67,7 +67,7 @@ else
   ngx_module_name=$ngx_addon_name
   ngx_module_incs=$__include_paths
   ngx_module_deps=$__headers
-  ngx_module_srcs=$__module_src_dir
+  ngx_module_srcs=$__sources
   ngx_module_libs=$__lib_yajl
 
   . auto/module
