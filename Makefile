@@ -1,7 +1,17 @@
 CUR_PATH    = $(shell pwd)
 YAJL_PATH   = $(CUR_PATH)/third_party/yajl
 
-NGX_PATH    = nginx
+NGX_PATH      = $(CUR_PATH)/nginx
+MODULE_PATH   = $(CUR_PATH)
+PREFIX_PATH   = $(CUR_PATH)/test-root
+
+NGX_CONFIGURE = $(NGX_PATH)/auto/configure
+## NginX change configure path, so handle this {{{
+ifeq ($(shell [ -e "$(NGX_PATH)/configure" ] && echo 1 || echo 0 ),1)
+NGX_CONFIGURE=$(NGX_PATH)/configure
+endif
+## }}}
+
 MODULE_PATH = $(CUR_PATH)
 PREFIX_PATH = $(CUR_PATH)/test-root
 INC_FLAGS   = -I$(CUR_PATH)/third_party
@@ -16,10 +26,13 @@ DEV_CFLAGS += -ggdb3 -O0 -Wall -Werror
 .PHONY: all build
 all: build
 
-yajl:
-	echo "$(CUR_PATH)" > /dev/null
+yajl-dynamic:
 	ln -sf src third_party/yajl/yajl
-	cd $(YAJL_PATH); CFLAGS=" -fPIC" ./configure; make distro
+	cd $(YAJL_PATH); CFLAGS=" $(CFLAGS) -fPIC" ./configure; make distro
+
+yajl:
+	ln -sf src third_party/yajl/yajl
+	cd $(YAJL_PATH); ./configure; make distro
 
 gen_version:
 	$(shell cat $(MODULE_PATH)/src/ngx_http_tnt_version.h.in | sed 's/@VERSION_STRING@/"$(shell git describe --tags --dirty)"/g' > $(MODULE_PATH)/src/ngx_http_tnt_version.h)
@@ -29,33 +42,37 @@ build: gen_version utils
 
 configure:
 	cd $(NGX_PATH) && \
-	./auto/configure \
+	$(NGX_CONFIGURE) \
 			--with-cc-opt='$(INC_FLAGS)'\
 			--add-module='$(MODULE_PATH)'
 
 configure-as-dynamic:
 	cd $(NGX_PATH) && \
-		./auto/configure --add-dynamic-module='$(MODULE_PATH)'
+		$(NGX_CONFIGURE) --add-dynamic-module='$(MODULE_PATH)'
 
 configure-debug:
 	cd $(NGX_PATH) && \
-	CFLAGS=" -DMY_DEBUG -Wall -Werror -ggdb3 " ./auto/configure \
+	CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
 						--with-debug
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
-	cp -Rf $(CUR_PATH)/misc/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf || echo
+	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
+	cp -f $(CUR_PATH)/test/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
+	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
 
 configure-as-dynamic-debug:
 	cd $(NGX_PATH) && \
-	CFLAGS=" -DMY_DEBUG -Wall -Werror -ggdb3 " ./auto/configure \
+	CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \
 						--prefix=$(PREFIX_PATH) \
 						--add-dynamic-module=$(MODULE_PATH) \
 						--with-debug
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs $(PREFIX_PATH)/modules
 #	cp -f $(CUR_PATH)/nginx/objs/ngx_http_tnt_module.so $(PREFIX_PATH)/modules/ngx_http_tnt_module.so
-	cp -f $(CUR_PATH)/nginx/objs/ngx_http_tnt_module.so /usr/local/nginx/modules/ngx_http_tnt_module.so
-	cp -f $(CUR_PATH)/misc/nginx.dev.dyn.conf $(PREFIX_PATH)/conf/nginx.conf
+#	cp -f $(CUR_PATH)/nginx/objs/ngx_http_tnt_module.so /usr/local/nginx/modules/ngx_http_tnt_module.so
+	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
+	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.dyn.conf $(PREFIX_PATH)/conf/nginx.conf
+	cp -f $(CUR_PATH)/test/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
 
 json2tp:
 	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
@@ -101,7 +118,7 @@ clean:
 utils: json2tp tp_dump
 
 build-all: yajl configure build utils
-build-all-dynamic: yajl configure-as-dynamic build utils
+build-all-dynamic: yajl-dynamic configure-as-dynamic build utils
 
 build-all-debug: yajl configure-debug build utils
-build-all-dynamic-debug: yajl configure-as-dynamic-debug build utils
+build-all-dynamic-debug: yajl-dynamic configure-as-dynamic-debug build utils
