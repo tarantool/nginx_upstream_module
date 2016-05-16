@@ -25,9 +25,12 @@ __headers=" \
           $__module_src_dir/tp_transcode.h          \
           "
 
-if [ ! -n "$ngx_module_link" ]; then
+__old_style_build=yes
+if ! -n "$ngx_module_link"; then
   __old_style_build=no
 fi
+
+echo "$__old_style_build :: $ngx_module_link"
 
 #
 # Old-style build [[

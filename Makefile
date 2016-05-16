@@ -5,10 +5,10 @@ NGX_PATH      = $(CUR_PATH)/nginx
 MODULE_PATH   = $(CUR_PATH)
 PREFIX_PATH   = $(CUR_PATH)/test-root
 
-NGX_CONFIGURE = $(NGX_PATH)/auto/configure
+NGX_CONFIGURE = ./auto/configure
 ## NginX change configure path, so handle this {{{
-ifeq ($(shell [ -e "$(NGX_PATH)/configure" ] && echo 1 || echo 0 ),1)
-NGX_CONFIGURE=$(NGX_PATH)/configure
+ifeq ($(shell [ -e "$(NGX_PATH)/configure" ] && echo 1 || echo 0 ), 1)
+NGX_CONFIGURE=./configure
 endif
 ## }}}
 
@@ -41,17 +41,15 @@ build: gen_version utils
 	$(MAKE) -C $(NGX_PATH)
 
 configure:
-	cd $(NGX_PATH) && \
-	$(NGX_CONFIGURE) \
+	cd $(NGX_PATH) && $(NGX_CONFIGURE) \
 			--with-cc-opt='$(INC_FLAGS)'\
 			--add-module='$(MODULE_PATH)'
 
 configure-as-dynamic:
-	cd $(NGX_PATH) && \
-		$(NGX_CONFIGURE) --add-dynamic-module='$(MODULE_PATH)'
+	cd $(NGX_PATH) && $(NGX_CONFIGURE) --add-dynamic-module='$(MODULE_PATH)'
 
 configure-debug:
-	cd $(NGX_PATH) && \
+	cd $(NGX_PATH)
 	CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
@@ -62,7 +60,7 @@ configure-debug:
 	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
 
 configure-as-dynamic-debug:
-	cd $(NGX_PATH) && \
+	cd $(NGX_PATH)
 	CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \
 						--prefix=$(PREFIX_PATH) \
 						--add-dynamic-module=$(MODULE_PATH) \
