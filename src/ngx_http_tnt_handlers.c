@@ -906,7 +906,6 @@ ngx_http_tnt_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
 }
 
 
-
 ngx_buf_t*
 ngx_http_tnt_set_err(ngx_http_request_t *r,
                      int errcode,

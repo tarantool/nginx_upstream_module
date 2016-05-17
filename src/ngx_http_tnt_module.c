@@ -367,11 +367,14 @@ ngx_http_tnt_filter(void *data, ssize_t bytes)
     ngx_int_t rc = NGX_OK;
     for (;;) {
         rc = ngx_http_tnt_filter_reply(r, u, b);
-        if (rc != NGX_AGAIN) break;
+        if (rc != NGX_AGAIN)
+            break;
         dd("Next message in same input buffer -- merge");
     }
 
-    u->keepalive = 1;
+    if (rc != NGX_ERROR) {
+      u->keepalive = 1;
+    }
 
     return rc;
 }
@@ -605,6 +608,7 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
         .codec = TP_REPLY_TO_JSON,
         .mf = NULL
     };
+
     rc = tp_transcode_init(&tc, &args);
     if (rc == TP_TRANSCODE_ERROR) {
         crit("[BUG] failed to call tp_transcode_init(output)");

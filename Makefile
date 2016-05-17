@@ -49,8 +49,8 @@ configure-as-dynamic:
 	cd $(NGX_PATH) && $(NGX_CONFIGURE) --add-dynamic-module='$(MODULE_PATH)'
 
 configure-debug:
-	cd $(NGX_PATH)
-	CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \
+	cd $(NGX_PATH) && \
+		CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
 						--with-debug
@@ -60,8 +60,8 @@ configure-debug:
 	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
 
 configure-as-dynamic-debug:
-	cd $(NGX_PATH)
-	CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \
+	cd $(NGX_PATH) && \
+		CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \
 						--prefix=$(PREFIX_PATH) \
 						--add-dynamic-module=$(MODULE_PATH) \
 						--with-debug
