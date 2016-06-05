@@ -46,3 +46,37 @@ if not box.space.tester then
     box.schema.user.grant('guest', 'read,write,execute', 'universe')
     box.schema.create_space('tester')
 end
+
+-- BUG -- https://github.com/tarantool/nginx_upstream_module/issues/37 [[
+function read(http_request_full)
+    return {
+        status = {
+          code = 200,
+          text = "OK"
+        },
+        meta = {
+          debug = {
+            front = "app-2",
+            auth = true,
+            source = false
+          },
+          exec_time = 0.005933,
+          related = {
+            "/ucp/0001/accounts/account/79031234567/services"
+          }
+        },
+        data ={
+          p2 = 79031234568,
+          p1 = 79031234567,
+          account = 79031234567
+        },
+        aux = {
+          hello = "hello 79031234567"
+        }
+    }
+end
+
+function ucp(http_request_full)
+    return read(http_request_full)
+end
+-- ]]

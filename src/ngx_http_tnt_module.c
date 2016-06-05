@@ -496,7 +496,7 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 
     /** Experimental, see conf commands description [[
      */
-    ngx_conf_merge_uint_value(conf->pure_result,
+    ngx_conf_merge_bitmask_value(conf->pure_result,
                   prev->pure_result, NGX_TNT_CONF_OFF);
 
     ngx_conf_merge_size_value(conf->multireturn_skip_count,
