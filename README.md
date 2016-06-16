@@ -506,6 +506,55 @@ The 0 value turns off this limitation.
 
 [Back to content](#content)
 
+tnt_pure_result
+--------------------
+**syntax:** *tnt_pure_result [on|off]*
+
+**default:** *off*
+
+**context:** *http, server, location*
+
+
+Whether to wrap tnt response or not.
+When this option is off:
+```
+{"id":0, "result": [[ 1 ]]}
+```
+When this option is on:
+```
+[[1]]
+```
+
+[Back to content](#content)
+
+tnt_multireturn_skip_count
+--------------------
+**syntax:** *tnt_multireturn_skip_count [0|1|2]*
+
+**default:** *0*
+
+**context:** *http, server, location*
+
+
+Module will skip one or more multireturn parts when this option is > 0
+When it is set to 0:
+```
+{"id":0, "result": [[1]]}
+```
+
+When it is set to 1:
+```
+{"id":0, "result": [1]}
+```
+
+When it is set to 2:
+```
+{"id": 0, "result": 1}
+```
+
+[Back to content](#content)
+
+
 ## Performance Tuning
 ---------------------
 * Use [HttpUpstreamKeepaliveModule](http://wiki.nginx.org/HttpUpstreamKeepaliveModule).
