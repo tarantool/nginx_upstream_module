@@ -26,9 +26,9 @@ __headers=" \
           "
 
 __old_style_build=yes
-if ! -n "$ngx_module_link"; then
-  __old_style_build=no
-fi
+#if ! -n "$ngx_module_link"; then
+#  __old_style_build=no
+#fi
 
 #
 # Old-style build [[
@@ -70,6 +70,6 @@ else
   ngx_module_srcs=$__sources
   ngx_module_libs=$__lib_yajl
 
-  . auto/module
+#. auto/module
 # ]]
 fi

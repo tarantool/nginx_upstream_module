@@ -120,3 +120,10 @@ build-all-dynamic: yajl-dynamic configure-as-dynamic build utils
 
 build-all-debug: yajl configure-debug build utils
 build-all-dynamic-debug: yajl-dynamic configure-as-dynamic-debug build utils
+srpm:
+	tar czf rpm/v0.0.3.tar.gz ./* --exclude=.git		\
+								  --exclude=.gitmodules \
+								  --exclude=.gitignore 	\
+								  --exclude=rpm
+	rpmbuild -bs rpm/nginx.spec   --define '_sourcedir ./rpm/'	\
+								  --define '_srcrpmdir ./'
