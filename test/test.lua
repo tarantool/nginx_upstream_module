@@ -80,3 +80,10 @@ function ucp(http_request_full)
     return read(http_request_full)
 end
 -- ]]
+
+-- BUG -- https://github.com/tarantool/nginx_upstream_module/issues/44
+function issue_44(request)
+  local c = {}
+  return c.a.b
+end
+-- ]]

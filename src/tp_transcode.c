@@ -1120,7 +1120,11 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
 
     }
 
-    if (!ctx->pure_result) {
+    if (!ctx->pure_result
+        /* NOTE https://github.com/tarantool/nginx_upstream_module/issues/44
+         */
+        || ctx->r.error)
+    {
         *ctx->pos = '}';
         ++ctx->pos;
     }

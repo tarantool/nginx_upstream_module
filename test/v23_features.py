@@ -90,3 +90,11 @@ for i in range(1, 100):
     args['arg' + str(i)] = 'some_string_plus_' + str(i)
 (code, msg) = get_fail(preset_method_location, args, {})
 assert(code == 414), 'expected http code 414'
+
+print('[+] issue 44 (lua error from Tarantool)')
+
+for suf in [ 'issue_44', 'issue_44_not_pure', 'issue_44_skip']:
+  preset_method_location = BASE_URL + '/' + suf
+  (code, msg) = get_fail(preset_method_location, {}, {})
+  assert(msg['error']['code'] == -32800), \
+    location_suffix + 'expected code -32800, got ' + str(msg['error']['code'])
