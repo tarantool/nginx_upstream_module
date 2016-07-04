@@ -227,7 +227,7 @@ ngx_http_tnt_set_method(ngx_http_tnt_ctx_t *ctx,
             goto error;
         }
 
-        start = pos = (*r->uri.data == '/'? r->uri.data + 1: r->uri.data);
+        start = pos = (*r->uri.data == '/' ? r->uri.data + 1 : r->uri.data);
         end = r->uri.data + r->uri.len;
 
         for (;pos != end; ++pos) {

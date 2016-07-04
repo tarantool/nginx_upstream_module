@@ -290,9 +290,13 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
 
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
-    if (!(r->method & ngx_http_tnt_allowed_rest_methods)
-        || (r->method & tlcf->http_rest_methods
-              && !tlcf->method.len && r->uri.len <= 1 /* i.e '/' */))
+    if ((!tlcf->method.len && r->uri.len <= 1 /* i.e '/' */) ||
+      !(r->method & ngx_http_tnt_allowed_rest_methods) ||
+      /* NOTE https://github.com/tarantool/nginx_upstream_module/issues/43
+       * Pass HTTP post in any case
+       */
+      (!(r->method & tlcf->http_rest_methods) && !(r->method & NGX_HTTP_POST))
+      )
     {
         return NGX_HTTP_NOT_ALLOWED;
     }

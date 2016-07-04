@@ -80,7 +80,6 @@ def batch_cases():
         'params': [],
         'id': 2
         }
-
     ])
 
     assert(rc == 200), 'expected 200'
