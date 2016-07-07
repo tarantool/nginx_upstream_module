@@ -26,13 +26,13 @@ __headers=" \
           "
 
 __old_style_build=yes
-if ! -n "$ngx_module_link"; then
+if [ ! -n "$ngx_module_link" ]; then
   __old_style_build=no
 fi
 
 #
 # Old-style build [[
-if [ $__old_style_build = yes ]; then
+if [ "$__old_style_build" = yes ]; then
 
   CORE_INCS=" \
           $CORE_INCS        \
