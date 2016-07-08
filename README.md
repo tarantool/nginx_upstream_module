@@ -27,6 +27,7 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
 * [JSON](#json)
 * [Directives](#directives)
   * [tnt_pass](#tnt_pass)
+  * [tnt_http_methods](#tnt_http_methods)
   * [tnt_http_rest_methods](#tnt_http_rest_methods)
   * [tnt_pass_http_request](#tnt_pass_http_request)
   * [tnt_pass_http_request_buffer_size](#tnt_pass_http_request_buffer_size)
