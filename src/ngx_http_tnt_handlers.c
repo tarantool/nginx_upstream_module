@@ -549,7 +549,7 @@ ngx_int_t ngx_http_tnt_init_handlers(
         u->create_request = ngx_http_tnt_body_json_handler;
         break;
     default:
-        if ((r->method & NGX_HTTP_PUT || r->method & NGX_HTTP_DELETE)
+        if ((r->method == NGX_HTTP_PUT || r->method == NGX_HTTP_DELETE)
             && r->headers_in.content_length_n) {
           u->create_request = ngx_http_tnt_body_json_handler;
         }

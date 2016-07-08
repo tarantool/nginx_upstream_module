@@ -37,8 +37,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <tp_allowed_methods.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif

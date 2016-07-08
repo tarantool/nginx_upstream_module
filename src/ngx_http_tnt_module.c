@@ -33,7 +33,6 @@
 #include <ngx_config.h>
 
 #include <debug.h>
-#include <tp_allowed_methods.h>
 #include <ngx_http_tnt_handlers.h>
 
 
@@ -79,13 +78,6 @@ static char *ngx_http_tnt_pass(
     ngx_command_t *cmd,
     void *conf);
 
-#if 0 /* TODO IMPL ME */
-static char *ngx_http_tnt_set_allowed_methods(
-    ngx_conf_t *cf,
-    ngx_command_t *cmd,
-    void *conf);
-#endif /* 0 */
-
 static ngx_conf_bitmask_t  ngx_http_tnt_next_upstream_masks[] = {
     { ngx_string("error"), NGX_HTTP_UPSTREAM_FT_ERROR },
     { ngx_string("timeout"), NGX_HTTP_UPSTREAM_FT_TIMEOUT },
@@ -101,7 +93,7 @@ static ngx_conf_bitmask_t  ngx_http_tnt_pass_http_request_masks[] = {
 	{ ngx_null_string, 0 }
 };
 
-static ngx_conf_bitmask_t  ngx_http_tnt_rest_methods[] = {
+static ngx_conf_bitmask_t  ngx_http_tnt_methods[] = {
     { ngx_string("get"), NGX_HTTP_GET },
     { ngx_string("post"), NGX_HTTP_POST },
     { ngx_string("put"), NGX_HTTP_PUT },
@@ -213,15 +205,14 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
       ngx_conf_set_bitmask_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_tnt_loc_conf_t, http_rest_methods),
-      &ngx_http_tnt_rest_methods },
+      &ngx_http_tnt_methods },
 
-#if 0 /*IMPL ME*/
     { ngx_string("tnt_http_allowed_methods"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_CONF_1MORE,
-      ngx_http_tnt_set_allowed_methods,
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
+      ngx_conf_set_bitmask_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(ngx_http_tnt_loc_conf_t, allowed_methods) },
-#endif
+      offsetof(ngx_http_tnt_loc_conf_t, allowed_methods),
+      &ngx_http_tnt_methods },
 
     /* Experimental feature:
      *  the feature allow to skip top part of result scheme [[
@@ -291,11 +282,16 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
     if ((!tlcf->method.len && r->uri.len <= 1 /* i.e '/' */) ||
-      !(r->method & ngx_http_tnt_allowed_rest_methods) ||
+        !(r->method & ngx_http_tnt_allowed_rest_methods))
+    {
+        return NGX_HTTP_NOT_ALLOWED;
+    }
+
+    if (
       /* NOTE https://github.com/tarantool/nginx_upstream_module/issues/43
-       * Pass HTTP post in any case
        */
-      (!(r->method & tlcf->http_rest_methods) && !(r->method & NGX_HTTP_POST))
+      !(r->method & tlcf->allowed_methods) &&
+      !(r->method & tlcf->http_rest_methods)
       )
     {
         return NGX_HTTP_NOT_ALLOWED;
@@ -493,9 +489,13 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 
     ngx_conf_merge_bitmask_value(conf->http_rest_methods,
                   prev->http_rest_methods,
-                              (NGX_CONF_BITMASK_SET
-                               |NGX_HTTP_GET
+                              (NGX_HTTP_GET
                                |NGX_HTTP_PUT
+                               |NGX_HTTP_DELETE));
+
+    ngx_conf_merge_bitmask_value(conf->allowed_methods,
+                  prev->allowed_methods,
+                              (NGX_HTTP_POST
                                |NGX_HTTP_DELETE));
 
     /** Experimental, see conf commands description [[
@@ -548,31 +548,6 @@ ngx_http_tnt_pass(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 }
-
-#if 0 /* TODO IMPL ME */
-static char *
-ngx_http_tnt_set_allowed_methods(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-{
-    ngx_http_tnt_loc_conf_t *mlcf = conf;
-    tp_allowed_methods_t    *tam  = &mlcf->allowed_methods;
-
-    ngx_str_t     *value;
-    ngx_uint_t    i;
-
-    if (!tam->head)
-        tp_allowed_methods_init(tam);
-
-    value = cf->args->elts;
-
-    for (i = 1; i < cf->args->nelts; i++) {
-        if (!tp_allowed_methods_add(tam, value[i].data, value[i].len)) {
-            return NGX_CONF_ERROR;
-        }
-    }
-
-    return NGX_CONF_OK;
-}
-#endif /* 0 */
 
 /** Filter functions
  */

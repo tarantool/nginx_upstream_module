@@ -15,12 +15,10 @@ __sources=" \
           $__module_src_dir/ngx_http_tnt_module.c   \
           $__module_src_dir/tp_transcode.c          \
           $__module_src_dir/ngx_http_tnt_handlers.c \
-          $__module_src_dir/tp_allowed_methods.c    \
           "
 __headers=" \
           $__module_src_dir/debug.h                 \
           $__module_src_dir/ngx_http_tnt_handlers.h \
-          $__module_src_dir/tp_allowed_methods.h    \
           $__module_src_dir/tp_ext.h                \
           $__module_src_dir/tp_transcode.h          \
           "
