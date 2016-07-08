@@ -50,11 +50,13 @@ typedef struct {
     size_t                   in_multiplier;
     size_t                   out_multiplier;
 
-    /** Preset method
+    /** Preset method name
+     *
+     * if method is set then tp_transcode use only this method name
      */
     ngx_str_t                method;
 
-    /** Max allowed query/headers size which can be passed to tarantool
+    /** Max allowed query and headers size in bytes
      */
     size_t                   pass_http_request_buffer_size;
 
@@ -72,13 +74,23 @@ typedef struct {
      */
     ngx_uint_t               pass_http_request;
 
-    /** On http REST methods
+    /** Set of http REST methods[default GET|PUT]
+     *
+     * if method in http_rest_methods then tp_transcode expecting method name in
+     * url part, i.e. HOST/METHOD_NAME/TAIL?ARGS
+     *
+     * XXX Also see method
      */
     ngx_uint_t               http_rest_methods;
 
-    /** Tarantool allowed methods
+    /** Set of http methods[default POST|DELETE]
+     *
+     * If method in http_methods then tp_transcode expecting method name in
+     * json protocol, i.e. {"method":STR}
+     *
+     * XXX Also see method
      */
-    ngx_uint_t               allowed_methods;
+    ngx_uint_t               http_methods;
 
     ngx_uint_t               pure_result;
     ngx_uint_t               multireturn_skip_count;
@@ -88,7 +100,7 @@ typedef struct {
 
 /** Set of allowed rest methods
  */
-static const ngx_uint_t ngx_http_tnt_allowed_rest_methods =
+static const ngx_uint_t ngx_http_tnt_allowed_methods =
     (NGX_HTTP_POST|NGX_HTTP_GET|NGX_HTTP_PUT|NGX_HTTP_DELETE);
 
 /** Current upstream state

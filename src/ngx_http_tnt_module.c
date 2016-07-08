@@ -207,11 +207,11 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
       offsetof(ngx_http_tnt_loc_conf_t, http_rest_methods),
       &ngx_http_tnt_methods },
 
-    { ngx_string("tnt_http_allowed_methods"),
+    { ngx_string("tnt_http_http_methods"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
       ngx_conf_set_bitmask_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(ngx_http_tnt_loc_conf_t, allowed_methods),
+      offsetof(ngx_http_tnt_loc_conf_t, http_methods),
       &ngx_http_tnt_methods },
 
     /* Experimental feature:
@@ -282,7 +282,7 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
     if ((!tlcf->method.len && r->uri.len <= 1 /* i.e '/' */) ||
-        !(r->method & ngx_http_tnt_allowed_rest_methods))
+        !(r->method & ngx_http_tnt_allowed_methods))
     {
         return NGX_HTTP_NOT_ALLOWED;
     }
@@ -290,7 +290,7 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
     if (
       /* NOTE https://github.com/tarantool/nginx_upstream_module/issues/43
        */
-      !(r->method & tlcf->allowed_methods) &&
+      !(r->method & tlcf->http_methods) &&
       !(r->method & tlcf->http_rest_methods)
       )
     {
@@ -490,11 +490,10 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_bitmask_value(conf->http_rest_methods,
                   prev->http_rest_methods,
                               (NGX_HTTP_GET
-                               |NGX_HTTP_PUT
-                               |NGX_HTTP_DELETE));
+                               |NGX_HTTP_PUT));
 
-    ngx_conf_merge_bitmask_value(conf->allowed_methods,
-                  prev->allowed_methods,
+    ngx_conf_merge_bitmask_value(conf->http_methods,
+                  prev->http_methods,
                               (NGX_HTTP_POST
                                |NGX_HTTP_DELETE));
 
