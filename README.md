@@ -305,7 +305,8 @@ tnt_http_methods
 
 **context:** *location*
 
-Allow to accept one or many http methods. Data and carried in request body, for details see [JSON](#json)
+Allow to accept one or many http methods.
+If method alloed, then module expects JSON carried in request body, for details see [JSON](#json)
 If `tnt_method` is not set, then the name of the Tarantool stored procedure is the protocol [JSON](#json).
 
 Example
