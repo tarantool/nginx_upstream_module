@@ -296,6 +296,32 @@ Specify the Tarantool server backend.
 
 [Back to content](#content)
 
+tnt_http_methods
+----------------
+**syntax:** *tnt_http_methods post, put, delete, all*
+
+**default:** *post, delete*
+
+**context:** *location*
+
+Allow to accept one or many http methods. Data and carried in request body, for details see [JSON](#json)
+If `tnt_method` is not set, then the name of the Tarantool stored procedure is the protocol [JSON](#json).
+
+Example
+```nginx
+  location tnt {
+    tnt_http_methods delete;
+    tnt_pass 127.0.0.1:9999;
+  }
+```
+
+```bash
+  # Call tarantool_stored_procedure_name()
+  $> wget --method=delete --body-data='{"method":"lua_function", "params": [], "id": 0}' NGINX_HOST/tnt
+```
+
+[Back to content](#content)
+
 tnt_http_rest_methods
 ----------------
 **syntax:** *tnt_http_rest_methods get, post, put, delete, all*
