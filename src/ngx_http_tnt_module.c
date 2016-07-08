@@ -207,7 +207,7 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
       offsetof(ngx_http_tnt_loc_conf_t, http_rest_methods),
       &ngx_http_tnt_methods },
 
-    { ngx_string("tnt_http_http_methods"),
+    { ngx_string("tnt_http_methods"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
       ngx_conf_set_bitmask_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
