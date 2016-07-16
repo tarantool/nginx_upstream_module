@@ -2,7 +2,7 @@
 
 set -x -e
 
-for ver_tag in `cat test/ngx_version`; do
+for ver_tag in `cat test/ngx_versions_list`; do
 
   # Checkout nginx version via tag
   cd nginx
