@@ -177,4 +177,4 @@ def assert_headers_pure(result, headers_in):
 def assert_query_args(result, args):
     for arg in args:
         server_arg = result[0]['args'][arg]
-        assert(str(args[arg]) == server_arg), 'expected arg'
+        assert(str(args[arg]) == server_arg), 'mismatch'

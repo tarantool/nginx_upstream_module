@@ -18,6 +18,14 @@ for i in range(1, 10):
 result = get_success(preset_method_location, args, {})
 assert_query_args(result, args)
 
+# =============
+#
+print('[+] Proto and method in result set')
+result = get_success(preset_method_location, args, {})
+result = result[0]
+assert(result['proto'] == 'HTTP/1.1'), 'expected HTTP/1.1'
+assert(result['method'] == 'GET'), 'expected GET, got'
+
 # ============
 #
 print('[+] Parse query args overflow test')

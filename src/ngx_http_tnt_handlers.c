@@ -333,8 +333,6 @@ ngx_http_tnt_get_request_data(
         ngx_http_tnt_loc_conf_t *tlcf,
         struct tp *tp)
 {
-    /* TODO
-     */
     char            *root_map_place;
     char            *map_place;
     size_t          root_items;
@@ -345,6 +343,30 @@ ngx_http_tnt_get_request_data(
     root_items = 0;
     root_map_place = tp->p;
     tp_add(tp, 1 + sizeof(uint32_t));
+
+    /** Encode protocol
+     */
+    ++root_items;
+
+    if (!tp_encode_str_map_item(tp,
+                                "proto", sizeof("proto")-1,
+                                (const char*)r->http_protocol.data,
+                                r->http_protocol.len))
+    {
+        return NGX_ERROR;
+    }
+
+    /** Encode method
+     */
+    ++root_items;
+
+    if (!tp_encode_str_map_item(tp,
+                                "method", sizeof("method")-1,
+                                (const char*)r->method_name.data,
+                                r->method_name.len))
+    {
+        return NGX_ERROR;
+    }
 
     /** Encode raw uri
      */
