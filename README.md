@@ -55,6 +55,7 @@ About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upst
     $ cd nginx_upstream_module
     $ git submodule update --init --recursive
     $ git clone https://github.com/nginx/nginx.git nginx
+    $ sudo apt-get install libpcre-dev zlib1-dev # install dependencies to build nginx
     $ make build-all # or 'build-all-debug' for debug version
 
 [Back to content](#content)
