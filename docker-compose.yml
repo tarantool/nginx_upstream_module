@@ -4,16 +4,12 @@ services:
     image: tarantool/tarantool
     command: |
       /bin/sh -c '/bin/sh -s <<EOF
-      ls -l /opt/tarantool
-      echo "foo"
       cat > /opt/tarantool/app.lua <<EON
         box.cfg{}
         function tnt_rest(req)
           return "Hello from Tarantool"
         end
       EON
-      ls -l /opt/tarantool
-      ls -l /opt/tarantool/app.lua
       tarantool /usr/local/bin/tarantool-entrypoint.lua /opt/tarantool/app.lua
       EOF'
 
