@@ -1,0 +1,51 @@
+version: '2'
+services:
+  tarantool:
+    image: tarantool/tarantool
+    command: |
+      /bin/sh -c '/bin/sh -s <<EOF
+      ls -l /opt/tarantool
+      echo "foo"
+      cat > /opt/tarantool/app.lua <<EON
+        box.cfg{}
+        function tnt_rest(req)
+          return "Hello from Tarantool"
+        end
+      EON
+      ls -l /opt/tarantool
+      ls -l /opt/tarantool/app.lua
+      tarantool /usr/local/bin/tarantool-entrypoint.lua /opt/tarantool/app.lua
+      EOF'
+
+
+  nginx:
+    image: tarantool/tarantool-nginx
+    depends_on:
+      - tarantool
+    volumes:
+      - ./tarantool.template:/etc/nginx/conf.d/tarantool.template
+    ports:
+      - "8080:8080"
+    command: |
+      /bin/sh -c '/bin/sh -s <<EOF
+      cat > /etc/nginx/conf.d/default.conf <<EON
+          upstream backend {
+              server tarantool:3301;
+          }
+
+          server {
+              listen       8080;
+              server_name  localhost;
+
+              location /tnt_rest {
+                  tnt_http_rest_methods get post put delete;
+                  tnt_pass_http_request on;
+                  tnt_multireturn_skip_count 2;
+                  tnt_pure_result on;
+                  tnt_pass backend;
+                  add_header Content-Type text/plain;
+              }
+          }
+      EON
+      nginx -g "daemon off;"
+      EOF'
