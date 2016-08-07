@@ -6,11 +6,12 @@ MODULE_PATH   = $(CUR_PATH)
 PREFIX_PATH   = $(CUR_PATH)/test-root
 
 NGX_CONFIGURE = ./auto/configure
-## NginX change configure path, so handle this {{{
+## Some versions of nginx have different path of the configure,
+## following lines are handle it {{
 ifeq ($(shell [ -e "$(NGX_PATH)/configure" ] && echo 1 || echo 0 ), 1)
 NGX_CONFIGURE=./configure
 endif
-## }}}
+## }}
 
 MODULE_PATH = $(CUR_PATH)
 PREFIX_PATH = $(CUR_PATH)/test-root
