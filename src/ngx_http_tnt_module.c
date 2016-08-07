@@ -214,12 +214,18 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
       offsetof(ngx_http_tnt_loc_conf_t, http_methods),
       &ngx_http_tnt_methods },
 
-    /* Experimental feature:
-     *  the feature allow to skip top part of result scheme [[
+    { ngx_string("tnt_set_header"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
+      ngx_conf_set_keyval_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_tnt_loc_conf_t, headers_source),
+      NULL },
+
+    /* Experimental features [[
      */
     { ngx_string("tnt_pure_result"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF
-          |NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
+          |NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_bitmask_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_tnt_loc_conf_t, pure_result),
@@ -227,7 +233,7 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
 
     { ngx_string("tnt_multireturn_skip_count"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF
-          |NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
+          |NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_size_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_tnt_loc_conf_t, multireturn_skip_count),
