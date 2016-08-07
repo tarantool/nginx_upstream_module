@@ -60,6 +60,16 @@ configure-debug:
 	cp -f $(CUR_PATH)/test/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
 	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
 
+configure-for-testing:
+	cd $(NGX_PATH) && $(NGX_CONFIGURE) \
+						--with-cc-opt='$(INC_FLAGS)'\
+						--prefix=$(PREFIX_PATH) \
+						--add-module=$(MODULE_PATH)
+	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
+	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
+	cp -f $(CUR_PATH)/test/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
+	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
+
 configure-as-dynamic-debug:
 	cd $(NGX_PATH) && \
 		CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \

@@ -52,17 +52,18 @@ typedef struct {
 
     /** Preset method name
      *
-     * if method is set then tp_transcode use only this method name
+     * if method is set then tp_transcode use only this method name and
+     * ignore method name from json and uri
      */
     ngx_str_t                method;
 
-    /** Max allowed query and headers size in bytes
+    /** Max allowed size of query + headers in bytes
      */
     size_t                   pass_http_request_buffer_size;
 
     /** Pass query/headers to tarantool
      *
-     *  If set Tarantool get query args as lua table, e.g.
+     *  If this is set, then Tarantool recv. query args as lua table, e.g.
      *  /tnt_method?arg1=X&arg2=123
      *
      *  Tarantool
@@ -74,10 +75,10 @@ typedef struct {
      */
     ngx_uint_t               pass_http_request;
 
-    /** Set of http REST methods[default GET|PUT]
+    /** Http REST methods[default GET|PUT]
      *
-     * if method in http_rest_methods then tp_transcode expecting method name in
-     * url part, i.e. HOST/METHOD_NAME/TAIL?ARGS
+     * if method in http_rest_methods, then tp_transcode expecting method name
+     * in url part, i.e. HOST/METHOD_NAME/TAIL?ARGS
      *
      * XXX Also see method
      */
@@ -85,15 +86,28 @@ typedef struct {
 
     /** Set of http methods[default POST|DELETE]
      *
-     * If method in http_methods then tp_transcode expecting method name in
+     * If method in http_methods, then tp_transcode expecting method name in
      * json protocol, i.e. {"method":STR}
      *
      * XXX Also see method
      */
     ngx_uint_t               http_methods;
 
+    /** If is set to 'On', then the client will recv. pure result set, e.g.
+     * {}
+     * Otherwise
+     * {"result":[], "id": NUM}
+     */
     ngx_uint_t               pure_result;
+
+    /** Tarantool returns array of array as the result set of call,
+     * this option helps to avoid this behavior.
+     * For instance. If this option set to 2 then result will look
+     * alike result:{} instead of result:[[{}]]
+     */
     ngx_uint_t               multireturn_skip_count;
+
+    ngx_array_t                   *headers_source;
 
 } ngx_http_tnt_loc_conf_t;
 

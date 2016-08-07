@@ -33,6 +33,7 @@
 #include <ngx_config.h>
 
 #include <debug.h>
+#include <ngx_http_tnt_version.h>
 #include <ngx_http_tnt_handlers.h>
 
 
@@ -67,6 +68,7 @@ static ngx_int_t ngx_http_tnt_filter(void *data, ssize_t bytes);
 
 /** Confs
  */
+static ngx_int_t ngx_http_tnt_preconfiguration(ngx_conf_t *cf);
 static void *ngx_http_tnt_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_tnt_merge_loc_conf(
     ngx_conf_t *cf,
@@ -246,7 +248,7 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
 
 
 static ngx_http_module_t  ngx_http_tnt_module_ctx = {
-    NULL,                           /* preconfiguration */
+    ngx_http_tnt_preconfiguration,  /* preconfiguration */
     NULL,                           /* postconfiguration */
 
     NULL,                           /* create main configuration */
@@ -383,6 +385,16 @@ ngx_http_tnt_filter(void *data, ssize_t bytes)
     }
 
     return rc;
+}
+
+
+static ngx_int_t
+ngx_http_tnt_preconfiguration(ngx_conf_t *cf)
+{
+    ngx_conf_log_error(NGX_LOG_NOTICE, cf, 0,
+                    "Tarantool upstream module, version: '%s'",
+                    NGX_HTTP_TNT_MODULE_VERSION_STRING);
+    return NGX_OK;
 }
 
 
