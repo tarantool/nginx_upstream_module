@@ -62,11 +62,17 @@ static inline void dd(const char* fmt, ...) { }
 
 #include <stdarg.h>
 
-static inline void dd(const char* fmt, ...) { }
+static inline void
+dd(const char* fmt, ...) { }
 
 # endif
 
 #endif /* MY_DEBUG */
+
+static inline const u_char*
+get_str_safe(const u_char *str) {
+  return (str ? str : (const u_char *)"NULL");
+}
 
 #if (NGX_HAVE_VARIADIC_MACROS)
 # define log_crit(log, ...) \
@@ -76,7 +82,8 @@ static inline void dd(const char* fmt, ...) { }
 /** TODO
  *  Warn. user here
  */
-static inline void crit(...) {}
+static inline void
+crit(...) {}
 #endif /* NGX_HAVE_VARIADIC_MACROS */
 
 #endif

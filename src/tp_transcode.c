@@ -932,6 +932,8 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
                                  mp_decode_uint(beg));
         break;
     case MP_INT:
+        /* Well. I guess that's okay. Are you agree?
+         */
         if (unlikely(len < sizeof("18446744073709551615") - 1))
             say_overflow_r(ctx);
 
@@ -1082,9 +1084,8 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
 static enum tt_result
 tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
 {
-    enum tt_result rc;
-
     tp2json_t *ctx = ctx_;
+    enum tt_result rc = TP_TRANSCODE_OK;
 
     if (ctx->first_entry) {
 
@@ -1105,6 +1106,8 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
                 (size_t)tp_getreqid(&ctx->r),
                 elen, ctx->r.error,
                 code_conv(ctx->r.code));
+
+        rc = TP_TNT_ERROR;
 
     } else {
 
@@ -1129,11 +1132,11 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
         ++ctx->pos;
     }
 
-    return TP_TRANSCODE_OK;
+    return rc;
 
 error_exit:
     ctx->pos = ctx->output;
-    return TP_TRANSCODE_ERROR;
+    return rc;
 }
 
 static enum tt_result
@@ -1184,7 +1187,7 @@ tp2json_complete(void *ctx_, size_t *complete_msg_size)
 }
 
 /**
- * Known codecs
+ * List of codecs
  */
 #define CODEC(create_, transcode_, complete_, free_) \
     (tp_codec_t) { \

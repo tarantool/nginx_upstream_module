@@ -599,43 +599,44 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
 
     rc = tp_transcode(&tc, (char *)ctx->tp_cache->start,
                       ctx->tp_cache->end - ctx->tp_cache->start);
-    if (rc == TP_TRANSCODE_OK) {
+    if (rc != TP_TRANSCODE_ERROR) {
 
+        /* Finishing
+         */
         size_t complete_msg_size = 0;
         rc = tp_transcode_complete(&tc, &complete_msg_size);
         if (rc == TP_TRANSCODE_ERROR) {
+            crit("[BUG] failed to complete output transcoding. UNKNOWN ERROR");
+            goto error_exit;
+        }
 
-            crit("[BUG] failed to complete output transcoding");
-
+        /* Ok. We send an error to the client from the Tarantool
+         */
+        if (rc == TP_TNT_ERROR) {
             ngx_pfree(r->pool, output);
 
-            const ngx_http_tnt_error_t *e = get_error_text(UNKNOWN_PARSE_ERROR);
-            output = ngx_http_tnt_set_err(r, e->code, e->msg.data, e->msg.len);
+            /* Swap output */
+            output = ngx_http_tnt_set_err(r, tc.errcode,
+                                          (u_char *)tc.errmsg,
+                                          ngx_strlen(tc.errmsg));
             if (output == NULL) {
                 goto error_exit;
             }
-
-            goto done;
-        }
-
-        output->last = output->pos + complete_msg_size;
-
-    } else if (rc == TP_TRANSCODE_ERROR) {
-
-        crit("[BUG] failed to transcode output, err: '%s'", tc.errmsg);
-
-        ngx_pfree(r->pool, output);
-
-        output = ngx_http_tnt_set_err(r,
-                                      tc.errcode,
-                                      (u_char *)tc.errmsg,
-                                      ngx_strlen(tc.errmsg));
-        if (output == NULL) {
-            goto error_exit;
+        } else {
+            output->last = output->pos + complete_msg_size;
         }
     }
+    /* Transcoder down
+    */
+    else {
+        crit("[BUG] failed to transcode output. errcode: '%d', errmsg: '%s'",
+            tc.errcode,
+            get_str_safe((const u_char *)tc.errmsg));
+        goto error_exit;
+    }
 
-done:
+    /* Transcoding - OK
+     */
     tp_transcode_free(&tc);
 
     if (ctx->batch_size > 0) {
@@ -655,6 +656,9 @@ done:
     return ngx_http_tnt_output(r, u, output);
 
 error_exit:
+    if (output) {
+      ngx_pfree(r->pool, output);
+    }
     tp_transcode_free(&tc);
     return NGX_ERROR;
 }

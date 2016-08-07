@@ -813,14 +813,14 @@ ngx_http_tnt_query_handler(ngx_http_request_t *r)
                        (size_t)ctx->preset_method_len, 1))
     {
         err = get_error_text(HTTP_REQUEST_TOO_LARGE);
-        crit("ngx_http_tnt_query_handler - %s", err->msg.data);
+        crit("ngx_http_tnt_query_handler - %s", get_str_safe(err->msg.data));
         return NGX_ERROR;
     }
 
     rc = ngx_http_tnt_get_request_data(r, tlcf, &tp);
     if (rc != NGX_OK) {
         err = get_error_text(HTTP_REQUEST_TOO_LARGE);
-        crit("ngx_http_tnt_query_handler - %s", err->msg.data);
+        crit("ngx_http_tnt_query_handler - %s", get_str_safe(err->msg.data));
         return rc;
     }
 

@@ -136,7 +136,8 @@ typedef struct tp_transcode_init_args {
  */
 enum tt_result {
   TP_TRANSCODE_OK    = 1,
-  TP_TRANSCODE_ERROR
+  TP_TRANSCODE_ERROR,
+  TP_TNT_ERROR,
 };
 
 ssize_t
@@ -160,6 +161,7 @@ void tp_transcode_free(tp_transcode_t *t);
  *
  * Returns TP_TRANSCODE_OK if bytes enought for finish transcoding
  * Returns TP_TRANSCODE_ERROR if error occurred
+ * Returns TP_AT_ERROR if error occurred
  */
 enum tt_result tp_transcode(tp_transcode_t *t, const char *b, size_t s);
 
@@ -184,9 +186,9 @@ tp_reply_to_json_set_options(tp_transcode_t *t,
                              int multireturn_skip_count);
 
 /**
- * WARNING! tp_dump() must be use only for debug pupose
+ * WARNING! tp_dump() - is for debug
  *
- * Dump Tarantool message in JSON format
+ * Dump Tarantool message in JSON
  * Returns true, false
  */
 bool
