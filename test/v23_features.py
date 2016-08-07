@@ -85,3 +85,18 @@ rc, resp = request_raw(preset_method_location, data, {})
 params = json.loads(data)['params']
 assert(rc == 200), 'expected 200, got ' + str(rc)
 assert(params == resp['result'][0]), 'not equal'
+
+# ===========
+#
+print('[+] Long arrays of array of integers')
+
+data = []
+for i in range(1, 10):
+    data.append([])
+    for j in range(1, 10):
+        data[i-1].append(100000000)
+
+preset_method_location = BASE_URL + '/tnt'
+result = post_success(preset_method_location, {
+    'method':'echo_2', 'params':[{'array':data}], 'id': 1}, {})
+assert(data == result[0]['array']), 'not equal'

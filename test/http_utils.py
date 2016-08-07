@@ -173,8 +173,10 @@ def get_success_pure(url, data, headers):
     assert(code == 200), 'expected 200'
     return msg
 
-def post_success(url, data, headers):
+def post_success(url, data, headers, print_f=None):
     (code, msg) = post(url, data, headers)
+    if print_f:
+        print_f(code, msg)
     assert(code == 200), 'expected 200'
     result = get_result(msg)
     return result
@@ -211,3 +213,8 @@ def assert_query_args(result, args):
     for arg in args:
         server_arg = result[0]['args'][arg]
         assert(str(args[arg]) == server_arg), 'mismatch'
+
+def default_print_f(code, msg):
+    print('-------')
+    print(code)
+    print(msg)
