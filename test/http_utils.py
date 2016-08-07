@@ -22,28 +22,61 @@ def post(url, data, headers):
                 req.add_header(header, headers[header])
         req.add_header('Content-Type', 'application/json')
 
-        res = urllib2.urlopen(req, json.dumps(data))
+        res = urllib2.urlopen(req, json.dumps(data).encode('utf8'))
         out = res.read()
         out = out + res.read()
         rc = res.getcode()
 
         if VERBOSE:
-            print "code: ", rc, " recv: '", out, "'"
+            print("code: ", rc, " recv: '", out, "'")
 
         if rc != 500:
             return (rc, json.loads(out))
 
         return (rc, False)
-    except urllib2.HTTPError, e:
+    except urllib2.HTTPError as e:
         if e.code == 400:
             out = e.read();
 
         if VERBOSE:
-            print "code: ", e.code, " recv: '", out, "'"
+            print("code: ", e.code, " recv: '", out, "'")
 
         return (e.code, json.loads(out))
-    except Exception, e:
-        print traceback.format_exc()
+    except Exception as e:
+        print(traceback.format_exc())
+        return (False, e)
+
+def request_raw(url, data, headers):
+    out = '{}'
+    try:
+        req = urllib2.Request(url)
+        if headers:
+            for header in headers:
+                req.add_header(header, headers[header])
+        req.add_header('Content-Type', 'application/json')
+
+        res = urllib2.urlopen(req, data)
+        out = res.read()
+        out = out + res.read()
+        rc = res.getcode()
+
+        if VERBOSE:
+            print("code: ", rc, " recv: '", out, "'")
+
+        if rc != 500:
+            return (rc, json.loads(out))
+
+        return (rc, False)
+    except urllib2.HTTPError as e:
+        if e.code == 400:
+            out = e.read();
+
+        if VERBOSE:
+            print("code: ", e.code, " recv: '", out, "'")
+
+        return (e.code, json.loads(out))
+    except Exception as e:
+        print(traceback.format_exc())
         return (False, e)
 
 def put(url, data, headers):
@@ -65,22 +98,22 @@ def put(url, data, headers):
         rc = res.getcode()
 
         if VERBOSE:
-            print "code: ", rc, " recv: '", out, "'"
+            print("code: ", rc, " recv: '", out, "'")
 
         if rc != 500:
             return (rc, json.loads(out))
 
         return (rc, False)
-    except urllib2.HTTPError, e:
+    except urllib2.HTTPError as e:
         if e.code == 400:
             out = e.read();
 
         if VERBOSE:
-            print "code: ", e.code, " recv: '", out, "'"
+            print("code: ", e.code, " recv: '", out, "'")
 
         return (e.code, json.loads(out))
-    except Exception, e:
-        print traceback.format_exc()
+    except Exception as e:
+        print(traceback.format_exc())
         return (False, e)
 
 def get(url, data, headers):
@@ -100,22 +133,22 @@ def get(url, data, headers):
         rc = res.getcode()
 
         if VERBOSE:
-            print "code: ", rc, " recv: '", out, "'"
+            print("code: ", rc, " recv: '", out, "'")
 
         if rc != 500:
             return (rc, json.loads(out))
 
         return (rc, False)
-    except urllib2.HTTPError, e:
+    except urllib2.HTTPError as e:
         if e.code == 400:
             out = e.read();
 
         if VERBOSE:
-            print "code: ", e.code, " recv: '", out, "'"
+            print("code: ", e.code, " recv: '", out, "'")
 
         return (e.code, json.loads(out))
-    except Exception, e:
-        print traceback.format_exc()
+    except Exception as e:
+        print(traceback.format_exc())
         return (False, e)
 
 def get_result(o):

@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -_- encoding: utf8 -_-
 
 import sys
 sys.path.append('./test')
@@ -73,3 +74,14 @@ result = get_success(preset_method_location, {
 
 (code, msg) = put_fail(preset_method_location, {}, {})
 assert(code == 405), 'expected 405, got ' + str(code)
+
+# ===========
+#
+print('[+] UTF8')
+
+data = """{"method": "echo_1", "id": 0, "params":[{"ключ 1":"значение"}]}"""
+preset_method_location = BASE_URL + '/tnt'
+rc, resp = request_raw(preset_method_location, data, {})
+params = json.loads(data)['params']
+assert(rc == 200), 'expected 200, got ' + str(rc)
+assert(params == resp['result'][0]), 'not equal'
