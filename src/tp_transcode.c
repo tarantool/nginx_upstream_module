@@ -44,6 +44,7 @@
 
 #include "tp_ext.h"
 #include "tp_transcode.h"
+#include "json_encoders.h"
 
 #include <stdio.h>
 #include <stddef.h>
@@ -86,9 +87,6 @@ say_error_(tp_transcode_t *t, int code, const char *e, size_t len)
     say_error((ctx), (c), (e)); \
     return TP_TRANSCODE_ERROR; \
 } while (0)
-
-#define say_overflow_r(c) \
-    say_error_r((c), -32603,  "[BUG?] 'output' buffer overflow")
 
 #define say_overflow_r_2(c) do { \
     say_error((c), -32603, "[BUG?] 'output' buffer overflow"); \
@@ -893,11 +891,22 @@ tp2json_free(void *ctx_)
     tc->mf.free(tc->mf.ctx, ctx);
 }
 
+#define OOM_TP2JSON \
+    say_error_r(ctx, -32603,  "json formatter: not enoght memory")
+
+#define APPEND_STR(str) do { \
+        if (unlikely(!append_str(&ctx->pos, &len, str, sizeof(str) - 1))) \
+            OOM_TP2JSON; \
+    } while (0)
+
+#define APPEND_CH(ch) do { \
+        if (unlikely(!append_ch(&ctx->pos, &len, ch))) \
+            OOM_TP2JSON; \
+    } while (0)
+
 static enum tt_result
 tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
 {
-#define PUT_CHAR(c) { *ctx->pos = (c); ++ctx->pos; }
-
     enum tt_result rc;
     const char *p = *beg;
     size_t len = ctx->end - ctx->pos;
@@ -906,23 +915,18 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
         return TP_TRANSCODE_OK;
 
     if (unlikely(ctx->pos == ctx->end))
-        say_overflow_r(ctx);
+        OOM_TP2JSON;
 
     switch (mp_typeof(**beg)) {
     case MP_NIL:
-
-        if (unlikely(len < 4))
-            say_overflow_r(ctx);
-
+        APPEND_STR("null");
         mp_next(beg);
-        PUT_CHAR('n')
-        PUT_CHAR('u')
-        PUT_CHAR('l')
-        PUT_CHAR('l')
         break;
+        /* Well. I think this is okay. Are you agree? [
+         */
     case MP_UINT:
         if (unlikely(len < sizeof("18446744073709551615") - 1))
-            say_overflow_r(ctx);
+            OOM_TP2JSON;
 
         if ((ctx->state & (TYPE_MAP | TYPE_KEY)) == (TYPE_MAP | TYPE_KEY))
             ctx->pos += snprintf(ctx->pos, len, "\"%" PRIu64 "\"",
@@ -932,10 +936,8 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
                                  mp_decode_uint(beg));
         break;
     case MP_INT:
-        /* Well. I guess that's okay. Are you agree?
-         */
         if (unlikely(len < sizeof("18446744073709551615") - 1))
-            say_overflow_r(ctx);
+            OOM_TP2JSON;
 
         if ((ctx->state & (TYPE_MAP | TYPE_KEY)) == (TYPE_MAP | TYPE_KEY))
             ctx->pos += snprintf(ctx->pos, len, "\"%" PRId64 "\"",
@@ -944,31 +946,27 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
             ctx->pos += snprintf(ctx->pos, len, "%" PRId64,
                                  mp_decode_int(beg));
         break;
+        /** ]
+         */
     case MP_STR:
     {
-        uint32_t strlen = 0;
-        const char *str = mp_decode_str(beg, &strlen);
-
-        if (unlikely(len < strlen + 2/*""*/))
-            say_overflow_r(ctx);
-
-        ctx->pos += snprintf(ctx->pos, len, "\"%.*s\"", strlen, str);
+        uint32_t str_len = 0;
+        const char *str = mp_decode_str(beg, &str_len);
+        const char *emsg = json_encode_string_ns(&ctx->pos, len, str, str_len);
+        if (emsg) {
+            say_error_(ctx->tc, -32603, emsg, strlen(emsg));
+            return TP_TRANSCODE_ERROR;
+        }
         break;
     }
     case MP_BIN:
     {
-        static const char *hex = "0123456789ABCDEF";
-
-        uint32_t binlen = 0;
-        const char *bin = mp_decode_bin(beg, &binlen);
-
-        if (unlikely(len < binlen))
-            say_overflow_r(ctx);
-        uint32_t i = 0;
-        for (i = 0; i < binlen; i++) {
-            unsigned char c = (unsigned char)bin[i];
-            ctx->pos +=
-                snprintf(ctx->pos, len, "\"%c%c\"", hex[c >> 4], hex[c & 0xF]);
+        uint32_t bin_len = 0;
+        const char *bin = mp_decode_bin(beg, &bin_len);
+        const char *emsg = json_encode_string_ns(&ctx->pos, len, bin, bin_len);
+        if (emsg) {
+            say_error_(ctx->tc, -32603, emsg, strlen(emsg));
+            return TP_TRANSCODE_ERROR;
         }
         break;
     }
@@ -983,18 +981,18 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
                 return rc;
         } else {
             if (unlikely(len < size + 2/*,[]*/))
-              say_overflow_r(ctx);
+                OOM_TP2JSON;
 
-            PUT_CHAR('[')
+            APPEND_CH('[');
             uint32_t i = 0;
             for (i = 0; i < size; i++) {
                 if (i)
-                    PUT_CHAR(',')
+                    APPEND_CH(',');
                 rc = tp2json_transcode_internal(ctx, beg, end);
                 if (rc != TP_TRANSCODE_OK)
                     return rc;
             }
-            PUT_CHAR(']')
+            APPEND_CH(']');
         }
 
         break;
@@ -1004,16 +1002,16 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
         const uint32_t size = mp_decode_map(beg);
 
         if (unlikely(len < size + 2/*,{}*/))
-            say_overflow_r(ctx);
+            OOM_TP2JSON;
 
         ctx->state |= TYPE_MAP;
 
-        PUT_CHAR('{')
+        APPEND_CH('{');
         uint32_t i = 0;
         for (i = 0; i < size; i++) {
 
             if (i)
-                PUT_CHAR(',')
+                APPEND_CH(',');
 
             ctx->state |= TYPE_KEY;
             rc = tp2json_transcode_internal(ctx, beg, end);
@@ -1022,12 +1020,12 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
 
             ctx->state &= ~TYPE_KEY;
 
-            PUT_CHAR(':')
+            APPEND_CH(':');
             rc = tp2json_transcode_internal(ctx, beg, end);
             if (rc != TP_TRANSCODE_OK)
                 return rc;
         }
-        PUT_CHAR('}')
+        APPEND_CH('}');
 
         ctx->state &= ~TYPE_MAP;
 
@@ -1035,43 +1033,24 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
     }
     case MP_BOOL:
         if (mp_decode_bool(beg)) {
-
-            if (unlikely(len < sizeof("true") - 1))
-                say_overflow_r(ctx);
-
-            PUT_CHAR('t')
-            PUT_CHAR('r')
-            PUT_CHAR('u')
-            PUT_CHAR('e')
+            APPEND_STR("true");
         } else {
-
-            if (unlikely(len < sizeof("false") - 1))
-                say_overflow_r(ctx);
-
-            PUT_CHAR('f')
-            PUT_CHAR('a')
-            PUT_CHAR('l')
-            PUT_CHAR('s')
-            PUT_CHAR('e')
+            APPEND_STR("false");
         }
         break;
     case MP_FLOAT:
-
         if (unlikely(len < 7))
-            say_overflow_r(ctx);
-
+            OOM_TP2JSON;
         ctx->pos += snprintf(ctx->pos, len, "%f", mp_decode_float(beg));
         break;
     case MP_DOUBLE:
-
         if (unlikely(len < 15))
-            say_overflow_r(ctx);
-
+            OOM_TP2JSON;
         ctx->pos += snprintf(ctx->pos, len, "%f", mp_decode_double(beg));
         break;
     case MP_EXT:
     default:
-        /* TODO What we should do here? */
+        /* TODO What should I do here? */
         mp_next(beg);
         break;
     }

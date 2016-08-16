@@ -30,8 +30,8 @@
  * please see AUTHORS file.
  */
 
-#ifndef TP_EXT_H
-#define TP_EXT_H 1
+#ifndef TP_EXT_H_INCLUDED
+#define TP_EXT_H_INCLUDED 1
 
 #if !defined(TP_H_AUTH_OFF)
 #   define TP_H_AUTH_OFF 1
@@ -41,6 +41,12 @@
 
 #define unlikely mp_unlikely
 #define likely mp_likely
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* {{{ API declaration */
 
 static inline char *
 tp_call_wof(struct tp *p)
@@ -107,4 +113,10 @@ tp_encode_str_map_item(struct tp *p, const char *key, size_t key_len,
   return tp_encode_str(p, value, value_len);
 }
 
+#ifdef __cplusplus
+} /* extern "C" */
 #endif
+
+/* }}} */
+
+#endif /* TP_EXT_H_INCLUDED */

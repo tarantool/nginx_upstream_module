@@ -12,15 +12,17 @@ __include_paths=" \
           "
 
 __sources=" \
-          $__module_src_dir/ngx_http_tnt_module.c   \
+          $__module_src_dir/json_encoders.c         \
           $__module_src_dir/tp_transcode.c          \
+          $__module_src_dir/ngx_http_tnt_module.c   \
           $__module_src_dir/ngx_http_tnt_handlers.c \
           "
 __headers=" \
           $__module_src_dir/debug.h                 \
-          $__module_src_dir/ngx_http_tnt_handlers.h \
           $__module_src_dir/tp_ext.h                \
+          $__module_src_dir/json_encoders.h         \
           $__module_src_dir/tp_transcode.h          \
+          $__module_src_dir/ngx_http_tnt_handlers.h \
           "
 
 __old_style_build=yes

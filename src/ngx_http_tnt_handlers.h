@@ -31,11 +31,12 @@
  */
 
 #ifndef NGX_HTTP_TNT_CREATE_REQUEST_H_INCLUDED
-#define NGX_HTTP_TNT_CREATE_REQUEST_H_INCLUDED
+#define NGX_HTTP_TNT_CREATE_REQUEST_H_INCLUDED 1
 
 #include <ngx_core.h>
 #include <ngx_http.h>
 #include <tp_transcode.h>
+
 
 typedef enum ngx_tnt_conf_states {
     NGX_TNT_CONF_ON         = 0x0001,
@@ -43,6 +44,8 @@ typedef enum ngx_tnt_conf_states {
     NGX_TNT_CONF_PARSE_ARGS = 0x0004
 } ngx_tnt_conf_states_e;
 
+/** The structure hold the nginx location variables, e.g. loc_conf.
+ */
 typedef struct {
     ngx_http_upstream_conf_t upstream;
     ngx_int_t                index;
@@ -52,19 +55,19 @@ typedef struct {
 
     /** Preset method name
      *
-     * if method is set then tp_transcode use only this method name and
-     * ignore method name from json and uri
+     * If this is set then tp_transcode use only this method name and
+     * tp_transcode will ignore the method name from the json or/and uri
      */
     ngx_str_t                method;
 
-    /** Max allowed size of query + headers in bytes
+    /** This is max allowed size of query + headers, the size in bytes
      */
     size_t                   pass_http_request_buffer_size;
 
     /** Pass query/headers to tarantool
      *
-     *  If this is set, then Tarantool recv. query args as lua table, e.g.
-     *  /tnt_method?arg1=X&arg2=123
+     *  If this is set, then Tarantool recv. query args as the lua table,
+     *  e.g. /tnt_method?arg1=X&arg2=123
      *
      *  Tarantool
      *  function tnt_method(http_req)
@@ -77,8 +80,9 @@ typedef struct {
 
     /** Http REST methods[default GET|PUT]
      *
-     * if method in http_rest_methods, then tp_transcode expecting method name
-     * in url part, i.e. HOST/METHOD_NAME/TAIL?ARGS
+     * if incoming HTTP method is in this set, then
+     * the tp_transcode expect the tarantool method name in url,
+     * i.e. HOST/METHOD_NAME/TAIL?ARGS
      *
      * XXX Also see method
      */
@@ -86,24 +90,26 @@ typedef struct {
 
     /** Set of http methods[default POST|DELETE]
      *
-     * If method in http_methods, then tp_transcode expecting method name in
-     * json protocol, i.e. {"method":STR}
+     * If incoming HTTP method is in this set,
+     * then the tp_transcode expect method name in JSON protocol,
+     * i.e. {"method":STR}
      *
      * XXX Also see method
      */
     ngx_uint_t               http_methods;
 
-    /** If is set to 'On', then the client will recv. pure result set, e.g.
+    /** If this is set, then the client will recv. pure result, e.g.
      * {}
-     * Otherwise
+     * ,otherwise
      * {"result":[], "id": NUM}
      */
     ngx_uint_t               pure_result;
 
-    /** Tarantool returns array of array as the result set of call,
-     * this option helps to avoid this behavior.
-     * For instance. If this option set to 2 then result will look
-     * alike result:{} instead of result:[[{}]]
+    /** Tarantool returns array of array as the result set,
+     * this option will help avoid "array of array" behavior.
+     * For instance.
+     * If this option is set to 2, then the result will: result:{}.
+     * If this option is set to 0, then the result will: result:[[{}]].
      */
     ngx_uint_t               multireturn_skip_count;
 
@@ -112,12 +118,12 @@ typedef struct {
 } ngx_http_tnt_loc_conf_t;
 
 
-/** Set of allowed rest methods
+/** Set of allowed REST methods
  */
 static const ngx_uint_t ngx_http_tnt_allowed_methods =
     (NGX_HTTP_POST|NGX_HTTP_GET|NGX_HTTP_PUT|NGX_HTTP_DELETE);
 
-/** Current upstream state
+/** Upstream states
  */
 enum ctx_state {
     OK = 0,
@@ -133,7 +139,8 @@ enum ctx_state {
 
 typedef struct ngx_http_tnt_ctx {
 
-    /** Reference to Tarantool payload e.g. size of TP message
+    /** This is a reference to Tarantool payload data,
+     *  e.g. size of TP message
      */
     struct {
         u_char mem[6];
@@ -141,24 +148,24 @@ typedef struct ngx_http_tnt_ctx {
     } payload;
 
     enum ctx_state     state;
-    /** in_err - error buffer
-     *  tp_cache - buffer for store parts of TP message
+    /** in_err - the error buffer
+     *  tp_cache - the buffer for store parts of TP message
      */
     ngx_buf_t          *in_err, *tp_cache;
 
-    /** rest - how many bytes until transcoding is end
-     *  payload_size - payload as int val
-     *  rest_batch_size - how many parts until batch is end
-     *  batch_size - number of parts in batch
+    /** rest - bytes, until transcoding is end
+     *  payload_size - the payload, as integer value
+     *  rest_batch_size - the number(count), until batch is end
+     *  batch_size - the number, parts in batch
      */
     ssize_t            rest, payload_size;
     int                rest_batch_size, batch_size;
 
-    /** Greeting from tarantool
+    /** The "Greeting" from the Tarantool
      */
     ngx_int_t          greeting:1;
 
-    /** preset method & len
+    /** The preset method and its length
      */
     u_char             preset_method[128];
     u_char             preset_method_len;
@@ -171,7 +178,7 @@ ngx_int_t ngx_http_tnt_init_handlers(ngx_http_request_t *r,
                                      ngx_http_upstream_t *u,
                                      ngx_http_tnt_loc_conf_t *tlcf);
 
-/** create tarantool requests handlers [
+/** Request handlers [
  */
 ngx_int_t ngx_http_tnt_body_json_handler(ngx_http_request_t *r);
 ngx_int_t ngx_http_tnt_query_handler(ngx_http_request_t *r);
@@ -187,13 +194,15 @@ ngx_buf_t* ngx_http_tnt_set_err(ngx_http_request_t *r,
                                 const u_char *msg,
                                 size_t msglen);
 
-/** Rrror & error code holder, functions [[
+/** Known errors. And, function allow get the know error by type [[
  */
 typedef struct ngx_http_tnt_error {
     const ngx_str_t msg;
     int code;
 } ngx_http_tnt_error_t;
 
+/** The known error types
+ */
 enum ngx_http_tnt_err_messages_idx {
     REQUEST_TOO_LARGE   = 0,
     UNKNOWN_PARSE_ERROR = 1,
@@ -204,7 +213,7 @@ const ngx_http_tnt_error_t *get_error_text(int type);
 /** ]]
  */
 
-/** Size of JSON proto overhead
+/** Get size of overhead of JSON protocol
  */
 static inline size_t
 ngx_http_tnt_overhead(void)
@@ -219,4 +228,4 @@ ngx_http_tnt_overhead(void)
     "}");
 }
 
-#endif
+#endif /* NGX_HTTP_TNT_CREATE_REQUEST_H_INCLUDED */

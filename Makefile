@@ -86,6 +86,7 @@ configure-as-dynamic-debug:
 json2tp:
 	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
 				$(CUR_PATH)/misc/json2tp.c \
+				src/json_encoders.c \
 				src/tp_transcode.c \
 				-o misc/json2tp \
 				-lyajl_s
@@ -93,16 +94,10 @@ json2tp:
 tp_dump:
 	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
 				$(CUR_PATH)/misc/tp_dump.c \
+				src/json_encoders.c \
 				src/tp_transcode.c \
 				-o misc/tp_dump \
 				-lyajl_s
-
-tp_allowed:
-	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
-				$(CUR_PATH)/test/tp_allowed.c\
-				$(CUR_PATH)/src/tp_allowed_methods.c\
-				-o test/tp_allowed
-	$(CUR_PATH)/test/tp_allowed
 
 test-dev-man: utils build
 	$(CUR_PATH)/test/transcode.sh

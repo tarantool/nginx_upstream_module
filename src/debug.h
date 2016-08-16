@@ -26,7 +26,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015 Tarantool AUTHORS:
+ * Copyright (C) 2015-2016 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
@@ -80,7 +80,7 @@ get_str_safe(const u_char *str) {
 # define crit(...) log_crit(r->connection->log, __VA_ARGS__)
 # else
 /** TODO
- *  Warn. user here
+ *  Need I add some warn message?
  */
 static inline void
 crit(...) {}

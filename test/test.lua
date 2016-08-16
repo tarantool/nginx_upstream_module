@@ -1,4 +1,5 @@
-json=require('json');
+json=require('json')
+yaml=require('yaml')
 
 function echo_1(a)
   return {a}

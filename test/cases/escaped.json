@@ -1,0 +1,15 @@
+[
+{
+  "params": [
+    "this string have \"double quotes in the middle\", is this case the bad, or the good?",
+    "\"quotes in the begining\" of the string",
+    "quotes in the ending \"of the string\"",
+    "\t",
+    "\n",
+    "\r",
+    "\r\n"
+  ],
+  "method": "call",
+  "id": 1
+}
+]

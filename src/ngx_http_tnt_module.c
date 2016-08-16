@@ -37,8 +37,11 @@
 #include <ngx_http_tnt_handlers.h>
 
 
-/** Filter functions
+/** Filters
  */
+
+static ngx_int_t ngx_http_tnt_filter_init(void *data);
+
 static ngx_int_t ngx_http_tnt_send_reply(
     ngx_http_request_t *r,
     ngx_http_upstream_t *u,
@@ -49,7 +52,9 @@ static ngx_int_t ngx_http_tnt_filter_reply(
     ngx_http_upstream_t *u,
     ngx_buf_t *b);
 
-/** Rest
+static ngx_int_t ngx_http_tnt_filter(void *data, ssize_t bytes);
+
+/** Other functions and utils
  */
 static inline ngx_buf_t * ngx_http_tnt_create_mem_buf(
     ngx_http_request_t *r,
@@ -60,11 +65,6 @@ static inline ngx_int_t ngx_http_tnt_output(
     ngx_http_request_t *r,
     ngx_http_upstream_t *u,
     ngx_buf_t *b);
-
-/** Filters
- */
-static ngx_int_t ngx_http_tnt_filter_init(void *data);
-static ngx_int_t ngx_http_tnt_filter(void *data, ssize_t bytes);
 
 /** Confs
  */
@@ -277,7 +277,7 @@ ngx_module_t  ngx_http_tnt_module = {
     NGX_MODULE_V1_PADDING
 };
 
-/** Handlers
+/** Entry point [[
  */
 
 static ngx_int_t
@@ -338,56 +338,11 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
     return NGX_DONE;
 }
 
+/** ]]
+ */
 
-static ngx_int_t
-ngx_http_tnt_filter_init(void *data)
-{
-    dd("init filter");
-
-    ngx_http_request_t  *r = data;
-    ngx_http_upstream_t *u = r->upstream;
-    ngx_http_tnt_ctx_t  *ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
-
-    ctx->state = READ_PAYLOAD;
-    ctx->payload_size = ctx->rest = 0;
-
-    if (u->headers_in.status_n != 200) {
-        u->length = 0;
-    } else {
-        u->length = -1;
-    }
-
-    return NGX_OK;
-}
-
-
-static ngx_int_t
-ngx_http_tnt_filter(void *data, ssize_t bytes)
-{
-    dd("filter");
-
-    ngx_http_request_t   *r = data;
-    ngx_http_upstream_t  *u = r->upstream;
-    ngx_buf_t            *b = &u->buffer;
-
-    b->last = b->last + bytes;
-
-    ngx_int_t rc = NGX_OK;
-    for (;;) {
-        rc = ngx_http_tnt_filter_reply(r, u, b);
-        if (rc != NGX_AGAIN)
-            break;
-        dd("Next message in same input buffer -- merge");
-    }
-
-    if (rc != NGX_ERROR) {
-      u->keepalive = 1;
-    }
-
-    return rc;
-}
-
-
+/** Confs [[
+ */
 static ngx_int_t
 ngx_http_tnt_preconfiguration(ngx_conf_t *cf)
 {
@@ -565,9 +520,32 @@ ngx_http_tnt_pass(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     return NGX_CONF_OK;
 }
-
-/** Filter functions
+/** ]]
  */
+
+/** Filters [[
+ */
+static ngx_int_t
+ngx_http_tnt_filter_init(void *data)
+{
+    dd("init filter");
+
+    ngx_http_request_t  *r = data;
+    ngx_http_upstream_t *u = r->upstream;
+    ngx_http_tnt_ctx_t  *ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
+
+    ctx->state = READ_PAYLOAD;
+    ctx->payload_size = ctx->rest = 0;
+
+    if (u->headers_in.status_n != 200) {
+        u->length = 0;
+    } else {
+        u->length = -1;
+    }
+
+    return NGX_OK;
+}
+
 
 static ngx_int_t
 ngx_http_tnt_send_reply(ngx_http_request_t *r,
@@ -793,10 +771,36 @@ ngx_http_tnt_filter_reply(ngx_http_request_t *r,
     return rc;
 }
 
+static ngx_int_t
+ngx_http_tnt_filter(void *data, ssize_t bytes)
+{
+    dd("filter");
 
-/** Rest
+    ngx_http_request_t   *r = data;
+    ngx_http_upstream_t  *u = r->upstream;
+    ngx_buf_t            *b = &u->buffer;
+
+    b->last = b->last + bytes;
+
+    ngx_int_t rc = NGX_OK;
+    for (;;) {
+        rc = ngx_http_tnt_filter_reply(r, u, b);
+        if (rc != NGX_AGAIN)
+            break;
+        dd("Next message in same input buffer -- merge");
+    }
+
+    if (rc != NGX_ERROR) {
+      u->keepalive = 1;
+    }
+
+    return rc;
+}
+/** ]]
  */
 
+/** Other functions and utils [[
+ */
 static inline ngx_buf_t *
 ngx_http_tnt_create_mem_buf(ngx_http_request_t *r,
                             ngx_http_upstream_t *u,
@@ -846,4 +850,5 @@ ngx_http_tnt_output(ngx_http_request_t *r,
 
     return NGX_OK;
 }
-
+/** ]]
+ */

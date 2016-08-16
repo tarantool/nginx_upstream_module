@@ -26,13 +26,71 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2016 Tarantool AUTHORS:
+ * Copyright (C) 2016 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
-#ifndef NGX_HTTP_TNT_VERSION_H
-#define NGX_HTTP_TNT_VERSION_H 1
+#ifndef JSON_ENCODER_H_INCLUDED
+#define JSON_ENCODER_H_INCLUDED 1
 
-#define NGX_HTTP_TNT_MODULE_VERSION_STRING "v0.2.2-49-g1278ee5-dirty"
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
+
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+/* {{{ API declaration */
+
+/** Utils [
+ */
+static inline bool
+append_str(char **buf, size_t *buf_len, const char *str, size_t str_size)
+{
+    if (*buf_len < str_size)
+        return false;
+    memcpy(*buf, str, str_size);
+    *buf_len -= str_size;
+    *buf += str_size;
+    return true;
+}
+
+static inline bool
+append_ch(char **buf, size_t *buf_len, char ch)
+{
+    return append_str(buf, buf_len, (const char *)&ch, 1);
+}
+/* ]
+ */
+
+/**
+ * Encode input string to JSON string.
+ * Plus, this function does "JSON escape" the input string
+ *
+ * Returns NULL - if ok, error message - if error occurred
+ */
+const char * /*error message*/
+json_encode_string(
+    char **buf, size_t buf_len,
+    const char *str, size_t str_len,
+    bool escape_solidus);
+
+/* escape_solidus = false
+ */
+#define json_encode_string_ns(a,b,c,d) \
+  json_encode_string((a), (b), (c), (d), false)
+
+/* escape_solidus = true
+ */
+#define json_encode_string_s(a,b,c,d) \
+  json_encode_string((a), (b), (c), (d), true)
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+/* }}} */
+
+#endif /* JSON_ENCODER_H_INCLUDED */

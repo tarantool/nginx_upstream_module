@@ -34,6 +34,7 @@
 #include <ngx_http_tnt_handlers.h>
 #include <debug.h>
 
+
 extern ngx_module_t ngx_http_tnt_module;
 
 static inline size_t
@@ -131,9 +132,9 @@ ngx_http_tnt_read_greeting(ngx_http_request_t *r,
     {
         b->pos = b->pos + 128;
         /**
-         *  Sometimes Nginx reads only 'greeting'(i.e. 128 bytes) -- to avoid
-         *  side effects (inside 'init'/'filter') we must return to
-         *  'process_header'
+         *  Nginx can read only the "greeting"(128 bytes).
+         *  This check is to avoid the "read only the greeting" side effects.
+         *  Fix is - I just telling the nginx read more bytes.
          */
         if (b->pos == b->last) {
             return NGX_AGAIN;
@@ -250,7 +251,7 @@ ngx_http_tnt_set_method(ngx_http_tnt_ctx_t *ctx,
             ngx_memcpy(ctx->preset_method, start, ctx->preset_method_len);
         }
     }
-    /* Else -- expect method in the body */
+    /* Else -- expect the method in the body */
 
     return NGX_OK;
 

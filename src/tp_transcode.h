@@ -26,12 +26,12 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015 Tarantool AUTHORS:
+ * Copyright (C) 2015-2016 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
 #ifndef TP_TRANSCODE_H_INCLUDED
-#define TP_TRANSCODE_H INCLUDED 1
+#define TP_TRANSCODE_H_INCLUDED 1
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -178,7 +178,7 @@ tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size);
 void tp_transcode_bind_data(tp_transcode_t *t,
     const char *data_beg, const char *data_end);
 
-/*
+/**
  */
 void
 tp_reply_to_json_set_options(tp_transcode_t *t,

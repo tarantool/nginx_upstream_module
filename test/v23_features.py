@@ -100,3 +100,20 @@ preset_method_location = BASE_URL + '/tnt'
 result = post_success(preset_method_location, {
     'method':'echo_2', 'params':[{'array':data}], 'id': 1}, {})
 assert(data == result[0]['array']), 'not equal'
+
+#===========
+#
+print('[+] issue #52, the escaped characters')
+
+preset_method_location = BASE_URL + '/tnt'
+data = {
+  "uid": 79031234567,
+  "date": 201607251753,
+  "text": "\"201607251753\"",
+  "key - \n": "\t - value",
+  "\"key\"\t": "\t\n - value"
+}
+
+result = post_success(preset_method_location, {
+    'method':'echo_2', 'params':[data], 'id': 1}, {})
+assert(data == result[0]), 'not equal'
