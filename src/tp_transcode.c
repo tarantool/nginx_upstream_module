@@ -51,7 +51,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-#if 0
+#if 1
 #define dd(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define dd(...)
@@ -316,9 +316,13 @@ yajl_string(void *ctx, const unsigned char * str, size_t len)
 
         dd("string: %.*s\n", (int)len, str);
 
+        stack_grow_array(s_ctx);
+
         if (len > 0) {
-            stack_grow_array(s_ctx);
             if (unlikely(!tp_encode_str(&s_ctx->tp, (const char *)str, len)))
+                say_overflow_r_2(s_ctx);
+        } else {
+            if (unlikely(!tp_encode_str(&s_ctx->tp, "", 0)))
                 say_overflow_r_2(s_ctx);
         }
 
