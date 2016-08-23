@@ -88,3 +88,7 @@ function issue_44(request)
   return c.a.b
 end
 -- ]]
+
+function four_empty_strings()
+  return {"", "", "", "", {a = ""}}
+end

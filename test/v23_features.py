@@ -117,3 +117,10 @@ data = {
 result = post_success(preset_method_location, {
     'method':'echo_2', 'params':[data], 'id': 1}, {})
 assert(data == result[0]), 'not equal'
+
+#===========
+#
+print('[+] Empty string')
+preset_method_location = BASE_URL + '/tnt'
+post_success(preset_method_location, {
+    'method':'four_empty_strings', 'params':[], 'id': 1}, {})
