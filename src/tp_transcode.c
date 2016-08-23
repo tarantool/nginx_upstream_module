@@ -51,7 +51,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-#if 1
+#if 0
 #define dd(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define dd(...)
