@@ -92,3 +92,17 @@ end
 function four_empty_strings()
   return {"", "", "", "", {a = ""}}
 end
+
+function issue_58(request)
+  return true
+end
+
+-- BUG -- https://github.com/tarantool/nginx_upstream_module/issues/58
+function delete(request, a1, a2)
+  return request, a1, a2
+end
+
+function insert(request, a1, a2)
+  return request, a1, a2
+end
+-- ]]

@@ -199,6 +199,48 @@ def get_fail(url, data, headers):
     (code, msg) = get(url, data, headers)
     return (code, msg)
 
+def delete(url, data, headers):
+    out = '{}'
+    try:
+        req = urllib2.Request(url)
+        req.get_method = lambda: 'DELETE'
+        if headers:
+            for header in headers:
+                req.add_header(header, headers[header])
+        if data:
+            req.add_header('Content-Type', 'application/json')
+            res = urllib2.urlopen(req, json.dumps(data))
+        else:
+            res = urllib2.urlopen(req)
+
+        out = res.read()
+        out = out + res.read()
+        rc = res.getcode()
+
+        if VERBOSE:
+            print("code: ", rc, " recv: '", out, "'")
+
+        if rc != 500:
+            return (rc, json.loads(out))
+
+        return (rc, False)
+    except urllib2.HTTPError as e:
+        if e.code == 400:
+            out = e.read();
+
+        if VERBOSE:
+            print("code: ", e.code, " recv: '", out, "'")
+
+        return (e.code, json.loads(out))
+    except Exception as e:
+        print(traceback.format_exc())
+        return (False, e)
+
+def delete_success(url, data, headers):
+    (code, msg) = delete(url, data, headers)
+    assert(code == 200), 'expected 200'
+    result = get_result(msg)
+
 def assert_headers(result, headers_in):
     for header in headers_in:
         header_from_server = result[0]['headers'][header]

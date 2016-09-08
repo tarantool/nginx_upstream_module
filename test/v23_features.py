@@ -124,3 +124,15 @@ print('[+] Empty string')
 preset_method_location = BASE_URL + '/tnt'
 post_success(preset_method_location, {
     'method':'four_empty_strings', 'params':[], 'id': 1}, {})
+
+#===========
+#
+print('[+] issue #58, REST or RPC?')
+
+preset_method_location = BASE_URL + '/issue_58'
+put_success(preset_method_location, None, None)
+put_success(preset_method_location, {'params':[1, 2]}, None)
+
+delete_success(preset_method_location, None, None)
+delete_success(preset_method_location, {'params':[1, 2]}, None)
+

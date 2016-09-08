@@ -49,7 +49,7 @@ ngx_http_tnt_get_output_size(
 
     if (r->method & NGX_HTTP_POST ||
         ((r->method & NGX_HTTP_PUT || r->method & NGX_HTTP_DELETE)
-          && r->headers_in.content_length_n))
+          && r->headers_in.content_length_n > 0))
     {
       output_size += r->headers_in.content_length_n;
     }
@@ -564,22 +564,11 @@ ngx_int_t ngx_http_tnt_init_handlers(
     u->abort_request = ngx_http_tnt_abort_request;
     u->finalize_request = ngx_http_tnt_finalize_request;
 
-    switch (r->method) {
-    case NGX_HTTP_POST:
-        if (r->headers_in.content_length_n == 0) {
-            return NGX_HTTP_BAD_REQUEST;
-        }
+
+    if (r->headers_in.content_length_n > 0) {
         u->create_request = ngx_http_tnt_body_json_handler;
-        break;
-    default:
-        if ((r->method == NGX_HTTP_PUT || r->method == NGX_HTTP_DELETE)
-            && r->headers_in.content_length_n) {
-          u->create_request = ngx_http_tnt_body_json_handler;
-        }
-        else {
-          u->create_request = ngx_http_tnt_query_handler;
-        }
-        break;
+    } else {
+        u->create_request = ngx_http_tnt_query_handler;
     }
 
     return NGX_OK;
@@ -618,7 +607,7 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
     if (out_chain->buf == NULL) {
         crit("[BUG?] ngx_http_tnt_body_json_handler -- "
              "failed to allocate output buffer, size %ui",
-             r->headers_in.content_length_n * tlcf->in_multiplier);
+             (r->headers_in.content_length_n + 1) * tlcf->in_multiplier);
         return NGX_ERROR;
     }
 
