@@ -10,7 +10,7 @@ import traceback
 
 #VERBOSE = True
 VERBOSE = False
-BASE_URL = 'http://127.0.0.1:8081'
+BASE_URL = 'http://0.0.0.0:8081'
 
 
 def post(url, data, headers):
@@ -78,6 +78,9 @@ def request_raw(url, data, headers):
     except Exception as e:
         print(traceback.format_exc())
         return (False, e)
+
+def request(url, data, headers = None):
+    return request_raw(url, json.dumps(data), headers)
 
 def put(url, data, headers):
     out = '{}'
@@ -240,6 +243,7 @@ def delete_success(url, data, headers):
     (code, msg) = delete(url, data, headers)
     assert(code == 200), 'expected 200'
     result = get_result(msg)
+    return result
 
 def assert_headers(result, headers_in):
     for header in headers_in:

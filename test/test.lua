@@ -103,6 +103,10 @@ function delete(request, a1, a2)
 end
 
 function insert(request, a1, a2)
-  return request, a1, a2
+  return request
+end
+
+function update(request)
+  return request
 end
 -- ]]

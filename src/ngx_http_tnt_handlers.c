@@ -47,10 +47,7 @@ ngx_http_tnt_get_output_size(
     (void)ctx;
     size_t output_size = ngx_http_tnt_overhead();
 
-    if (r->method & NGX_HTTP_POST ||
-        ((r->method & NGX_HTTP_PUT || r->method & NGX_HTTP_DELETE)
-          && r->headers_in.content_length_n > 0))
-    {
+    if (r->headers_in.content_length_n > 0) {
       output_size += r->headers_in.content_length_n;
     }
 
@@ -58,7 +55,7 @@ ngx_http_tnt_get_output_size(
       output_size += tlcf->method.len;
     }
 
-    output_size *= tlcf->in_multiplier;
+    output_size *= tlcf->in_multiplier + 20 /* header overhead */;
 
     if (request_b != NULL) {
         output_size += request_b->last - request_b->start;

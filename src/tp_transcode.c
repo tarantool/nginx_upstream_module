@@ -153,7 +153,6 @@ typedef struct {
     bool transcode_first_enter;
 } yajl_ctx_t;
 
-
 static inline bool
 stack_push(yajl_ctx_t *s, char *ptr, int mask)
 {
@@ -216,6 +215,19 @@ stack_grow(yajl_ctx_t *s, int cond)
 }
 #define stack_grow_array(s) stack_grow((s), TYPE_ARRAY)
 #define stack_grow_map(s) stack_grow((s), TYPE_MAP)
+
+static inline bool
+bind_data(yajl_ctx_t *s_ctx)
+{
+    tp_transcode_t *tc = s_ctx->tc;
+    if (tc->data.pos && tc->data.len) {
+        if (s_ctx->tp.e - s_ctx->tp.p < (ptrdiff_t)tc->data.len)
+            return false;
+        memcpy(s_ctx->tp.p, tc->data.pos, tc->data.len);
+        tp_add(&s_ctx->tp, tc->data.len);
+    }
+    return true;
+}
 
 static int
 yajl_null(void *ctx)
@@ -357,6 +369,7 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
         if (unlikely(s_ctx->tc->batch_size > MAX_BATCH_SIZE)) {
 
             /* TODO '16384' -> MAX_BATCH_SIZE
+             * Is this okay?
              */
             say_error(s_ctx, -32600,
                      "too large batch, max allowed 16384 calls per request");
@@ -366,6 +379,8 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
         if (unlikely(!tp_call_wof(&s_ctx->tp)))
             say_overflow_r_2(s_ctx);
 
+        /** Set method binded to this transcoding
+         */
         if (!s_ctx->read_method) {
             tp_transcode_t *tc = s_ctx->tc;
             if (unlikely(!tp_call_wof_add_func(&s_ctx->tp,
@@ -387,7 +402,9 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
             say_overflow_r_2(s_ctx);
 
     } else if (s_ctx->stage == WAIT_NEXT) {
-
+        /**
+         * {"params": []}
+         */
         if (len == sizeof("params") - 1
             && key[0] == 'p'
             && key[1] == 'a'
@@ -397,10 +414,8 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
             && key[5] == 's')
         {
             dd("PARAMS STAGE\n");
-
             if (unlikely(!tp_call_wof_add_params(&s_ctx->tp)))
                 say_overflow_r_2(s_ctx);
-
             s_ctx->stage = PARAMS;
         }
         else if (len == sizeof("id") - 1
@@ -410,6 +425,9 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
             dd("ID STAGE\n");
             s_ctx->stage = ID;
         }
+        /* {"method": STR}*
+         *
+         */
         else if (s_ctx->read_method
                 && len == sizeof("method") - 1
                 && key[0] == 'm'
@@ -444,6 +462,7 @@ yajl_start_map(void *ctx)
 
     bool r = false;
     if (unlikely(s_ctx->size == 0))
+        /**/
         r = stack_push(s_ctx, s_ctx->tp.p, TYPE_MAP | PARAMS);
     else
         r = stack_push(s_ctx, s_ctx->tp.p, TYPE_MAP);
@@ -467,19 +486,21 @@ yajl_end_map(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    /** Say we already read method. Otherwise we'll have an error.
-     *  E.g. proto await for "params", "id" and "method".
-     */
-    if (!s_ctx->read_method
-        && (s_ctx->been_stages & (PARAMS | ID))
-          == (PARAMS | ID))
-    {
-        s_ctx->been_stages |= METHOD;
-    }
+    if (s_ctx->size == 0) {
 
-    if ((s_ctx->been_stages & (PARAMS | ID | METHOD))
-            == (PARAMS | ID | METHOD))
-    {
+        if (unlikely(!tp_call_wof_add_params(&s_ctx->tp)))
+            say_overflow_r_2(s_ctx);
+
+        if (!(s_ctx->been_stages & PARAMS)) {
+
+            if (s_ctx->tc->data.pos && s_ctx->tc->data.len) {
+                tp_encode_array(&s_ctx->tp, 1);
+                if (unlikely(!bind_data(s_ctx)))
+                    say_overflow_r_2(s_ctx);
+            } else
+                tp_encode_array(&s_ctx->tp, 0);
+        }
+
         dd("WAIT NEXT BATCH\n");
         s_ctx->stage = INIT;
         s_ctx->been_stages = 0;
@@ -509,12 +530,13 @@ yajl_end_map(void *ctx)
     return 1;
 }
 
+
 static int
 yajl_start_array(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    if (unlikely(s_ctx->stage == INIT)) {
+    if (s_ctx->stage == INIT) {
         s_ctx->batch_mode_on = true;
         return 1;
     }
@@ -526,33 +548,27 @@ yajl_start_array(void *ctx)
 
     stack_grow_array(s_ctx);
 
-    bool r = false, is_params = false;
+    bool push_ok = false, bind_first_argument = true;
     if (unlikely(s_ctx->size == 0)) {
-        r = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY | PARAMS);
-        is_params = true;
-    }
-    else
-        r = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY);
+        push_ok = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY | PARAMS);
+        bind_first_argument = true;
+    } else
+        push_ok = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY);
 
-    if (unlikely(!r)) {
+    if (unlikely(!push_ok)) {
         say_error(s_ctx, -32603, "[BUG?] 'stack' overflow");
         return 0;
     }
 
-    if (unlikely(s_ctx->tp.e < s_ctx->tp.p + 1 + sizeof(uint32_t)))
+    if (unlikely(s_ctx->tp.e < (s_ctx->tp.p + 1 + sizeof(uint32_t))))
         say_overflow_r_2(s_ctx);
 
     tp_add(&s_ctx->tp, 1 + sizeof(uint32_t));
 
-    // Bind data here [
-    if (unlikely(is_params)) {
-      tp_transcode_t *tc = s_ctx->tc;
-      if (tc->data.pos && tc->data.len) {
-        if (s_ctx->tp.e - s_ctx->tp.p < (ptrdiff_t)tc->data.len)
+    // Binding data [
+    if (unlikely(bind_first_argument)) {
+        if (!bind_data(s_ctx))
             say_overflow_r_2(s_ctx);
-        memcpy(s_ctx->tp.p, tc->data.pos, tc->data.len);
-        tp_add(&s_ctx->tp, tc->data.len);
-      }
     }
     // ]
 
@@ -705,14 +721,8 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
      * So! PWN this via bool flag and some checks
      *
      * NOTE
-     * 1. Check len(buffer) is wrong.
+     *    Check len(buffer) is wrong.
      *    We may have a very large buffer which passed to this function by 1-byte.
-     *
-     * 2. If we'll have buffer which passed to this function by 1-byte then
-     *    those checks will pwn my transcoder! Wooo! Any suggestions?
-     *
-     *
-     * 3. Pwn == 'invalid json'
      */
     if (unlikely(!s_ctx->transcode_first_enter)) {
         s_ctx->transcode_first_enter = true;
@@ -758,15 +768,19 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
     const yajl_status stat = yajl_complete_parse(s_ctx->hand);
+
+    /* OK */
     if (likely(stat == yajl_status_ok)) {
         *complete_msg_size = tp_used(&s_ctx->tp);
         return TP_TRANSCODE_OK;
     }
 
+    /* An error w/o message */
     if (s_ctx->tc->errmsg == NULL) {
         say_invalid_json(s_ctx);
     }
 
+    /* ? */
     return TP_TRANSCODE_ERROR;
 }
 
