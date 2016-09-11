@@ -353,9 +353,9 @@ Example
 
 tnt_pass_http_request
 ------------------
-**syntax:** *tnt_pass_http_request [on|off]*
+**syntax:** *tnt_pass_http_request [on|off|parse_args]*
 
-**default:** *no*
+**default:** *off*
 
 **context:** *location, location if*
 
@@ -376,6 +376,14 @@ Examples
   function tarantool_stored_procedure_name(req, ...)
     req.headers -- lua table
     req.query -- string
+    return { 'OK' }
+  end
+  
+  -- With parse_args 
+  function tarantool_stored_procedure_name_1(req, ...)
+    req.headers -- lua table
+    req.query -- string
+    req.args -- query args as lua table
     return { 'OK' }
   end
 ```
