@@ -43,10 +43,9 @@ box.cfg {
     wal_mode = 'none';
 }
 
-if not box.space.tester then
+box.once('gr', function()
     box.schema.user.grant('guest', 'read,write,execute', 'universe')
-    box.schema.create_space('tester')
-end
+end)
 
 -- BUG -- https://github.com/tarantool/nginx_upstream_module/issues/37 [[
 function read(http_request_full)
@@ -103,7 +102,7 @@ function delete(request, a1, a2)
 end
 
 function insert(request, a1, a2)
-  return request
+  return { request, a1, a2 }
 end
 
 function update(request)

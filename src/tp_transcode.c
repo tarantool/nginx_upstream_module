@@ -379,7 +379,7 @@ yajl_map_key(void *ctx, const unsigned char * key, size_t len)
         if (unlikely(!tp_call_wof(&s_ctx->tp)))
             say_overflow_r_2(s_ctx);
 
-        /** Set method binded to this transcoding
+        /** Set the method to this transcoding
          */
         if (!s_ctx->read_method) {
             tp_transcode_t *tc = s_ctx->tc;
@@ -488,12 +488,14 @@ yajl_end_map(void *ctx)
 
     if (s_ctx->size == 0) {
 
-        if (unlikely(!tp_call_wof_add_params(&s_ctx->tp)))
-            say_overflow_r_2(s_ctx);
-
         if (!(s_ctx->been_stages & PARAMS)) {
+            dd("ADDING EMPTY PARAMS\n");
 
-            if (s_ctx->tc->data.pos && s_ctx->tc->data.len) {
+            if (unlikely(!tp_call_wof_add_params(&s_ctx->tp)))
+                say_overflow_r_2(s_ctx);
+
+            if (s_ctx->tc->data.pos && s_ctx->tc->data.len
+                    /*has data to bind*/) {
                 tp_encode_array(&s_ctx->tp, 1);
                 if (unlikely(!bind_data(s_ctx)))
                     say_overflow_r_2(s_ctx);
@@ -548,7 +550,7 @@ yajl_start_array(void *ctx)
 
     stack_grow_array(s_ctx);
 
-    bool push_ok = false, bind_first_argument = true;
+    bool push_ok = false, bind_first_argument = false;
     if (unlikely(s_ctx->size == 0)) {
         push_ok = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY | PARAMS);
         bind_first_argument = true;
@@ -565,9 +567,11 @@ yajl_start_array(void *ctx)
 
     tp_add(&s_ctx->tp, 1 + sizeof(uint32_t));
 
-    // Binding data [
-    if (unlikely(bind_first_argument)) {
-        if (!bind_data(s_ctx))
+    // Here is bind data
+    // e.g. http request
+    // [
+    if (bind_first_argument) {
+        if (unlikely(!bind_data(s_ctx)))
             say_overflow_r_2(s_ctx);
     }
     // ]
@@ -588,6 +592,7 @@ yajl_end_array(void *ctx)
 
         dd("array close, count %d ']'\n", item->count);
 
+        size_t item_count = item->count;
         if (unlikely(item->type & PARAMS)) {
             dd("PARAMS END\n");
             s_ctx->stage = WAIT_NEXT;
@@ -595,12 +600,12 @@ yajl_end_array(void *ctx)
             // Increase number of args for binded data [
             tp_transcode_t *tc = s_ctx->tc;
             if (tc->data.pos && tc->data.len)
-              ++item->count;
+              ++item_count;
             // ]
         }
 
         *(item->ptr++) = 0xdd;
-        *(uint32_t *) item->ptr = mp_bswap_u32(item->count);
+        *(uint32_t *) item->ptr = mp_bswap_u32(item_count);
 
     } else {
         say_wrong_params(s_ctx);

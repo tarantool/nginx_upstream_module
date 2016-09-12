@@ -145,8 +145,21 @@ put_success(preset_method_location, {'id':1}, None)
 delete_success(preset_method_location, {'params':[]}, None)
 result = delete_success(preset_method_location, None, None)
 
-preset_method_location = BASE_URL + '/issue_58'
-
 (rc, result) = request(preset_method_location, [{'id': 1}, {'id': 2}])
 assert(result[0]['id'] == 1), 'expected id = 1'
 assert(result[1]['id'] == 2), 'expected id = 2'
+
+data = {"id":0,"params":[
+            {
+                "soc":"68ALLNVS2",
+                "product_number":2355574,
+                "description":"sd",
+                "business_types":["B2C"],
+                "product_spec_characteristic_values":{
+                    "asd":{"value":"1123asda"}
+                }
+              }
+          ]
+        }
+result = put_success(preset_method_location, data, None)
+assert(result[1] == data['params'][0]), 'result != data'
