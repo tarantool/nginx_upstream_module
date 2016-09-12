@@ -12,9 +12,9 @@ for ver_tag in `cat test/ngx_versions_list`; do
   for build_type in configure-for-testing configure; do
 
     # Build two configuration
+    rm -f nginx/obj/nginx
     make $build_type
     make -j2
-
 
     # Test debug configuration
     if [ $build_type = "configure-for-testing" ]; then
