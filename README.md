@@ -13,6 +13,11 @@ About Tarantool: http://tarantool.org
 
 About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
 
+Docker images
+
+Nginx upstream module - https://hub.docker.com/r/tarantool/tarantool-nginx
+Tarantool - https://hub.docker.com/r/tarantool/tarantool
+
 ## Status
 ---------
 * v0.1.4 - Production ready.
