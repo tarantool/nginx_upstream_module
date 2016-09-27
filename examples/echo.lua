@@ -9,7 +9,7 @@ end
 
 box.cfg {
     log_level = 5;
-    listen = 10001;
+    listen = 9999;
 }
 
 if not box.space.tester then
