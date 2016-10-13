@@ -17,6 +17,11 @@ function add_user(user_first_name, user_last_name)
   return users:auto_increment{user_first_name, user_last_name}
 end
 
+-- $ wget 127.0.0.1:8081/tnt --post-data='{"method":"add_user_ex","params": ["Vasa","Soshnikov", {"some":"user", "info":[1]}]}'
+function add_user_ex(user_first_name, user_last_name, ...)
+  return users:auto_increment{user_first_name, user_last_name, ...}
+end
+
 -- $ wget 127.0.0.1:8081/tnt --post-data='{"method":"get_user_by_id","params", [1]}'
 function get_user_by_id(user_id)
   return users.index.user_id:get{user_id}
