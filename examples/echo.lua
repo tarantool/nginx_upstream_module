@@ -15,7 +15,6 @@ users:create_index('user_id', {if_not_exists=true})
 
 -- $ wget 127.0.0.1:8081/tnt --post-data='{"method":"add_user","params": ["Vasa","Soshnikov"]}'
 function add_user(user_first_name, user_last_name)
-  print(user_last_name, user_first_name)
   return users:auto_increment{user_first_name, user_last_name}
 end
 
