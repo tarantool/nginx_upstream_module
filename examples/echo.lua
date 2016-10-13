@@ -5,7 +5,6 @@ box.cfg {
 
 box.once('grant', function()
     box.schema.user.grant('guest', 'read,write,execute', 'universe')
-    box.schema.create_space('tester')
 end)
 
 -- Table
