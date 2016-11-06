@@ -8,7 +8,6 @@ RUN addgroup -S nginx \
 
 ENV NGINX_VERSION=1.11.1 \
     NGINX_UPSTREAM_MODULE_URL=https://github.com/tarantool/nginx_upstream_module.git \
-    NGINX_UPSTREAM_MODULE_COMMIT=8bd44fc \
     NGINX_GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8
 
 RUN set -x \
@@ -39,7 +38,7 @@ RUN set -x \
      gettext \
   && : "---------- download nginx-upstream-module ----------" \
   && git clone "$NGINX_UPSTREAM_MODULE_URL" /usr/src/nginx_upstream_module \
-  && git -C /usr/src/nginx_upstream_module checkout docker-container \
+  && git -C /usr/src/nginx_upstream_module checkout master \
   && git -C /usr/src/nginx_upstream_module submodule init \
   && git -C /usr/src/nginx_upstream_module submodule update \
   && make -C /usr/src/nginx_upstream_module yajl \
