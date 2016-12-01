@@ -210,17 +210,10 @@ assert(rc == 200), 'expected 200'
     'id': 555
     })
 
-## TODO fix
-#(rc, res) = request({
-#    'params': [],
-#    'id': 555
-#    })
-
-print '[OK] Regualr cases'
+print '[+] Regular cases'
 
 ## Segfault regress
 print "[+] Regualr regress cases"
-
 (rc, res) = request_raw('[{"method":"call", "params":["name"], "i');
 assert(rc == 400), 'expected 400'
 assert_if_not_error(res, -32700)
@@ -229,13 +222,12 @@ assert_if_not_error(res, -32700)
 assert(rc == 400), 'expected 400'
 assert_if_not_error(res, -32700)
 
-print '[OK] Segfautl regress cases'
-
+print '[+] Segfautl regress cases'
 (rc, res) = request_raw('[{"');
 assert(rc == 400), 'expected 400'
 assert_if_not_error(res, -32700)
 
-print '[OK] PWN cases'
+print '[+] PWN cases'
 (rc, res) = request_raw('[]');
 assert(rc == 400), 'expected 400'
 

@@ -109,3 +109,12 @@ function update(request)
   return request
 end
 -- ]]
+
+function delete()
+  return "ok"
+end
+
+function issue_59(request, ...)
+  return { request, {...} }
+end
+
