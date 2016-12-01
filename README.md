@@ -1,4 +1,4 @@
-# Tarantool NginX upstream module
+# Tarantool NginX upstream module (v2.3.1)
 ---------------------------------
 Key features:
 * Both nginx and tarantool features accessible over HTTP(S).
@@ -23,8 +23,9 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 ---------
 * v0.1.4 - Production ready.
 * v0.2.0 - Stable.
-* v0.2.1 - Stable.
+* v0.2.1 - Production ready.
 * v0.2.2 - Stable.
+* v2.3.1 - Production ready.
 
 ## Content
 ----------
