@@ -129,9 +129,9 @@ ngx_http_tnt_read_greeting(ngx_http_request_t *r,
     {
         b->pos = b->pos + 128;
         /**
-         *  Nginx can read only the "greeting"(128 bytes).
-         *  This check is to avoid the "read only the greeting" side effects.
-         *  Fix is - I just telling the nginx read more bytes.
+         *  Nginx should read only "greeting" (128 bytes).
+         *  If tarantool sent the only one message (i.e. greeting),
+         *  then we have to tell to nginx, that it needs read more bytes.
          */
         if (b->pos == b->last) {
             return NGX_AGAIN;
@@ -285,8 +285,61 @@ ngx_http_tnt_get_next_arg(u_char *it, u_char *end)
 
 
 static inline ngx_int_t
+ngx_http_tnt_encode_str_map_item(ngx_http_request_t *r,
+                                 ngx_http_tnt_loc_conf_t *tlcf,
+                                 struct tp *tp,
+                                 u_char *key, size_t key_len,
+                                 u_char *value, size_t value_len)
+{
+    u_char *dkey = key;
+    u_char *dvalue = value;
+
+    u_char *ekey = NULL, *ekey_end = NULL;
+    u_char *evalue = NULL, *evalue_end = NULL;
+
+    if (tlcf->pass_http_request & NGX_TNT_CONF_UNESCAPE) {
+
+        ekey_end = ekey = ngx_pnalloc(r->pool, key_len);
+        if (ekey == NULL) {
+            return NGX_ERROR;
+        }
+
+        ngx_unescape_uri(&ekey_end, &key, key_len, NGX_UNESCAPE_URI);
+        key_len = ekey_end - ekey;
+
+        evalue_end = evalue = ngx_pnalloc(r->pool, value_len);
+        if (evalue == NULL) {
+            return NGX_ERROR;
+        }
+
+        ngx_unescape_uri(&evalue_end, &value, value_len, NGX_UNESCAPE_URI);
+        value_len = evalue_end - evalue;
+
+        dkey = ekey;
+        dvalue = evalue;
+    }
+
+#if 0
+    dd("ngx_http_tnt_encode_str_map_item, dkey = %.*s, dvalue = %.*s",
+       (int)key_len, (char *)dkey, (int)value_len, (char *)dvalue);
+#endif
+
+    if (!tp_encode_str_map_item(
+            tp,
+            (const char *)dkey, key_len,
+            (const char *)dvalue, value_len))
+    {
+        dd("ngx_http_tnt_encode_str_map_item: tp_encode_str_map_item failed");
+        return NGX_ERROR;
+    }
+
+    return NGX_OK;
+}
+
+static inline ngx_int_t
 ngx_http_tnt_encode_query_args(
         ngx_http_request_t *r,
+        ngx_http_tnt_loc_conf_t *tlcf,
         struct tp *tp,
         ngx_uint_t *args_items)
 {
@@ -305,19 +358,19 @@ ngx_http_tnt_encode_query_args(
 
         arg = ngx_http_tnt_get_next_arg(arg.it, end);
 
-        const int value_len = arg.it - arg.value;
+        const size_t value_len = arg.it - arg.value;
         if (arg.value && value_len > 0) {
+
             ++(*args_items);
-            if (!tp_encode_str_map_item(
-                        tp,
-                        (const char *)arg_begin, arg.value - arg_begin - 1,
-                        (const char *)arg.value, value_len))
+            if (!tp_encode_str_map_item(tp,
+                                        (const char *)arg_begin,
+                                        arg.value - arg_begin - 1,
+                                        (const char *)arg.value, value_len))
             {
                 dd("parse args: tp_encode_str_map_item failed");
                 return NGX_ERROR;
             }
         }
-
         arg_begin = ++arg.it;
     }
 
@@ -370,10 +423,10 @@ ngx_http_tnt_get_request_data(
      */
     ++root_items;
 
-    if (!tp_encode_str_map_item(tp,
-                                "uri", sizeof("uri")-1,
-                                (const char*)r->unparsed_uri.data,
-                                r->unparsed_uri.len))
+    if (ngx_http_tnt_encode_str_map_item(r, tlcf, tp,
+                                         (u_char *)"uri", sizeof("uri") - 1,
+                                         r->unparsed_uri.data,
+                                         r->unparsed_uri.len) == NGX_ERROR)
     {
         return NGX_ERROR;
     }
@@ -396,8 +449,10 @@ ngx_http_tnt_get_request_data(
 
         map_items = 0;
 
-        if (ngx_http_tnt_encode_query_args(r, tp, &map_items) == NGX_ERROR) {
-            dd("parse args: encode query args");
+        if (ngx_http_tnt_encode_query_args(
+                    r, tlcf, tp, &map_items) == NGX_ERROR)
+        {
+            dd("parse args: ngx_http_tnt_encode_query_args failed");
             return NGX_ERROR;
         }
 

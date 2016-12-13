@@ -172,6 +172,7 @@ for i in range(100000): bigarray.append(i)
     'params': bigarray,
     'id': 1
     })
+print (rc, res)
 assert(rc == 400), 'expected 400'
 assert_if_not_error(res, -32001)
 

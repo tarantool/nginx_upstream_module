@@ -143,7 +143,7 @@ print('[+] issue #58, RPC w/o params')
 preset_method_location = BASE_URL + '/issue_58'
 put_success(preset_method_location, {'id':1}, None)
 delete_success(preset_method_location, {'params':[]}, None)
-result = delete_success(preset_method_location, None, None)
+delete_success(preset_method_location, None, None)
 
 (rc, result) = request(preset_method_location, [{'id': 1}, {'id': 2}])
 assert(result[0]['id'] == 1), 'expected id = 1'
@@ -163,3 +163,18 @@ data = {"id":0,"params":[
         }
 result = put_success(preset_method_location, data, None)
 assert(result[1] == data['params'][0]), 'result != data'
+
+#===========
+#
+print('[+] issue #71, Nginx should do unescape...')
+
+preset_method_location = BASE_URL + '/issue_71/19UM|SMSO/a%7Cx%3Db'
+
+args = {'arg1': 1, 'arg2': 'somestring'}
+result = get_success(preset_method_location, args, {})
+assert(result[0]['uri'] == '/issue_71/19UM|SMSO/a|x=b?'), "expected unescaped"
+result = put_success(preset_method_location, {'id':1}, None)
+# NO args NO '?'
+assert(result[0]['uri'] == '/issue_71/19UM|SMSO/a|x=b'), "expected unescaped"
+result = delete_success(preset_method_location, {'params':[]}, None)
+assert(result[0]['uri'] == '/issue_71/19UM|SMSO/a|x=b'), "expected unescaped"

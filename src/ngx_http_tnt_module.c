@@ -92,6 +92,7 @@ static ngx_conf_bitmask_t  ngx_http_tnt_pass_http_request_masks[] = {
     { ngx_string("on"), NGX_TNT_CONF_ON },
     { ngx_string("off"), NGX_TNT_CONF_OFF },
     { ngx_string("parse_args"), NGX_TNT_CONF_PARSE_ARGS },
+    { ngx_string("unescape"), NGX_TNT_CONF_UNESCAPE },
     { ngx_null_string, 0 }
 };
 

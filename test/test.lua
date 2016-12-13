@@ -118,3 +118,6 @@ function issue_59(request, ...)
   return { request, {...} }
 end
 
+function issue_71(request)
+  return request
+end

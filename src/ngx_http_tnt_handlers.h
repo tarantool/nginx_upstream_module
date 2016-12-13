@@ -39,9 +39,10 @@
 
 
 typedef enum ngx_tnt_conf_states {
-    NGX_TNT_CONF_ON         = 0x0001,
-    NGX_TNT_CONF_OFF        = 0x0002,
-    NGX_TNT_CONF_PARSE_ARGS = 0x0004
+    NGX_TNT_CONF_ON            = 0x0001,
+    NGX_TNT_CONF_OFF           = 0x0002,
+    NGX_TNT_CONF_PARSE_ARGS    = 0x0004,
+    NGX_TNT_CONF_UNESCAPE      = 0x0008,
 } ngx_tnt_conf_states_e;
 
 /** The structure hold the nginx location variables, e.g. loc_conf.
