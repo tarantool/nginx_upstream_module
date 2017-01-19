@@ -39,10 +39,11 @@
 
 
 typedef enum ngx_tnt_conf_states {
-    NGX_TNT_CONF_ON            = 0x0001,
-    NGX_TNT_CONF_OFF           = 0x0002,
-    NGX_TNT_CONF_PARSE_ARGS    = 0x0004,
-    NGX_TNT_CONF_UNESCAPE      = 0x0008,
+    NGX_TNT_CONF_ON            = 1,
+    NGX_TNT_CONF_OFF           = 2,
+    NGX_TNT_CONF_PARSE_ARGS    = 4,
+    NGX_TNT_CONF_UNESCAPE      = 8,
+    NGX_TNT_CONF_PASS_BODY     = 16,
 } ngx_tnt_conf_states_e;
 
 /** The structure hold the nginx location variables, e.g. loc_conf.
@@ -61,7 +62,7 @@ typedef struct {
      */
     ngx_str_t                method;
 
-    /** This is max allowed size of query + headers, the size in bytes
+    /** This is max allowed size of query + headers + body, the size in bytes
      */
     size_t                   pass_http_request_buffer_size;
 
@@ -114,7 +115,7 @@ typedef struct {
      */
     ngx_uint_t               multireturn_skip_count;
 
-    ngx_array_t                   *headers_source;
+    ngx_array_t              *headers_source;
 
 } ngx_http_tnt_loc_conf_t;
 

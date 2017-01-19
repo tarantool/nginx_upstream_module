@@ -121,3 +121,10 @@ end
 function issue_71(request)
   return request
 end
+
+function pass_body_handler(request, ...)
+  if request.body == nil then
+    error('request == NIL')
+  end
+  return { request, { ... } }
+end
