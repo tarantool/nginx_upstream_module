@@ -390,6 +390,8 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
     ngx_list_part_t *part;
     ngx_table_elt_t *h;
     ngx_buf_t       *b;
+    ngx_chain_t     *body;
+    char            *p;
 
     root_items = 0;
     root_map_place = tp->p;
@@ -507,8 +509,10 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
 
     /* Encode body
      */
+
     if ((tlcf->pass_http_request & NGX_TNT_CONF_PASS_BODY) &&
-            r->headers_in.content_length_n > 0)
+            r->headers_in.content_length_n > 0 &&
+            r->upstream->request_bufs )
     {
         ++root_items;
 
@@ -521,9 +525,7 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
 		    return NGX_ERROR;
         }
 
-
-        ngx_chain_t *body;
-        char *p = mp_encode_strl(tp->p, r->headers_in.content_length_n);
+        p = mp_encode_strl(tp->p, r->headers_in.content_length_n);
         for (body = r->upstream->request_bufs; body; body = body->next) {
 
             b = body->buf;
