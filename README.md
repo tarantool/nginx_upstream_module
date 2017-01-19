@@ -361,7 +361,7 @@ Example
 
 tnt_pass_http_request
 ------------------
-**syntax:** *tnt_pass_http_request [on|off|parse_args|unescape]*
+**syntax:** *tnt_pass_http_request [on|off|parse_args|unescape|pass_body]*
 
 **default:** *off*
 
@@ -386,13 +386,18 @@ Examples
     req.query -- string
     return { 'OK' }
   end
-  
+
   -- With parse_args 
   function tarantool_stored_procedure_name_1(req, ...)
     req.headers -- lua table
     req.query -- string
     req.args -- query args as lua table
     return { 'OK' }
+  end
+
+  -- With pass_body
+  function tarantool_stored_procedure_name_2(req, ...)
+    req.body -- request body, type string
   end
 ```
 ```bash
