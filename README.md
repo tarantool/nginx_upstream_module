@@ -361,7 +361,7 @@ Example
 
 tnt_pass_http_request
 ------------------
-**syntax:** *tnt_pass_http_request [on|off|parse_args|unescape|pass_body]*
+**syntax:** *tnt_pass_http_request [on|off|parse_args|unescape|pass_body|pass_headers_out]*
 
 **default:** *off*
 
@@ -369,7 +369,7 @@ tnt_pass_http_request
 
 Allow to pass HTTP headers and queries to Tarantool stored procedures.
 
-Examples
+Examples #1
 ```nginx
   location tnt {
     # Also, tnt_pass_http_request can be used together with JSON communication
@@ -400,6 +400,30 @@ Examples
     req.body -- request body, type string
   end
 ```
+Examples #2 (pass_headers_out)
+```nginx
+  location @tnt {
+    tnt_http_rest_methods get;
+    tnt_pass_http_request on pass_headers_out;
+    tnt_method tarantool_stored_procedure_name;
+    tnt_pass 127.0.0.1:9999;
+  }
+
+  location / {
+    add_header "X-Req-time" "$request_time";
+    proxy_pass http://backend;
+    post_action @tnt;
+  }
+```
+```lua
+  function tarantool_stored_procedure_name(req, ...)
+    req.headers -- lua table
+    req.headers['X-Req-time'] -- set by add_header
+    req.query -- string
+    return true
+  end
+```
+
 ```bash
   # Call tarantool_stored_procedure_name()
   $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1

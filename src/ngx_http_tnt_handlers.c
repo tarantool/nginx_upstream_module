@@ -37,6 +37,49 @@
 
 extern ngx_module_t ngx_http_tnt_module;
 
+
+static inline ngx_int_t
+ngx_http_tnt_copy_headers(struct tp *tp,
+                          ngx_list_t *headers,
+                          size_t *map_items)
+{
+    size_t          i = 0;
+    ngx_table_elt_t *h;
+    ngx_list_part_t *part;
+
+    if (headers->size > 0) {
+
+        part = &headers->part;
+        h = part->elts;
+
+        for (;; i++) {
+
+            if (i >= part->nelts) {
+                if (part->next == NULL) {
+                    break;
+                }
+                part = part->next;
+                h = part->elts;
+                i = 0;
+            }
+
+            if (!tp_encode_str_map_item(tp,
+                                        (const char *) h[i].key.data,
+                                        h[i].key.len,
+                                        (const char *) h[i].value.data,
+                                        h[i].value.len) )
+            {
+                return NGX_ERROR;
+            }
+
+            ++(*map_items);
+        }
+    }
+
+    return NGX_OK;
+}
+
+
 static inline size_t
 ngx_http_tnt_get_output_size(
     ngx_http_request_t *r,
@@ -387,8 +430,6 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
     char            *map_place;
     size_t          root_items;
     size_t          map_items;
-    ngx_list_part_t *part;
-    ngx_table_elt_t *h;
     ngx_buf_t       *b;
     ngx_chain_t     *body;
     char            *p;
@@ -475,33 +516,17 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
-    if (r->headers_in.headers.size) {
+    if (ngx_http_tnt_copy_headers(tp, &r->headers_in.headers, &map_items) ==
+            NGX_ERROR)
+    {
+        return NGX_ERROR;
+    }
 
-        part = &r->headers_in.headers.part;
-        h = part->elts;
-
-        size_t i = 0;
-        for (;; i++) {
-
-            if (i >= part->nelts) {
-                if (part->next == NULL) {
-                    break;
-                }
-                part = part->next;
-                h = part->elts;
-                i = 0;
-            }
-
-            ++map_items;
-            if (!tp_encode_str_map_item(tp,
-                                        (const char *)h[i].key.data,
-                                        h[i].key.len,
-                                        (const char *)h[i].value.data,
-                                        h[i].value.len))
-            {
-                return NGX_ERROR;
-            }
-        }
+    if ((tlcf->pass_http_request & NGX_TNT_CONF_PASS_HEADERS_OUT) &&
+        (ngx_http_tnt_copy_headers(tp, &r->headers_out.headers, &map_items) ==
+            NGX_ERROR) )
+    {
+        return NGX_ERROR;
     }
 
     *(map_place++) = 0xdf;
@@ -509,7 +534,6 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
 
     /* Encode body
      */
-
     if ((tlcf->pass_http_request & NGX_TNT_CONF_PASS_BODY) &&
             r->headers_in.content_length_n > 0 &&
             r->upstream->request_bufs )
@@ -521,8 +545,8 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
         }
 
         int sz = mp_sizeof_str(r->headers_in.content_length_n);
-	    if (tp_ensure(tp, sz) == -1) {
-		    return NGX_ERROR;
+        if (tp_ensure(tp, sz) == -1) {
+            return NGX_ERROR;
         }
 
         p = mp_encode_strl(tp->p, r->headers_in.content_length_n);

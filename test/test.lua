@@ -1,5 +1,6 @@
-json=require('json')
-yaml=require('yaml')
+json = require('json')
+yaml = require('yaml')
+os   = require('os')
 
 function echo_1(a)
   return {a}
@@ -127,4 +128,15 @@ function pass_body_handler(request, ...)
     error('request == NIL')
   end
   return { request, { ... } }
+end
+
+function touch(req, ...)
+  return {req, ... }
+end
+
+function test_headers_out(req)
+  if req.headers['x-added-header'] == nil then
+    os.exit(1)
+  end
+  return true
 end

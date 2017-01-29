@@ -31,3 +31,9 @@ print('[+] Body sould not pass')
 preset_method_location = BASE_URL + '/dont_pass_body'
 result = post_success(preset_method_location, {"body": True}, {})
 assert (('body' in result[0]) == False), "body in result"
+
+# =============
+#
+print('[+] Headers out')
+preset_method_location = BASE_URL + '/headers_out'
+post_success(preset_method_location, {"body": True}, {})
