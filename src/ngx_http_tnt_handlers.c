@@ -405,14 +405,16 @@ ngx_http_tnt_encode_query_args(
         if (arg.value && value_len > 0) {
 
             ++(*args_items);
-            if (!tp_encode_str_map_item(tp,
-                                        (const char *)arg_begin,
-                                        arg.value - arg_begin - 1,
-                                        (const char *)arg.value, value_len))
+
+            if (ngx_http_tnt_encode_str_map_item(r, tlcf, tp,
+                                                 arg_begin,
+                                                 arg.value - arg_begin - 1,
+                                                 arg.value,
+                                                 value_len) != NGX_OK)
             {
-                dd("parse args: tp_encode_str_map_item failed");
                 return NGX_ERROR;
             }
+
         }
         arg_begin = ++arg.it;
     }
@@ -515,6 +517,11 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
     if (!tp_add(tp, 1 + sizeof(uint32_t))) {
         return NGX_ERROR;
     }
+
+    // XXX set_header
+#if 0
+    ngx_http_script_flush_no_cacheable_variables(r, tlcf->headers.flushes);
+#endif
 
     if (ngx_http_tnt_copy_headers(tp, &r->headers_in.headers, &map_items) ==
             NGX_ERROR)

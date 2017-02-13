@@ -26,7 +26,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2016 Tarantool AUTHORS:
+ * Copyright (C) 2015-2017 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
@@ -46,6 +46,13 @@ typedef enum ngx_tnt_conf_states {
     NGX_TNT_CONF_PASS_BODY        = 16,
     NGX_TNT_CONF_PASS_HEADERS_OUT = 32,
 } ngx_tnt_conf_states_e;
+
+typedef struct {
+    ngx_array_t                   *flushes;
+    ngx_array_t                   *lengths;
+    ngx_array_t                   *values;
+    ngx_hash_t                     hash;
+} ngx_http_tnt_headers_t;
 
 /** The structure hold the nginx location variables, e.g. loc_conf.
  */
@@ -117,6 +124,8 @@ typedef struct {
     ngx_uint_t               multireturn_skip_count;
 
     ngx_array_t              *headers_source;
+
+    ngx_http_tnt_headers_t   headers;
 
 } ngx_http_tnt_loc_conf_t;
 

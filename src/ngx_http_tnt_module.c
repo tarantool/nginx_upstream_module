@@ -26,7 +26,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2016 Tarantool AUTHORS:
+ * Copyright (C) 2015-2017 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
@@ -35,7 +35,6 @@
 #include <debug.h>
 #include <ngx_http_tnt_version.h>
 #include <ngx_http_tnt_handlers.h>
-
 
 /** Filters
  */
@@ -110,6 +109,7 @@ static ngx_conf_bitmask_t  ngx_http_tnt_methods[] = {
                           |NGX_HTTP_DELETE) },
     { ngx_null_string, 0 }
 };
+
 
 static ngx_command_t  ngx_http_tnt_commands[] = {
 
@@ -472,6 +472,11 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                   prev->http_methods,
                               (NGX_HTTP_POST
                                |NGX_HTTP_DELETE));
+
+    if (conf->headers_source == NULL) {
+        conf->headers = prev->headers;
+        conf->headers_source = prev->headers_source;
+    }
 
     /** Experimental, see conf commands description [[
      */
