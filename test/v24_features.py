@@ -37,3 +37,13 @@ assert (('body' in result[0]) == False), "body in result"
 print('[+] Headers out')
 preset_method_location = BASE_URL + '/headers_out'
 post_success(preset_method_location, {"body": True}, {})
+
+# ============
+#
+print('[+] Unescape issue')
+arg_a = 'some string with spaces'
+preset_method_location = BASE_URL + '/unescape?a=' + arg_a
+result = get_success(preset_method_location, None, {})
+result = result[0]
+assert(result['args']['a'] == arg_a), 'does not expected (args.a)'
+

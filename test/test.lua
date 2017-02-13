@@ -38,16 +38,6 @@ function rest_api_parse_query_args(http_request_full)
   return {http_request_full}
 end
 
-box.cfg {
-    log_level = 5;
-    listen = 9999;
-    wal_mode = 'none';
-}
-
-box.once('gr', function()
-    box.schema.user.grant('guest', 'read,write,execute', 'universe')
-end)
-
 -- BUG -- https://github.com/tarantool/nginx_upstream_module/issues/37 [[
 function read(http_request_full)
     return {
@@ -140,3 +130,14 @@ function test_headers_out(req)
   end
   return true
 end
+
+-- CFG
+box.cfg {
+    log_level = 5;
+    listen = 9999;
+    wal_mode = 'none';
+}
+
+box.once('gr', function()
+    box.schema.user.grant('guest', 'read,write,execute', 'universe')
+end)
