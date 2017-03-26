@@ -1,3 +1,5 @@
+#!/usr/bin/env tarantool
+
 json = require('json')
 yaml = require('yaml')
 os   = require('os')

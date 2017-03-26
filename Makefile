@@ -21,6 +21,7 @@ INC_FLAGS  += -I$(CUR_PATH)/third_party/msgpuck
 INC_FLAGS  += -I$(CUR_PATH)/src
 YAJL_LIB    = $(YAJL_PATH)/build/yajl-2.1.0/lib/libyajl_s.a
 LDFLAGS     = -L$(YAJL_PATH)/build/yajl-2.1.0/lib
+PREFIX      = /usr/local/nginx
 
 DEV_CFLAGS += -ggdb3 -O0 -Wall -Werror
 
@@ -41,10 +42,15 @@ gen_version:
 build: gen_version utils
 	$(MAKE) -C $(NGX_PATH)
 
-configure:
+__install:
 	cd $(NGX_PATH) && $(NGX_CONFIGURE) \
-			--with-cc-opt='$(INC_FLAGS)'\
-			--add-module='$(MODULE_PATH)'
+			--with-cc-opt='$(INC_FLAGS)' \
+			--add-module='$(MODULE_PATH)' \
+			--prefix=$(PREFIX)
+	make -j2
+	sudo mkdir -p $(PREFIX)/conf $(PREFIX)/logs $(PREFIX)/sbin
+	sudo cp -Rf $(NGX_PATH)/conf/* $(PREFIX)/conf
+	sudo cp $(NGX_PATH)/objs/nginx $(PREFIX)/sbin/nginx
 
 configure-as-dynamic:
 	cd $(NGX_PATH) && $(NGX_CONFIGURE) --add-dynamic-module='$(MODULE_PATH)'
@@ -55,16 +61,8 @@ configure-debug:
 						--prefix=$(PREFIX_PATH) \
 						--add-module=$(MODULE_PATH) \
 						--with-debug
-	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
-	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
-	cp -f $(CUR_PATH)/test/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
-	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
 
-configure-for-testing:
-	cd $(NGX_PATH) && $(NGX_CONFIGURE) \
-						--with-cc-opt='$(INC_FLAGS)'\
-						--prefix=$(PREFIX_PATH) \
-						--add-module=$(MODULE_PATH)
+configure-for-testing: configure-debug
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
 	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
 	cp -f $(CUR_PATH)/test/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
@@ -77,8 +75,6 @@ configure-as-dynamic-debug:
 						--add-dynamic-module=$(MODULE_PATH) \
 						--with-debug
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs $(PREFIX_PATH)/modules
-#	cp -f $(CUR_PATH)/nginx/objs/ngx_http_tnt_module.so $(PREFIX_PATH)/modules/ngx_http_tnt_module.so
-#	cp -f $(CUR_PATH)/nginx/objs/ngx_http_tnt_module.so /usr/local/nginx/modules/ngx_http_tnt_module.so
 	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
 	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.dyn.conf $(PREFIX_PATH)/conf/nginx.conf
 	cp -f $(CUR_PATH)/test/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf

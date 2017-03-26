@@ -13,6 +13,33 @@ VERBOSE = False
 BASE_URL = 'http://0.0.0.0:8081'
 
 
+def post_form(url, values, headers=None):
+    out = '{}'
+    try:
+        data = urllib.urlencode(values)
+        req = urllib2.Request(url, data)
+        if headers:
+            for header in headers:
+                req.add_header(header, headers[header])
+        response = urllib2.urlopen(req)
+        out = response.read()
+        rc = response.getcode()
+        if VERBOSE:
+            print("code: ", rc, " recv: '", out, "'")
+        if rc != 500:
+            return (rc, json.loads(out))
+        return (rc, False)
+    except urllib2.HTTPError as e:
+        if e.code == 400:
+            out = e.read();
+        if VERBOSE:
+            print("code: ", e.code, " recv: '", out, "'")
+        return (e.code, json.loads(out))
+    except Exception as e:
+        print(traceback.format_exc())
+        return (False, e)
+
+
 def post(url, data, headers):
     out = '{}'
     try:
@@ -176,7 +203,7 @@ def get_success_pure(url, data, headers):
     assert(code == 200), 'expected 200'
     return msg
 
-def post_success(url, data, headers, print_f=None):
+def post_success(url, data, headers=None, print_f=None):
     (code, msg) = post(url, data, headers)
     if print_f:
         print_f(code, msg)
@@ -184,7 +211,21 @@ def post_success(url, data, headers, print_f=None):
     result = get_result(msg)
     return result
 
-def post_success_pure(url, data, headers):
+def post_form_success(url, data, headers=None, print_f=None):
+    (code, msg) = post_form(url, data, headers)
+    if print_f:
+        print_f(code, msg)
+    assert(code == 200), 'expected 200'
+    return msg
+
+def post_form_ec500(url, data, headers=None, print_f=None):
+    (code, msg) = post_form(url, data, headers)
+    if print_f:
+        print_f(code, msg)
+    assert(code == 500), 'expected 500'
+    return msg
+
+def post_success_pure(url, data, headers=None):
     (code, msg) = post(url, data, headers)
     assert(code == 200), 'expected 200'
     return msg

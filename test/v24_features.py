@@ -47,3 +47,35 @@ result = get_success(preset_method_location, None, {})
 result = result[0]
 assert(result['args']['a'] == arg_a), 'does not expected (args.a)'
 
+# ============
+#
+print('[+] Post form')
+preset_method_location = BASE_URL + '/form'
+data = { 'a':'b', 'b':'c', 'c':'d'}
+result = get_result(post_form_success(preset_method_location, data))
+assert(result[0]['body'] == urllib.urlencode(data)), 'result does not match'
+# ============
+#
+print('[+] Post large form')
+preset_method_location = BASE_URL + '/form_large'
+for i in range(1000):
+    key = 'a' + str(i)
+    data[key] = 'b'
+result = get_result(post_form_success(preset_method_location, data))
+assert(result[0]['body'] == urllib.urlencode(data)), "result does not matched"
+
+# ============
+#
+print('[+] Post empty form')
+preset_method_location = BASE_URL + '/form_nothing'
+result = get_result(post_form_success(preset_method_location, {}))
+assert(not 'body' in result[0]), "result contains 'body'"
+
+# ============
+#
+print('[+] Post overflow form')
+preset_method_location = BASE_URL + '/form_large'
+for i in range(100000):
+    key = 'a' + str(i)
+    data[key] = 'b'
+post_form_ec500(preset_method_location, data, None, default_print_f)
