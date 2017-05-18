@@ -21,6 +21,7 @@ INC_FLAGS  += -I$(CUR_PATH)/third_party/msgpuck
 INC_FLAGS  += -I$(CUR_PATH)/src
 YAJL_LIB    = $(YAJL_PATH)/build/yajl-2.1.0/lib/libyajl_s.a
 LDFLAGS     = -L$(YAJL_PATH)/build/yajl-2.1.0/lib
+LDFLAGS    += -L$(MODULE_PATH)/third_party/msgpuck
 PREFIX      = /usr/local/nginx
 
 DEV_CFLAGS += -ggdb3 -O0 -Wall -Werror
@@ -28,13 +29,15 @@ DEV_CFLAGS += -ggdb3 -O0 -Wall -Werror
 .PHONY: all build
 all: build
 
-yajl-dynamic:
-	ln -sf src third_party/yajl/yajl
-	cd $(YAJL_PATH); CFLAGS=" $(CFLAGS) -fPIC" ./configure; make distro
-
 yajl:
 	ln -sf src third_party/yajl/yajl
 	cd $(YAJL_PATH); ./configure; make distro
+
+msgpack:
+	cd $(MODULE_PATH)/third_party/msgpuck && \
+			cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo . && \
+			make && \
+			cd -
 
 gen_version:
 	$(shell cat $(MODULE_PATH)/src/ngx_http_tnt_version.h.in | sed 's/@VERSION_STRING@/"$(shell git describe --tags --dirty)"/g' > $(MODULE_PATH)/src/ngx_http_tnt_version.h)
@@ -85,7 +88,8 @@ json2tp:
 				src/json_encoders.c \
 				src/tp_transcode.c \
 				-o misc/json2tp \
-				-lyajl_s
+				-lyajl_s \
+				-lmsgpuck
 
 tp_dump:
 	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
@@ -93,7 +97,8 @@ tp_dump:
 				src/json_encoders.c \
 				src/tp_transcode.c \
 				-o misc/tp_dump \
-				-lyajl_s
+				-lyajl_s \
+				-lmsgpuck
 
 test-dev-man: utils build
 	$(CUR_PATH)/test/transcode.sh
@@ -117,8 +122,8 @@ clean:
 
 utils: json2tp tp_dump
 
-build-all: yajl configure build utils
-build-all-dynamic: yajl-dynamic configure-as-dynamic build utils
+build-all: msgpack yajl configure build utils
+build-all-dynamic: msgpack yajl configure-as-dynamic build utils
 
-build-all-debug: yajl configure-debug build utils
-build-all-dynamic-debug: yajl-dynamic configure-as-dynamic-debug build utils
+build-all-debug: msgpack yajl configure-debug build utils
+build-all-dynamic-debug: msgpack yajl configure-as-dynamic-debug build utils

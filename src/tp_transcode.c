@@ -38,10 +38,6 @@
 #  define GNU_SOURCES 1
 #endif /* !GNU_SOURCES */
 
-#if !defined(MP_SOURCE)
-#  define MP_SOURCE 1
-#endif /* !MP_SOURCE */
-
 #include "tp_ext.h"
 #include "tp_transcode.h"
 #include "json_encoders.h"

@@ -73,7 +73,7 @@ make build-all # or 'build-all-debug' for debug version
   Requirements (for details, see REPO_ROOT/Makefile)
 
     libyajl >= 2.0(https://lloyd.github.io/yajl/)
-    libmsgpuck >= 1.0 (https://github.com/rtsisyk/msgpuck)
+    libmsgpuck >= 2.0 (https://github.com/rtsisyk/msgpuck)
 
     $ ./configure --add-module=REPO_ROOT && make
 

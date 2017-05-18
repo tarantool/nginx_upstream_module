@@ -1,6 +1,9 @@
 ngx_addon_name="ngx_http_tnt_module"
 
-__lib_yajl="$ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/lib/libyajl_s.a"
+__libs="                                                             \
+    $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/lib/libyajl_s.a \
+    $ngx_addon_dir/third_party/msgpuck/libmsgpuck.a                  \
+    "
 
 __module_src_dir="$ngx_addon_dir/src"
 
@@ -42,7 +45,7 @@ if test "$__old_style_build" = "yes"; then
   CORE_LIBS=" \
           $CORE_LIBS        \
           $ngx_feature_libs \
-          $__lib_yajl       \
+          $__libs           \
           "
 
   HTTP_MODULES=" \
@@ -68,7 +71,7 @@ else
   ngx_module_incs=$__include_paths
   ngx_module_deps=$__headers
   ngx_module_srcs=$__sources
-  ngx_module_libs=$__lib_yajl
+  ngx_module_libs=$__libs
 
   . auto/module
 # ]]
