@@ -133,7 +133,7 @@ typedef struct {
 /** Set of allowed REST methods
  */
 static const ngx_uint_t ngx_http_tnt_allowed_methods =
-    (NGX_HTTP_POST|NGX_HTTP_GET|NGX_HTTP_PUT|NGX_HTTP_DELETE);
+    (NGX_HTTP_POST|NGX_HTTP_GET|NGX_HTTP_PUT|NGX_HTTP_PATCH|NGX_HTTP_DELETE);
 
 /** Upstream states
  */
