@@ -1,4 +1,4 @@
-# Tarantool NginX upstream module (v2.3.1)
+# Tarantool NginX upstream module
 ---------------------------------
 Key features:
 * Both nginx and tarantool features accessible over HTTP(S).
