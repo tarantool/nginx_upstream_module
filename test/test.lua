@@ -143,6 +143,8 @@ function test_eval(req)
   for i = 0, 1801 do
     out[i] = i;
   end
+
+  print ('YES')
   return
     {
       __ngx = {

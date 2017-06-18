@@ -22,6 +22,9 @@ for i in {1..10}; do
   $WORK_DIR/v24_features.py 1> /dev/null || (
       echo "[-] $WORK_DIR/v24_features.py failed" && exit 1
     )
+  $WORK_DIR/eval_basic.py 1> /dev/null || (
+      echo "[-] $WORK_DIR/eval_basic.py failed" && exit 1
+    )
 done
 
 clients_pids=
@@ -40,6 +43,10 @@ for i in {1..3}; do
   clients_pids="$clients_pids $!"
   `$WORK_DIR/v24_features.py 1> /dev/null || (
       echo "[-] $WORK_DIR/v24_features.py failed" && exit 1
+    )` &
+  clients_pids="$clients_pids $!"
+  `$WORK_DIR/eval_basic.py 1> /dev/null || (
+      echo "[-] $WORK_DIR/eval_basic.py failed" && exit 1
     )` &
   clients_pids="$clients_pids $!"
 done
