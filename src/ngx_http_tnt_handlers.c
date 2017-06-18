@@ -917,7 +917,7 @@ ngx_http_tnt_query_handler(ngx_http_request_t *r)
     out_chain->buf->last_in_chain = 1;
 
     /**
-     *  Conv. GET/PUT/DELETE to Tarantool message [
+     *  Conv. GET/PUT/PATCH/DELETE to Tarantool message [
      */
     buf = out_chain->buf;
     tp_init(&tp, (char *)buf->start, buf->end - buf->start, NULL, NULL);

@@ -31,6 +31,9 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * v0.2.2 - Stable.
 * v2.3.1 - Production ready.
 * v2.3.2 - production ready.
+* v2.3.2 - Production ready.
+* v2.3.7 - Production ready.
+* v2.3.8-beta - Beta.
 * v2.4.0-beta - Stable, Beta.
 
 ## Content
@@ -114,7 +117,7 @@ make build-all # or 'build-all-debug' for debug version
 
   NOTE: since v0.2.0
 
-  With this module, you can call Tarantool stored procedures via HTTP REST methods (GET, POST, PUT, DELETE)
+  With this module, you can call Tarantool stored procedures via HTTP REST methods (GET, POST, PUT, PATCH, DELETE)
 
   Example
   ```nginx
@@ -124,10 +127,10 @@ make build-all # or 'build-all-debug' for debug version
     }
 
     server {
-      # HTTP [GET | POST | PUT | DELETE] /tnt_rest?q=1&q=2&q=3
+      # HTTP [GET | POST | PUT | PATCH | DELETE] /tnt_rest?q=1&q=2&q=3
       location /tnt_rest {
         # REST mode on
-        tnt_http_rest_methods get post put delete; # or all
+        tnt_http_rest_methods get post put patch delete; # or all
 
         # Pass http headers and uri
         tnt_pass_http_request on;
@@ -160,7 +163,7 @@ end
 
   NOTE: since v0.1.4
 
-  The module expects JSON posted with HTTP POST or PUT (since v0.2.0) and carried in request body.
+  The module expects JSON posted with HTTP POST, PUT (since v0.2.0), or PATCH (since v2.3.8) and carried in request body.
 
   Server HTTP statuses
 
@@ -446,7 +449,7 @@ Specify that subrequest (i.e. `tnt_eval`) will be executed in memory.
 
 tnt_http_methods
 ----------------
-**syntax:** *tnt_http_methods post, put, delete, all*
+**syntax:** *tnt_http_methods post, put, patch, delete, all*
 
 **default:** *post, delete*
 
@@ -473,7 +476,7 @@ Example
 
 tnt_http_rest_methods
 ----------------
-**syntax:** *tnt_http_rest_methods get, post, put, delete, all*
+**syntax:** *tnt_http_rest_methods get, post, put, patch, delete, all*
 
 **default:** *no*
 
@@ -800,6 +803,5 @@ Client side javascript example: example/echo.html, example/echo.lua.
 [Back to content](#content)
 
 ================
-Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues.
-
-We also warmly welcome your feedback in the discussion mailing list, tarantool@googlegroups.com.
+* Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues.
+* We also warmly welcome your feedback in the discussion mailing list, tarantool@googlegroups.com.

@@ -101,11 +101,13 @@ static ngx_conf_bitmask_t  ngx_http_tnt_methods[] = {
     { ngx_string("get"), NGX_HTTP_GET },
     { ngx_string("post"), NGX_HTTP_POST },
     { ngx_string("put"), NGX_HTTP_PUT },
+    { ngx_string("patch"), NGX_HTTP_PATCH },
     { ngx_string("delete"), NGX_HTTP_DELETE },
     { ngx_string("all"), (NGX_CONF_BITMASK_SET
                           |NGX_HTTP_GET
                           |NGX_HTTP_POST
                           |NGX_HTTP_PUT
+                          |NGX_HTTP_PATCH
                           |NGX_HTTP_DELETE) },
     { ngx_null_string, 0 }
 };
