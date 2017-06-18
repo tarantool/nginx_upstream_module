@@ -56,18 +56,18 @@ assert(code == 405), "expected 405, got " + str(code)
 preset_method_location = BASE_URL + '/issue_43'
 result = post_success(preset_method_location, {
     'method':'echo_2', 'params':[[1,2,3], [4]], 'id': 1}, {})
-assert (result == [1,2,3]), 'expected [1,2,3]'
+assert (result[0] == [1,2,3]), 'expected [1,2,3]'
 
 preset_method_location =  BASE_URL + '/echo_1/issue_43_post_and_get'
 result = post_success(preset_method_location, {
     'method':'echo_2', 'params':[[1,2,3],[4]], 'id': 1}, {})
-assert (result == [1,2,3]), 'expected [1,2,3]'
+assert (result[0] == [1,2,3]), 'expected [1,2,3]'
 
 preset_method_location = BASE_URL + '/echo_1/issue_43_post_and_get'
 
 result = post_success(preset_method_location, {
     'params':[[1,2,3],[4]], 'id': 1}, {})
-assert (result == [1,2,3]), 'expected [1,2,3]'
+assert (result[0] == [1,2,3]), 'expected [1,2,3]'
 
 result = get_success(preset_method_location, {
   'params':[[1,2,3],[4]], 'id': 1}, {})
@@ -84,7 +84,7 @@ preset_method_location = BASE_URL + '/tnt'
 rc, resp = request_raw(preset_method_location, data, {})
 params = json.loads(data)['params']
 assert(rc == 200), 'expected 200, got ' + str(rc)
-assert(params == resp['result'][0]), 'not equal'
+assert(params == resp[0]), 'not equal'
 
 # ===========
 #
@@ -146,8 +146,7 @@ delete_success(preset_method_location, {'params':[]}, None)
 delete_success(preset_method_location, None, None)
 
 (rc, result) = request(preset_method_location, [{'id': 1}, {'id': 2}])
-assert(result[0]['id'] == 1), 'expected id = 1'
-assert(result[1]['id'] == 2), 'expected id = 2'
+assert(result[0] == result[1])
 
 data = {"id":0,"params":[
             {
@@ -172,9 +171,9 @@ preset_method_location = BASE_URL + '/issue_71/19UM|SMSO/a%7Cx%3Db'
 
 args = {'arg1': 1, 'arg2': 'somestring'}
 result = get_success(preset_method_location, args, {})
-assert(result[0]['uri'] == '/issue_71/19UM|SMSO/a|x=b?'), "expected unescaped"
+assert(result['uri'] == '/issue_71/19UM|SMSO/a|x=b?'), "expected unescaped"
 result = put_success(preset_method_location, {'id':1}, None)
 # NO args NO '?'
-assert(result[0]['uri'] == '/issue_71/19UM|SMSO/a|x=b'), "expected unescaped"
+assert(result['uri'] == '/issue_71/19UM|SMSO/a|x=b'), "expected unescaped"
 result = delete_success(preset_method_location, {'params':[]}, None)
-assert(result[0]['uri'] == '/issue_71/19UM|SMSO/a|x=b'), "expected unescaped"
+assert(result['uri'] == '/issue_71/19UM|SMSO/a|x=b'), "expected unescaped"

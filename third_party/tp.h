@@ -100,7 +100,7 @@ enum tp_request_type {
 	TP_REPLACE = 3,
 	TP_UPDATE = 4,
 	TP_DELETE = 5,
-	TP_CALL = 6,
+	TP_CALL = 10,
 	TP_AUTH = 7,
 	TP_EVAL = 8,
 	TP_PING = 64,

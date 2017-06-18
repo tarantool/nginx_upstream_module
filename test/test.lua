@@ -5,6 +5,7 @@ yaml = require('yaml')
 os   = require('os')
 
 function echo_1(a)
+  print (yaml.encode(a))
   return {a}
 end
 
@@ -123,7 +124,11 @@ function pass_body_handler(request, ...)
 end
 
 function touch(req, ...)
-  return {req, ... }
+  local out = {}
+  for i = 0, 1801 do
+    out[i] = i;
+  end
+  return {req, {out} }
 end
 
 function test_headers_out(req)
@@ -131,6 +136,22 @@ function test_headers_out(req)
     os.exit(1)
   end
   return true
+end
+
+function test_eval(req)
+  local out = {}
+  for i = 0, 1801 do
+    out[i] = i;
+  end
+  return
+    {
+      __ngx = {
+        tonumber(req.args.status_code) or 200,
+        { ["X-Tarantool"] = "FROM_TNT" }
+      }
+    },
+    req,
+    out
 end
 
 -- CFG

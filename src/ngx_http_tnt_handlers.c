@@ -159,7 +159,7 @@ ngx_http_tnt_read_greeting(ngx_http_request_t *r,
                            ngx_http_tnt_ctx_t *ctx,
                            ngx_buf_t *b)
 {
-    if (b->last - b->pos >= (ptrdiff_t)sizeof("Tarantool") - 1
+    if (b->last - b->pos >= (ptrdiff_t) sizeof("Tarantool") - 1
         && b->pos[0] == 'T'
         && b->pos[1] == 'a'
         && b->pos[2] == 'r'
@@ -1098,4 +1098,3 @@ get_error_text(int type)
 {
     return &errors[type];
 }
-

@@ -1,4 +1,4 @@
-# Tarantool NginX upstream module (v2.3.1)
+# Tarantool NginX upstream module
 ---------------------------------
 Key features:
 * Both nginx and tarantool features accessible over HTTP(S).
@@ -7,14 +7,18 @@ Key features:
 * Backup and fault tolerance.
 * Low overhead.
 
-Note: WebSockets are currently not supported until Tarantool supports out-of-band replies.
+# Limitations
+-------------
+1) WebSockets are currently not supported until Tarantool supports out-of-band replies.
+2) This module does not support tarantool 1.6.x start from 2.4.0. Since it uses
+tarantool 1.7 protocol features.
 
 About Tarantool: http://tarantool.org
 
 About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
 
 ## Docker images
-
+----------------
 Nginx upstream module - https://hub.docker.com/r/tarantool/tarantool-nginx
 
 Tarantool - https://hub.docker.com/r/tarantool/tarantool
@@ -26,7 +30,8 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * v0.2.1 - Production ready.
 * v0.2.2 - Stable.
 * v2.3.1 - Production ready.
-* v2.3.2 - Production ready.
+* v2.3.2 - production ready.
+* v2.4.0-beta - Stable, Beta.
 
 ## Content
 ----------
@@ -35,6 +40,9 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * [JSON](#json)
 * [Directives](#directives)
   * [tnt_pass](#tnt_pass)
+  * [tnt_eval](#tnt_eval)
+  * [tnt_eval_buffer_size](#tnt_eval_buffer_size)
+  * [tnt_eval_subrequest_in_memory](#tnt_eval_subrequest_in_memory)
   * [tnt_http_methods](#tnt_http_methods)
   * [tnt_http_rest_methods](#tnt_http_rest_methods)
   * [tnt_pass_http_request](#tnt_pass_http_request)
@@ -198,15 +206,22 @@ end
 
 ### Output JSON form
 
+
     [ { "result": JSON_RESULT_OBJECT, "id":UINT, "error": { "message": STR, "code": INT } }, ...N ]
 
-    "result"
+
+    "result" - DEPRICATED in 2.4.0+
+
+      Version 2.4.0+ output a raw result, i.e. "JSON_RESULT_OBJECT".
 
       Tarantool execution result (a json object/array, etc).
 
       MAY be null or undefined.
 
+
     "id"
+
+      DEPRICATED in 2.4.0+
 
       Request id is returned back.
 
@@ -223,8 +238,14 @@ end
 
       See "message"/"code" fields for details.
 
-
 ### Example
+
+      For instance, tarantool has stored procedure
+      ```Lua
+        function echo(a, b, c, d)
+          return a, b, c, d
+        end
+      ```
 
       Syntax:
 
@@ -233,11 +254,11 @@ end
 
       rpc call 1:
       --> { "method": "echo", "params": [42, 23], "id": 1 }
-      <-- { "result": [42, 23], "id": 1 }
+      <-- [42, 23]
 
       rpc call 2:
       --> { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
-      <-- { "result": [ [ {"hello": "world"} ], "!" ], "id": 2 }
+      <-- [ {"hello": "world"} ], "!" ]
 
       rpc call of a non-existent method:
       --> { "method": "echo_2", "id": 1 }
@@ -253,8 +274,8 @@ end
             { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
       ]
       <-- [
-            { "result": [42, 23], "id": 1 },
-            { "result": [ [ {"hello": "world"} ], "!" ], "id": 2 }
+            [42, 23],
+            [{"hello": "world"} ], "!" ],
       ]
 
       rpc call Batch of a non-existent method:
@@ -264,7 +285,7 @@ end
       ]
       <-- [
             { "error": {"code": -32601, "message": "Method not found"}, "id": 1 },
-            { "result": [ [ {"hello": "world"} ], "!" ], "id": 2 }
+            [ {"hello": "world"} ], "!" ]
       ]
 
       rpc call Batch with invalid JSON:
@@ -291,18 +312,135 @@ tnt_pass
 Specify the Tarantool server backend.
 
 ```nginx
+
+  upstream tnt_upstream {
+     127.0.0.1:9999
+  };
+
   location = /tnt {
     tnt_pass 127.0.0.1:9999;
   }
 
+  location = /tnt_next_location {
+     tnt_pass tnt_upstream;
+  }
+```
+
+[Back to content](#content)
+
+tnt_eval
+------------
+**syntax:** *tnt_eval $HTTP_STATUS_VAR_NAME $HTTP_BODY_VAR_NAME*
+
+**default:** *no*
+
+**context:** *location*
+
+This directive put execution of tnt_pass into the nginx REWRITE PHASE.
+That exactly this mean? That means that you can have a access to the body (in for of 
+JSON), http codes and http headers which have been passed from the Tarantool
+to the nginx inside nginx config. This very useful for setting custom HTTP
+statuses, headers and for post-processing of the original body.
+
+Even more, you can use this for using this module with OpenResty, Nginx Script,
+Nginx Perl and so on.
+
+NOTICE!
+
+1) This directive expects that tarantool returns special object with meta
+information about an HTTP status and an HTTP headers.
+
+Example
+
+```Lua
+  # Tarantool, stored procedure
+  function foo(a)
+    return
+    -- First arg. iff __ngx exists and tnt_evan is , then it will be
+    {
+      __ngx = {
+        tonumber(req.args.status_code) or 200,
+        { ["X-Tarantool"] = "FROM_TNT" }
+      }
+    },
+    req,
+
+  end
+```
+
+```nginx
+  # Nginx, configuration
+
   upstream tnt_upstream {
      127.0.0.1:9999;
-  };
+  }
 
- location = /tnt_next_location {
-     tnt_pass tnt_upstream;
- }
+  location = /tnt {
+
+    tnt_eval_buffer_size 1m;
+
+    tnt_eval $tnt_http_status $tnt_body {
+      tnt_method foo;
+      tnt_pass 127.0.0.1:9999;
+    }
+
+    if ($tnt_http_status = 404) {
+      return 404 $tnt_body;
+    }
+
+    if ($tnt_body ~= 'Tarantool') {
+      return 200 '<html><h1>Found Tarantool!</h1></html>';
+    }
+
+    return 200 $tnt_body;
+  }
+
+  location = /tnt/with_echo_module {
+
+    tnt_eval_buffer_size 1m;
+
+    tnt_eval $tnt_http_status $tnt_body {
+      tnt_method foo;
+      tnt_pass 127.0.0.1:9999;
+    }
+
+    echo $tnt_body;
+  }
+
+  # ...
+  # Also those variables are available in any nginx's languages;
 ```
+
+2) '$'-prefix is required as part of names, means tnt_eval http_code body { ... } is error,
+  it should be tnt_eval $http_status $body { ... }.
+
+3) Limitations. The contents of subrequests issued from within the tnt_eval block
+(like those fired by echo_subrequest) won't be captured properly.
+
+[Back to content](#content)
+
+tnt_eval_buffer_size
+--------------------
+
+**syntax:** *tnt_eval_buffer_size size*
+
+**default:** *PAGE_SIZE x 16*
+
+**context:** *main, server, location*
+
+Specify the size of the buffer used for `tnt_eval`.
+
+[Back to content](#content)
+
+tnt_eval_subrequest_in_memory
+-----------------------------
+**syntax:** *tnt_eval_subrequest_in_memory flag*
+
+**default:** *off*
+
+**context:** *main, server, location*
+
+Specify that subrequest (i.e. `tnt_eval`) will be executed in memory.
 
 [Back to content](#content)
 
@@ -580,14 +718,13 @@ The 0 value turns off this limitation.
 
 [Back to content](#content)
 
-tnt_pure_result
---------------------
+tnt_pure_result - DEPRICATED in 2.4.0+
+--------------------------------------
 **syntax:** *tnt_pure_result [on|off]*
 
 **default:** *off*
 
 **context:** *http, server, location*
-
 
 Whether to wrap tnt response or not.
 When this option is off:
@@ -601,14 +738,13 @@ When this option is on:
 
 [Back to content](#content)
 
-tnt_multireturn_skip_count
---------------------
+tnt_multireturn_skip_count - DEPRICATED in 2.4.0+
+-------------------------------------------------
 **syntax:** *tnt_multireturn_skip_count [0|1|2]*
 
 **default:** *0*
 
 **context:** *http, server, location*
-
 
 Module will skip one or more multireturn parts when this option is > 0
 When it is set to 0:

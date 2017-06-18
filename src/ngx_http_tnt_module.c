@@ -226,26 +226,6 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
       offsetof(ngx_http_tnt_loc_conf_t, headers_source),
       NULL },
 
-    /* Experimental features [[
-     */
-    { ngx_string("tnt_pure_result"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF
-          |NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_bitmask_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(ngx_http_tnt_loc_conf_t, pure_result),
-      &ngx_http_tnt_pass_http_request_masks },
-
-    { ngx_string("tnt_multireturn_skip_count"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF
-          |NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_size_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(ngx_http_tnt_loc_conf_t, multireturn_skip_count),
-      NULL },
-    /* ]]
-     */
-
       ngx_null_command
 };
 
@@ -389,8 +369,7 @@ ngx_http_tnt_create_loc_conf(ngx_conf_t *cf)
     conf->upstream.buffer_size =
     conf->in_multiplier =
     conf->out_multiplier =
-    conf->pass_http_request_buffer_size =
-    conf->multireturn_skip_count = NGX_CONF_UNSET_SIZE;
+    conf->pass_http_request_buffer_size = NGX_CONF_UNSET_SIZE;
 
     /*
      * The hardcoded values
@@ -477,17 +456,6 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
         conf->headers = prev->headers;
         conf->headers_source = prev->headers_source;
     }
-
-    /** Experimental, see conf commands description [[
-     */
-    ngx_conf_merge_bitmask_value(conf->pure_result,
-                  prev->pure_result, NGX_TNT_CONF_OFF);
-
-    ngx_conf_merge_size_value(conf->multireturn_skip_count,
-                  prev->multireturn_skip_count, 0);
-
-    /* ]]
-     */
 
     return NGX_CONF_OK;
 }
@@ -597,10 +565,6 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
-    tp_reply_to_json_set_options(&tc,
-                                 tlcf->pure_result == NGX_TNT_CONF_ON,
-                                 tlcf->multireturn_skip_count);
-
     rc = tp_transcode(&tc, (char *)ctx->tp_cache->start,
                       ctx->tp_cache->end - ctx->tp_cache->start);
     if (rc != TP_TRANSCODE_ERROR) {
@@ -660,9 +624,11 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
     return ngx_http_tnt_output(r, u, output);
 
 error_exit:
+
     if (output) {
-      ngx_pfree(r->pool, output);
+        ngx_pfree(r->pool, output);
     }
+
     tp_transcode_free(&tc);
     return NGX_ERROR;
 }

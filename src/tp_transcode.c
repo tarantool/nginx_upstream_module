@@ -851,17 +851,6 @@ typedef struct tp2json {
     tp_transcode_t *tc;
 
     int state;
-
-    /* Encode tarantool message w/o protocol.
-     * i.e. with protocol: {id:, result:TNT_RESULT, ...}, w/o TNT_RESULT
-     */
-    bool pure_result;
-
-    /*
-     *
-     */
-    int multireturn_skip_count;
-    int multireturn_skiped;
 } tp2json_t;
 
 static inline int
@@ -895,7 +884,6 @@ tp2json_create(tp_transcode_t *tc, char *output, size_t output_size)
     ctx->end = output + output_size;
     ctx->tc = tc;
     ctx->first_entry = true;
-    ctx->pure_result = false;
 
     return ctx;
 }
@@ -993,26 +981,19 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
     {
         const uint32_t size = mp_decode_array(beg);
 
-        if (ctx->multireturn_skiped > 0) {
-            --ctx->multireturn_skiped;
+        if (unlikely(len < size + 2/*,[]*/))
+            OOM_TP2JSON;
+
+        APPEND_CH('[');
+        uint32_t i = 0;
+        for (i = 0; i < size; i++) {
+            if (i)
+                APPEND_CH(',');
             rc = tp2json_transcode_internal(ctx, beg, end);
             if (rc != TP_TRANSCODE_OK)
                 return rc;
-        } else {
-            if (unlikely(len < size + 2/*,[]*/))
-                OOM_TP2JSON;
-
-            APPEND_CH('[');
-            uint32_t i = 0;
-            for (i = 0; i < size; i++) {
-                if (i)
-                    APPEND_CH(',');
-                rc = tp2json_transcode_internal(ctx, beg, end);
-                if (rc != TP_TRANSCODE_OK)
-                    return rc;
-            }
-            APPEND_CH(']');
         }
+        APPEND_CH(']');
 
         break;
     }
@@ -1093,7 +1074,6 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
         }
 
         ctx->first_entry = false;
-        ctx->multireturn_skiped = ctx->multireturn_skip_count;
     }
 
     if (ctx->r.error) {
@@ -1109,11 +1089,6 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
 
     } else {
 
-        if (!ctx->pure_result) {
-            ctx->pos += snprintf(ctx->output, ctx->end - ctx->output,
-                "{\"id\":%zu,\"result\":", (size_t)tp_getreqid(&ctx->r));
-        }
-
         const char *it = ctx->r.data;
         rc = tp2json_transcode_internal(ctx, &it, ctx->r.data_end);
         if (unlikely(rc == TP_TRANSCODE_ERROR))
@@ -1121,11 +1096,7 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
 
     }
 
-    if (!ctx->pure_result
-        /* NOTE https://github.com/tarantool/nginx_upstream_module/issues/44
-         */
-        || ctx->r.error)
-    {
+    if (ctx->r.error) {
         *ctx->pos = '}';
         ++ctx->pos;
     }
@@ -1319,18 +1290,6 @@ tp_transcode_bind_data(tp_transcode_t *t,
   t->data.pos = data_beg;
   t->data.end = data_end;
   t->data.len = data_end - data_beg;
-}
-
-void
-tp_reply_to_json_set_options(tp_transcode_t *t,
-                             bool pure_result,
-                             int multireturn_skip_count)
-{
-    assert(t);
-    assert(t->codec.ctx);
-    tp2json_t *ctx = t->codec.ctx;
-    ctx->pure_result = pure_result;
-    ctx->multireturn_skip_count = multireturn_skip_count;
 }
 
 bool

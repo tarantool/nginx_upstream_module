@@ -182,8 +182,7 @@ def get(url, data, headers):
         return (False, e)
 
 def get_result(o):
-    assert('result' in o), "expected 'result'"
-    return o['result'][0]
+    return o[0]
 
 def assert_if_not_error(s, code = None):
     assert('error' in s), 'expected error'
@@ -305,3 +304,54 @@ def default_print_f(code, msg):
     print('-------')
     print(code)
     print(msg)
+
+def post_2(url, data, headers):
+    out = '{}'
+    try:
+        req = urllib2.Request(url)
+        if headers:
+            for header in headers:
+                req.add_header(header, headers[header])
+        req.add_header('Content-Type', 'application/json')
+
+        res = urllib2.urlopen(req, json.dumps(data).encode('utf8'))
+        out = res.read()
+        out = out + res.read()
+        rc = res.getcode()
+
+        return (rc, json.loads(out))
+    except urllib2.HTTPError as e:
+        out = e.read();
+        if VERBOSE:
+            print("code: ", e.code, " recv: '", out, "'")
+        return (e.code, json.loads(out))
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return (False, e)
+
+def get_2(url, data, headers):
+    out = '{}'
+    try:
+        full_url = url
+        if data:
+            full_url = url + '?' + urllib.urlencode(data)
+        req = urllib2.Request(full_url)
+        if headers:
+            for header in headers:
+                req.add_header(header, headers[header])
+
+        res = urllib2.urlopen(req)
+        out = res.read()
+        out = out + res.read()
+        rc = res.getcode()
+
+        return (rc, json.loads(out))
+    except urllib2.HTTPError as e:
+        if VERBOSE:
+            print("code: ", e.code, " recv: '", out, "'")
+        return (e.code, json.loads(out))
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return (False, e)

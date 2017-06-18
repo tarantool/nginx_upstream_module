@@ -20,6 +20,7 @@ __sources=" \
           $__module_src_dir/ngx_http_tnt_module.c   \
           $__module_src_dir/ngx_http_tnt_handlers.c \
           "
+
 __headers=" \
           $__module_src_dir/debug.h                 \
           $__module_src_dir/tp_ext.h                \
@@ -72,7 +73,15 @@ else
   ngx_module_deps=$__headers
   ngx_module_srcs=$__sources
   ngx_module_libs=$__libs
-
   . auto/module
+
+  ngx_module_type=HTTP_AUX_FILTER
+  ngx_module_name=ngx_http_tnt_eval_module
+  ngx_module_incs=$__include_paths
+  ngx_module_deps=$__headers
+  ngx_module_srcs=$__module_src_dir/ngx_http_tnt_eval_module.c
+  ngx_module_libs=
+  . auto/module
+
 # ]]
 fi
