@@ -213,7 +213,7 @@ end
     [ { "result": JSON_RESULT_OBJECT, "id":UINT, "error": { "message": STR, "code": INT } }, ...N ]
 
 
-    "result" - DEPRICATED in 2.4.0+
+    "result" - DEPRECATED in 2.4.0+
 
       Version 2.4.0+ output a raw result, i.e. "JSON_RESULT_OBJECT".
 
@@ -224,7 +224,7 @@ end
 
     "id"
 
-      DEPRICATED in 2.4.0+
+      DEPRECATED in 2.4.0+
 
       Request id is returned back.
 
@@ -721,7 +721,7 @@ The 0 value turns off this limitation.
 
 [Back to content](#content)
 
-tnt_pure_result - DEPRICATED in 2.4.0+
+tnt_pure_result - DEPRECATED in 2.4.0+
 --------------------------------------
 **syntax:** *tnt_pure_result [on|off]*
 
@@ -741,7 +741,7 @@ When this option is on:
 
 [Back to content](#content)
 
-tnt_multireturn_skip_count - DEPRICATED in 2.4.0+
+tnt_multireturn_skip_count - DEPRECATED in 2.4.0+
 -------------------------------------------------
 **syntax:** *tnt_multireturn_skip_count [0|1|2]*
 
