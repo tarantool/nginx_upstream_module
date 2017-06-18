@@ -362,8 +362,8 @@ Example
     -- First arg. iff __ngx exists and tnt_evan is , then it will be
     {
       __ngx = {
-        tonumber(req.args.status_code) or 200,
-        { ["X-Tarantool"] = "FROM_TNT" }
+        200, -- set status HTTP 200
+        { ["X-Tarantool"] = "FROM_TNT" } -- set headers
       }
     },
     req,
