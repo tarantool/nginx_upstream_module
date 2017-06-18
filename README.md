@@ -355,10 +355,11 @@ information about an HTTP status and an HTTP headers.
 Example
 
 ```Lua
-  # Tarantool, stored procedure
+  -- Tarantool, stored procedure
   function foo(a)
     return
-    -- First arg. iff __ngx exists and tnt_evan is , then it will be
+    -- First arg. iff __ngx exists and tnt_evan is used, then it will be
+    -- readed by nginx
     {
       __ngx = {
         200, -- set status HTTP 200
