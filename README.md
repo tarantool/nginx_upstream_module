@@ -33,7 +33,6 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * v2.3.2 - production ready.
 * v2.3.2 - Production ready.
 * v2.3.7 - Production ready.
-* v2.3.8-beta - Beta.
 * v2.4.0-beta - Stable, Beta.
 
 ## Content
