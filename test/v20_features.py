@@ -82,6 +82,7 @@ overflow_post_api_location = BASE_URL + '/overflow_post_pass_http_request'
 (code, result) = post(overflow_post_api_location, big_args_in, big_headers_in)
 assert(code == 500), 'expected 500'
 
+
 print ('[+] Test "large request"')
 
 BASE_URL = "http://0.0.0.0:8081/issue_59"
@@ -96,7 +97,7 @@ obj = {}
 for i in range(1, 10000):
     obj[str(i) + 'some_key_name'] = [ i, { 'n': i,
                                            'some_key_name': [[1,2,3],[4]]}]
-for i in range(1, 10000):
+for i in range(1, 10):
     code, result = post(preset_method_location, { 'params': [obj] }, {})
     assert(code == 400), 'expected 400'
     assert(result == err_msg), 'expected error msg (too large)'
