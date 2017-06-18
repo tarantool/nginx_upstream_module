@@ -5,7 +5,6 @@ yaml = require('yaml')
 os   = require('os')
 
 function echo_1(a)
-  print (yaml.encode(a))
   return {a}
 end
 
@@ -144,7 +143,6 @@ function test_eval(req)
     out[i] = i;
   end
 
-  print ('YES')
   return
     {
       __ngx = {
