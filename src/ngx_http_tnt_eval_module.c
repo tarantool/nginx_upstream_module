@@ -365,7 +365,7 @@ ngx_http_tnt_eval_parse_meta(ngx_http_request_t *r,
     conf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_eval_module);
 
     /* A conf var was'nt setted, so just call next filter */
-    if (v->len <= 0) {
+    if (v->data == NULL ||  v->len <= 0) {
         return NGX_DECLINED;
     }
 
@@ -374,7 +374,7 @@ ngx_http_tnt_eval_parse_meta(ngx_http_request_t *r,
     if (buf == NULL) {
         return NGX_ERROR;
     }
-    ngx_copy(buf, v->data, v->len);
+    memcpy(buf, v->data, v->len);
     buf[v->len] = 0;
     /* }}} */
     y_root = yajl_tree_parse((const char *) buf,
