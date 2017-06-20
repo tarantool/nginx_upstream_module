@@ -73,7 +73,7 @@ configure-for-testing: configure-debug
 
 configure-as-dynamic-debug:
 	cd $(NGX_PATH) && \
-		CFLAGS=" -DMY_DEBUG $(DEV_CFLAGS)" $(NGX_CONFIGURE) \
+		CFLAGS="$(DEV_CFLAGS)" $(NGX_CONFIGURE) \
 						--prefix=$(PREFIX_PATH) \
 						--add-dynamic-module=$(MODULE_PATH) \
 						--with-debug
