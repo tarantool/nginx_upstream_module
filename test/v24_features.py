@@ -78,3 +78,10 @@ for i in range(100000):
     key = 'a' + str(i)
     data[key] = 'b'
 #post_form_ec500(preset_method_location, data, None, default_print_f)
+
+data = {'params': [{'array': []}]}
+for i in range(100000):
+    data['params'][0]['array'].append(i)
+(code, ret) = post(BASE_URL + '/echo_big', data, None)
+assert(code == 200), 'expected 200'
+assert(ret[1] == data['params'][0])

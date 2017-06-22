@@ -76,7 +76,7 @@ say_error_(tp_transcode_t *t, int code, const char *e, size_t len)
 }
 
 #define say_error(ctx, c, e) \
-    dd("line:%d, code:%d,  msg:%s", __LINE__, c, e); \
+    dd("line:%d, code:%d,  msg:%s\n", __LINE__, c, e); \
     say_error_((ctx)->tc, (c), (e), sizeof(e) - 1)
 
 #define say_error_r(ctx, c, e) do { \
@@ -115,7 +115,11 @@ enum stage {
 
 typedef struct {
     char *ptr;
-    int16_t count;
+    /**
+     * The count should be more than uint16_t!
+     * https://github.com/tarantool/nginx_upstream_module/issues/84
+     */
+    int32_t count;
     uint16_t type;
 } stack_item_t;
 
