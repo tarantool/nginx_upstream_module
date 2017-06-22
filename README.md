@@ -33,7 +33,7 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * v2.3.2 - production ready.
 * v2.3.2 - Production ready.
 * v2.3.7 - Production ready.
-* v2.4.0-beta - Stable, Beta.
+* v2.4.0-beta - Beta.
 
 ## Content
 ----------
@@ -67,14 +67,14 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 ## Compilation and install
 --------------------------
 
-### Build from source
+### Build from source (Development version)
 ```bash
 git clone https://github.com/tarantool/nginx_upstream_module.git nginx_upstream_module
 cd nginx_upstream_module
 git submodule update --init --recursive
 git clone https://github.com/nginx/nginx.git nginx
 sudo apt-get install libpcre-dev zlib1-dev # install dependencies to build nginx
-make build-all # or 'build-all-debug' for debug version
+make build-all
 ```
 [Back to content](#content)
 
