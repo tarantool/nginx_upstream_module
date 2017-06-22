@@ -116,10 +116,13 @@ enum stage {
 typedef struct {
     char *ptr;
     /**
-     * The count should be more than uint16_t!
-     * https://github.com/tarantool/nginx_upstream_module/issues/84
+     * The count should be more than uint16_t or
+     * overflow can be happened like it was.
+     *
+     * Here is a issue with details
+     *  https://github.com/tarantool/nginx_upstream_module/issues/84
      */
-    int32_t count;
+    uint32_t count;
     uint16_t type;
 } stack_item_t;
 
