@@ -122,8 +122,5 @@ clean:
 
 utils: json2tp tp_dump
 
-build-all: msgpack yajl configure build utils
+build-all: msgpack yajl configure-debug build utils
 build-all-dynamic: msgpack yajl configure-as-dynamic build utils
-
-build-all-debug: msgpack yajl configure-debug build utils
-build-all-dynamic-debug: msgpack yajl configure-as-dynamic-debug build utils
