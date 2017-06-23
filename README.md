@@ -356,9 +356,9 @@ Example
 
 ```Lua
   -- Tarantool, stored procedure
-  function foo(a)
+  function foo(req)
     return
-    -- First arg. iff __ngx exists and tnt_evan is used, then it will be
+    -- First arg. if __ngx exists and tnt_eval is used, then it will be
     -- readed by nginx
     {
       __ngx = {
