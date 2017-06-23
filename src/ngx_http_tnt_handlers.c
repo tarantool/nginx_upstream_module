@@ -430,6 +430,8 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
 {
     char            *root_map_place;
     char            *map_place;
+    const char      *method_name;
+    size_t          method_len;
     size_t          root_items;
     size_t          map_items;
     ngx_buf_t       *b;
@@ -456,10 +458,17 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
      */
     ++root_items;
 
+    if (r->parent) {
+        method_name = (const char *) r->parent->method_name.data;
+        method_len = r->parent->method_name.len;
+    } else {
+        method_name = (const char*) r->method_name.data;
+        method_len = r->method_name.len;
+    }
+
     if (!tp_encode_str_map_item(tp,
                                 "method", sizeof("method")-1,
-                                (const char*)r->method_name.data,
-                                r->method_name.len))
+                                method_name, method_len))
     {
         return NGX_ERROR;
     }

@@ -94,7 +94,7 @@ err_msg = { 'error': { 'message':
 preset_method_location = BASE_URL + '/rest_api_parse_query_args'
 
 obj = {}
-for i in range(1, 10000):
+for i in range(1, 30000):
     obj[str(i) + 'some_key_name'] = [ i, { 'n': i,
                                            'some_key_name': [[1,2,3],[4]]}]
 for i in range(1, 10):
