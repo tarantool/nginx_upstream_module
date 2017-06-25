@@ -196,9 +196,10 @@ ngx_http_tnt_send_once(ngx_http_request_t *r,
     tp_transcode_t           tc;
     size_t                   complete_msg_size;
     tp_transcode_init_args_t args = {
-        .output = (char *)out_chain->buf->start,
+        .output = (char *) out_chain->buf->start,
         .output_size = out_chain->buf->end - out_chain->buf->start,
-        .method = NULL, .method_len = 0,
+        .method = NULL,
+        .method_len = 0,
         .codec = YAJL_JSON_TO_TP,
         .mf = NULL
     };
@@ -305,6 +306,7 @@ error:
 typedef struct ngx_http_tnt_next_arg {
   u_char *it, *value;
 } ngx_http_tnt_next_arg_t;
+
 
 static inline ngx_http_tnt_next_arg_t
 ngx_http_tnt_get_next_arg(u_char *it, u_char *end)
@@ -430,8 +432,6 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
 {
     char            *root_map_place;
     char            *map_place;
-    const char      *method_name;
-    size_t          method_len;
     size_t          root_items;
     size_t          map_items;
     ngx_buf_t       *b;
@@ -447,8 +447,8 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
     ++root_items;
 
     if (!tp_encode_str_map_item(tp,
-                                "proto", sizeof("proto")-1,
-                                (const char*)r->http_protocol.data,
+                                "proto", sizeof("proto") - 1,
+                                (const char*) r->http_protocol.data,
                                 r->http_protocol.len))
     {
         return NGX_ERROR;
@@ -458,17 +458,10 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
      */
     ++root_items;
 
-    if (r->parent) {
-        method_name = (const char *) r->parent->method_name.data;
-        method_len = r->parent->method_name.len;
-    } else {
-        method_name = (const char*) r->method_name.data;
-        method_len = r->method_name.len;
-    }
-
     if (!tp_encode_str_map_item(tp,
-                                "method", sizeof("method")-1,
-                                method_name, method_len))
+                                "method", sizeof("method") - 1,
+                                (const char *) r->method_name.data,
+                                r->method_name.len))
     {
         return NGX_ERROR;
     }
@@ -491,7 +484,7 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
 
         ++root_items;
 
-        if (!tp_encode_str(tp, "args", sizeof("args")-1)) {
+        if (!tp_encode_str(tp, "args", sizeof("args") - 1)) {
             return NGX_ERROR;
         }
 
@@ -516,7 +509,7 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
      */
     ++root_items;
 
-    if (!tp_encode_str(tp, "headers", sizeof("headers")-1)) {
+    if (!tp_encode_str(tp, "headers", sizeof("headers") - 1)) {
         return NGX_ERROR;
     }
 
@@ -552,7 +545,7 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
      */
     if ((tlcf->pass_http_request & NGX_TNT_CONF_PASS_BODY) &&
             r->headers_in.content_length_n > 0 &&
-            r->upstream->request_bufs )
+            r->upstream->request_bufs)
     {
         ++root_items;
 
@@ -695,6 +688,7 @@ ngx_int_t ngx_http_tnt_init_handlers(ngx_http_request_t *r,
         dd("NGX_TNT_CONF_PASS_BODY");
         u->create_request = ngx_http_tnt_query_handler;
     } else {
+
         if (r->headers_in.content_length_n > 0) {
             dd("ngx_http_tnt_body_json_handler");
             u->create_request = ngx_http_tnt_body_json_handler;
@@ -756,9 +750,9 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
      *  Conv. input json to Tarantool message [
      */
     tp_transcode_init_args_t args = {
-        .output = (char *)out_chain->buf->start,
+        .output = (char *) out_chain->buf->start,
         .output_size = out_chain->buf->end - out_chain->buf->start,
-        .method = (char *)ctx->preset_method,
+        .method = (char *) ctx->preset_method,
         .method_len = ctx->preset_method_len,
         .codec = YAJL_JSON_TO_TP,
         .mf = NULL
@@ -774,8 +768,8 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
      */
     if (request_b != NULL) {
         tp_transcode_bind_data(&tc,
-                               (const char *)request_b->start,
-                               (const char *)request_b->last);
+                               (const char *) request_b->start,
+                               (const char *) request_b->last);
     }
 
     for (body = r->upstream->request_bufs; body; body = body->next) {
@@ -837,7 +831,7 @@ read_input_done:
         if (ctx->in_err == NULL) {
            ctx->in_err = ngx_http_tnt_set_err(r,
                                               tc.errcode,
-                                              (u_char *)tc.errmsg,
+                                              (u_char *) tc.errmsg,
                                               ngx_strlen(tc.errmsg));
             if (ctx->in_err == NULL) {
                 goto error_exit;

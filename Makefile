@@ -62,6 +62,7 @@ configure-debug:
 	cd $(NGX_PATH) && \
 		CFLAGS="$(DEV_CFLAGS)" $(NGX_CONFIGURE) \
 						--prefix=$(PREFIX_PATH) \
+						--with-http_addition_module \
 						--add-module=$(MODULE_PATH) \
 						--with-debug
 

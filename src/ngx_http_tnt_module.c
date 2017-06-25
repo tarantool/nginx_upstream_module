@@ -623,8 +623,17 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
         }
     }
 
-    return ngx_http_tnt_output(r, u, output);
+    /** Reply was created in ngx_http_tnt_output_err. That means we don't need
+     * output reply from the tarantool.
+     *
+     * if it will be outputed then the client will have two reply, which is
+     * an error.
+     */
+    if (ctx->in_err != NULL) {
+        return NGX_OK;
+    }
 
+    return ngx_http_tnt_output(r, u, output);
 error_exit:
 
     if (output) {

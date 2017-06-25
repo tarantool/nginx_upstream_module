@@ -141,8 +141,8 @@ function test_headers_out(req)
   return true
 end
 
-function test_eval(req)
-  local out = {}
+function test_eval(req, ...)
+  local out = {...}
   for i = 0, 1801 do
     out[i] = i;
   end

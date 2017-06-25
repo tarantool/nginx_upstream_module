@@ -49,7 +49,6 @@ typedef struct {
 typedef struct {
     ngx_array_t                *variables;
     ngx_str_t                   eval_location;
-    ngx_flag_t                  subrequest_in_memory;
     size_t                      buffer_size;
 } ngx_http_tnt_eval_loc_conf_t;
 
@@ -67,16 +66,6 @@ typedef struct {
     ngx_buf_t                      buffer;
 
 } ngx_http_tnt_eval_ctx_t;
-
-
-typedef ngx_int_t (*ngx_http_tnt_eval_format_handler_pt)(ngx_http_request_t *r,
-    ngx_http_tnt_eval_ctx_t *ctx);
-
-
-typedef struct {
-    ngx_str_t                           content_type;
-    ngx_http_tnt_eval_format_handler_pt     handler;
-} ngx_http_tnt_eval_format_t;
 
 
 static ngx_int_t
@@ -105,6 +94,11 @@ static ngx_int_t ngx_http_tnt_eval_parse_meta(ngx_http_request_t *r,
     ngx_http_tnt_eval_ctx_t *ctx, ngx_http_variable_value_t *v);
 static ngx_int_t ngx_http_tnt_eval_output(ngx_http_request_t *r,
     ngx_http_tnt_eval_ctx_t *ctx);
+static ngx_int_t ngx_http_tnt_subrequest(ngx_http_request_t *r,
+    ngx_str_t *uri, ngx_str_t *args, ngx_http_request_t **psr,
+    ngx_http_post_subrequest_t *ps, ngx_uint_t flags);
+static void ngx_http_tnt_eval_finalize_request(ngx_http_request_t *r);
+
 
 static ngx_http_output_header_filter_pt  ngx_http_next_header_filter;
 static ngx_http_output_body_filter_pt    ngx_http_next_body_filter;
@@ -123,13 +117,6 @@ static ngx_command_t  ngx_http_tnt_eval_commands[] = {
       ngx_http_tnt_eval_block,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      NULL },
-
-    { ngx_string("tnt_eval_subrequest_in_memory"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
-      ngx_conf_set_flag_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(ngx_http_tnt_eval_loc_conf_t, subrequest_in_memory),
       NULL },
 
     { ngx_string("tnt_eval_buffer_size"),
@@ -180,9 +167,9 @@ ngx_http_tnt_eval_handler(ngx_http_request_t *r)
     ngx_str_t                          args;
     ngx_str_t                          subrequest_uri;
     ngx_uint_t                         flags;
-    ngx_http_tnt_eval_loc_conf_t   *ecf;
-    ngx_http_tnt_eval_ctx_t        *ctx;
-    ngx_http_tnt_eval_ctx_t        *sr_ctx;
+    ngx_http_tnt_eval_loc_conf_t       *ecf;
+    ngx_http_tnt_eval_ctx_t            *ctx;
+    ngx_http_tnt_eval_ctx_t            *sr_ctx;
     ngx_http_request_t                 *sr;
     ngx_int_t                          rc;
     ngx_http_post_subrequest_t         *psr;
@@ -193,6 +180,12 @@ ngx_http_tnt_eval_handler(ngx_http_request_t *r)
     /* Modules is not on */
     if (ecf->variables == NULL || !ecf->variables->nelts) {
         return NGX_DECLINED;
+    }
+
+    rc = ngx_http_read_client_request_body(r,
+                ngx_http_tnt_eval_finalize_request);
+    if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
+        return rc;
     }
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_eval_module);
@@ -254,36 +247,19 @@ ngx_http_tnt_eval_handler(ngx_http_request_t *r)
     psr->handler = ngx_http_tnt_eval_post_subrequest_handler;
     psr->data = ctx;
 
-    flags |= NGX_HTTP_SUBREQUEST_WAITED;
-
-    dd("subrequest in memory : %d", (int) ecf->subrequest_in_memory);
-
-    if (ecf->subrequest_in_memory) {
-        flags |= NGX_HTTP_SUBREQUEST_IN_MEMORY;
-    } else {
-    }
-
     dd("issue subrequest");
 
-    rc = ngx_http_subrequest(r, &subrequest_uri, &args, &sr, psr, flags);
+    flags |= NGX_HTTP_SUBREQUEST_WAITED;
 
+    rc = ngx_http_tnt_subrequest(r, &subrequest_uri, &args, &sr, psr, flags);
     if (rc == NGX_ERROR || rc == NGX_DONE) {
         return rc;
     }
 
-    sr->discard_body = 1;
-
-    /* we don't want to forward certain request headers to the subrequest */
-    sr->headers_in.content_length_n = 0;
-    sr->headers_in.content_length = NULL;
-    sr->headers_in.content_type = NULL;
-#if (NGX_HTTP_GZIP)
-    sr->headers_in.accept_encoding = NULL;
-#endif
-
     ctx->in_progress = 1;
 
-    /* XXX we don't allow eval in subrequests, i think? */
+    /** We don't allow eval in subrequests
+     */
     sr_ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_tnt_eval_ctx_t));
     if (sr_ctx == NULL) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
@@ -524,6 +500,145 @@ ngx_http_tnt_eval_output(ngx_http_request_t *r,
 }
 
 
+static ngx_int_t
+ngx_http_tnt_subrequest(ngx_http_request_t *r,
+    ngx_str_t *uri, ngx_str_t *args, ngx_http_request_t **psr,
+    ngx_http_post_subrequest_t *ps, ngx_uint_t flags)
+{
+    ngx_time_t                    *tp;
+    ngx_connection_t              *c;
+    ngx_http_request_t            *sr;
+    ngx_http_core_srv_conf_t      *cscf;
+    ngx_http_postponed_request_t  *pr, *p;
+
+    if (r->subrequests == 0) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "subrequests cycle while processing \"%V\"", uri);
+        return NGX_ERROR;
+    }
+
+    /*
+     * 1000 is reserved for other purposes.
+     */
+    if (r->main->count >= 65535 - 1000) {
+        ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+                      "request reference counter overflow "
+                      "while processing \"%V\"", uri);
+        return NGX_ERROR;
+    }
+
+    sr = ngx_pcalloc(r->pool, sizeof(ngx_http_request_t));
+    if (sr == NULL) {
+        return NGX_ERROR;
+    }
+
+    sr->signature = NGX_HTTP_MODULE;
+
+    c = r->connection;
+    sr->connection = c;
+
+    sr->ctx = ngx_pcalloc(r->pool, sizeof(void *) * ngx_http_max_module);
+    if (sr->ctx == NULL) {
+        return NGX_ERROR;
+    }
+
+    if (ngx_list_init(&sr->headers_out.headers, r->pool, 20,
+                      sizeof(ngx_table_elt_t))
+        != NGX_OK)
+    {
+        return NGX_ERROR;
+    }
+
+    cscf = ngx_http_get_module_srv_conf(r, ngx_http_core_module);
+    sr->main_conf = cscf->ctx->main_conf;
+    sr->srv_conf = cscf->ctx->srv_conf;
+    sr->loc_conf = cscf->ctx->loc_conf;
+
+    sr->pool = r->pool;
+
+    sr->method = r->method;
+    sr->method_name = r->method_name;
+    sr->http_version = r->http_version;
+
+    sr->request_line = r->request_line;
+    sr->uri = *uri;
+
+    sr->headers_in = r->headers_in;
+    sr->request_body = r->request_body;
+
+    if (args) {
+        sr->args = *args;
+    }
+
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, c->log, 0,
+                   "http tnt subrequest \"%V?%V\"", uri, &sr->args);
+
+    sr->subrequest_in_memory = (flags & NGX_HTTP_SUBREQUEST_IN_MEMORY) != 0;
+    sr->waited = (flags & NGX_HTTP_SUBREQUEST_WAITED) != 0;
+
+    sr->unparsed_uri = r->unparsed_uri;
+    sr->http_protocol = r->http_protocol;
+
+    ngx_http_set_exten(sr);
+
+    sr->main = r->main;
+    sr->parent = r;
+    sr->post_subrequest = ps;
+    sr->read_event_handler = ngx_http_request_empty_handler;
+    sr->write_event_handler = ngx_http_handler;
+
+    if (c->data == r && r->postponed == NULL) {
+        c->data = sr;
+    }
+
+    sr->variables = r->variables;
+
+    sr->log_handler = r->log_handler;
+
+    pr = ngx_palloc(r->pool, sizeof(ngx_http_postponed_request_t));
+    if (pr == NULL) {
+        return NGX_ERROR;
+    }
+
+    pr->request = sr;
+    pr->out = NULL;
+    pr->next = NULL;
+
+    if (r->postponed) {
+        for (p = r->postponed; p->next; p = p->next) { /* void */ }
+        p->next = pr;
+
+    } else {
+        r->postponed = pr;
+    }
+
+    sr->internal = 1;
+    sr->discard_body = r->discard_body;
+    sr->expect_tested = 1;
+    sr->main_filter_need_in_memory = r->main_filter_need_in_memory;
+
+    sr->uri_changes = NGX_HTTP_MAX_URI_CHANGES + 1;
+    sr->subrequests = r->subrequests - 1;
+
+    tp = ngx_timeofday();
+    sr->start_sec = tp->sec;
+    sr->start_msec = tp->msec;
+
+    r->main->count++;
+    *psr = sr;
+
+    return ngx_http_post_request(sr, NULL);
+}
+
+
+static void
+ngx_http_tnt_eval_finalize_request(ngx_http_request_t *r)
+{
+    dd("finalize request");
+    ngx_http_finalize_request(r, NGX_DONE);
+}
+
+
 static void *
 ngx_http_tnt_eval_create_loc_conf(ngx_conf_t *cf)
 {
@@ -536,7 +651,6 @@ ngx_http_tnt_eval_create_loc_conf(ngx_conf_t *cf)
     }
 
     conf->buffer_size = NGX_CONF_UNSET_SIZE;
-    conf->subrequest_in_memory = NGX_CONF_UNSET;
 
     return conf;
 }
@@ -551,8 +665,6 @@ ngx_http_tnt_eval_merge_loc_conf(ngx_conf_t *cf,
 
     ngx_conf_merge_size_value(conf->buffer_size, prev->buffer_size,
                               (size_t) ngx_pagesize * 16);
-    ngx_conf_merge_value(conf->subrequest_in_memory,
-                         prev->subrequest_in_memory, 0);
 
     return NGX_CONF_OK;
 }
@@ -835,10 +947,6 @@ ngx_http_tnt_eval_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
     dd("Processing in a body filter");
 
     conf = ngx_http_get_module_loc_conf(r->parent, ngx_http_tnt_eval_module);
-
-    if (conf->subrequest_in_memory) {
-        return ngx_http_next_body_filter(r, in);
-    }
 
     b = &ctx->buffer;
 

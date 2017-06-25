@@ -44,7 +44,6 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
   * [tnt_pass](#tnt_pass)
   * [tnt_eval](#tnt_eval)
   * [tnt_eval_buffer_size](#tnt_eval_buffer_size)
-  * [tnt_eval_subrequest_in_memory](#tnt_eval_subrequest_in_memory)
   * [tnt_http_methods](#tnt_http_methods)
   * [tnt_http_rest_methods](#tnt_http_rest_methods)
   * [tnt_pass_http_request](#tnt_pass_http_request)
@@ -331,7 +330,7 @@ Specify the Tarantool server backend.
 [Back to content](#content)
 
 tnt_eval
-------------
+--------
 **syntax:** *tnt_eval $HTTP_STATUS_VAR_NAME $HTTP_BODY_VAR_NAME*
 
 **default:** *no*
@@ -417,9 +416,6 @@ Example
 2) '$'-prefix is required as part of names, means tnt_eval http_code body { ... } is error,
   it should be tnt_eval $http_status $body { ... }.
 
-3) Limitations. The contents of subrequests issued from within the tnt_eval block
-(like those fired by echo_subrequest) won't be captured properly.
-
 [Back to content](#content)
 
 tnt_eval_buffer_size
@@ -432,18 +428,6 @@ tnt_eval_buffer_size
 **context:** *main, server, location*
 
 Specify the size of the buffer used for `tnt_eval`.
-
-[Back to content](#content)
-
-tnt_eval_subrequest_in_memory
------------------------------
-**syntax:** *tnt_eval_subrequest_in_memory flag*
-
-**default:** *off*
-
-**context:** *main, server, location*
-
-Specify that subrequest (i.e. `tnt_eval`) will be executed in memory.
 
 [Back to content](#content)
 
