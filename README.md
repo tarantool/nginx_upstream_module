@@ -220,9 +220,7 @@ end
       MAY be null or undefined.
 
 
-    "id"
-
-      DEPRECATED in 2.4.0+
+    "id" - DEPRECATED in 2.4.0+
 
       Request id is returned back.
 
