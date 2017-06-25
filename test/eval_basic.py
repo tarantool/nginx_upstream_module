@@ -124,6 +124,7 @@ print('[+] OK')
 
 # =============
 #
-print('[+] Test headers codes')
-
+print('[+] Test headers')
+loc = BASE_URL + '/eval_headers'
+result = post_success(loc, {'params': []}, {'in_h': 1}, default_print_f)
 print('[+] OK')

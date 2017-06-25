@@ -56,8 +56,9 @@ typedef struct {
 typedef struct {
     ngx_http_tnt_eval_loc_conf_t   *base_conf;
     ngx_http_variable_value_t      **values;
-    unsigned int                   done:1;
-    unsigned int                   in_progress:1;
+    ngx_int_t                      status;
+    ngx_int_t                      done:1;
+    ngx_int_t                      in_progress:1;
 
     /* A reference to the main request */
     ngx_http_request_t             *r;
@@ -206,6 +207,14 @@ ngx_http_tnt_eval_handler(ngx_http_request_t *r)
 
     if (ctx->done) {
         dd("subrequest done, r = %p, ctx = %p", r, ctx);
+
+        /** If tnt_pass is down, then status should be passed to the client.
+         * 0 meas that upstream works
+         */
+        if (ctx->status != 0) {
+            return ctx->status;
+        }
+
         return NGX_DECLINED;
     }
 
@@ -309,6 +318,8 @@ ngx_http_tnt_eval_post_subrequest_handler(ngx_http_request_t *r, void *data,
     ngx_http_tnt_eval_output(r, ctx);
 
     ctx->done = 1;
+
+    ctx->status = rc;
 
 #if 0
     /* work-around a bug in the nginx core (ngx_http_named_location)
@@ -827,7 +838,7 @@ ngx_http_tnt_eval_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     clcf = ctx->loc_conf[ngx_http_core_module.ctx_index];
 
-    name.len = sizeof("/eval_") - 1 + NGX_OFF_T_LEN;
+    name.len = sizeof("/tnt_eval_") - 1 + NGX_OFF_T_LEN;
 
     name.data = ngx_palloc(cf->pool, name.len);
 
@@ -835,7 +846,7 @@ ngx_http_tnt_eval_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         return NGX_CONF_ERROR;
     }
 
-    name.len = ngx_sprintf(name.data, "/eval_%O", (off_t)(uintptr_t) clcf)
+    name.len = ngx_sprintf(name.data, "/tnt_eval_%O", (off_t)(uintptr_t) clcf)
                - name.data;
 
     clcf->loc_conf = ctx->loc_conf;

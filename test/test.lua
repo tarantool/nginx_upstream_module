@@ -157,6 +157,25 @@ function test_eval(req, ...)
     out
 end
 
+function test_eval_headers(req, ...)
+
+  local headers = {}
+
+  for i = 1, 10 do
+    headers['H' .. tostring(i)] = tostring(i)
+  end
+
+  return
+    {
+      __ngx = {
+        200,
+        headers
+      }
+    },
+    req,
+    ...
+end
+
 -- CFG
 box.cfg {
     log_level = 5;
