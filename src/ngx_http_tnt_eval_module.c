@@ -339,6 +339,7 @@ ngx_http_tnt_eval_parse_meta(ngx_http_request_t *r,
 {
     char                             errbuf[1024];
     const char                       *y_header;
+    const char                       *tmp;
     yajl_val                         y_root;
     yajl_val                         y_node;
     yajl_val                         y_headers;
@@ -347,9 +348,6 @@ ngx_http_tnt_eval_parse_meta(ngx_http_request_t *r,
     ngx_table_elt_t                  *h;
     ngx_http_variable_value_t        *status;
     ngx_int_t                        len;
-    ngx_http_tnt_eval_loc_conf_t *conf;
-
-    conf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_eval_module);
 
     /* A conf var was'nt setted, so just call next filter */
     if (v->data == NULL ||  v->len <= 0) {
@@ -433,16 +431,17 @@ ngx_http_tnt_eval_parse_meta(ngx_http_request_t *r,
                 if (h->key.data == NULL) {
                     goto ngx_error;
                 }
-                ngx_copy(h->key.data, y_header, h->key.len);
+                memcpy(h->key.data, y_header, h->key.len);
 
-                h->value.len = ngx_strlen(YAJL_GET_STRING(y_header_value));
+                tmp = YAJL_GET_STRING(y_header_value);
+                h->value.len = strlen(tmp);
                 h->value.data = ngx_pnalloc(r->pool,
                             h->value.len * sizeof(u_char));
                 if (h->value.data == NULL) {
                     goto ngx_error;
                 }
-                ngx_copy(h->value.data, YAJL_GET_STRING(y_header_value),
-                            h->value.len);
+                tmp = YAJL_GET_STRING(y_header_value);
+                memcpy(h->value.data, tmp, h->value.len);
                 /** }}}
                  */
             }

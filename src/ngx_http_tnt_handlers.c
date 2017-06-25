@@ -208,7 +208,7 @@ ngx_http_tnt_send_once(ngx_http_request_t *r,
         goto error_exit;
     }
 
-    if (tp_transcode(&tc, (char *)buf, len) == TP_TRANSCODE_ERROR) {
+    if (tp_transcode(&tc, (char *) buf, len) == TP_TRANSCODE_ERROR) {
         dd("ngx_http_tnt_send:tp_transcode error: %s, code:%d",
                 tc.errmsg, tc.errcode);
         goto error_exit;

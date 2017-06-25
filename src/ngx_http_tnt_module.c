@@ -554,7 +554,7 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
     }
 
     tp_transcode_init_args_t args = {
-        .output = (char *)output->pos,
+        .output = (char *) output->pos,
         .output_size = output->end - output->pos,
         .method = NULL, .method_len = 0,
         .codec = TP_REPLY_TO_JSON,

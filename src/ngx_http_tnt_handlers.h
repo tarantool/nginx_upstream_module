@@ -220,8 +220,7 @@ ngx_http_tnt_overhead(void)
             "'code':-XXXXX,"
             "'message':''"
         "},"
-        "[['result':{},"
-        "'id':4294967295]]"
+        "[[]]"
     "}");
 }
 
