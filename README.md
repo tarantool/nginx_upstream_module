@@ -411,7 +411,7 @@ Example
   # Also those variables are available in any nginx's languages;
 ```
 
-2) '$'-prefix is required as part of names, means tnt_eval http_code body { ... } is error,
+2) '$'-prefix is required, means that tnt_eval http_code body { ... } will rise an error,
   it should be tnt_eval $http_status $body { ... }.
 
 [Back to content](#content)
