@@ -34,15 +34,16 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * v2.3.2 - Production ready.
 * v2.3.7 - Production ready.
 * v2.4.0-beta - Beta.
+* v2.4.6-rc1 - Stable.
 
 ## Content
 ----------
 * [Compilation and install](#compilation-and-install)
 * [REST](#rest)
 * [JSON](#json)
+* [HTTP headers and status](#HTTP-headers-and-status)
 * [Directives](#directives)
   * [tnt_pass](#tnt_pass)
-  * [HTTP headers and status](#HTTP-headers-andstatus)
   * [tnt_http_methods](#tnt_http_methods)
   * [tnt_http_rest_methods](#tnt_http_rest_methods)
   * [tnt_pass_http_request](#tnt_pass_http_request)
@@ -298,32 +299,6 @@ end
 -------------
 [Back to content](#content)
 
-tnt_pass
---------
-**syntax:** *tnt_pass UPSTREAM*
-
-**default:** *no*
-
-**context:** *location*
-
-Specify the Tarantool server backend.
-
-```nginx
-
-  upstream tnt_upstream {
-     127.0.0.1:9999
-  };
-
-  location = /tnt {
-    tnt_pass 127.0.0.1:9999;
-  }
-
-  location = /tnt_next_location {
-     tnt_pass tnt_upstream;
-  }
-```
-
-[Back to content](#content)
 
 # HTTP headers and status
 -------------------------
@@ -421,6 +396,33 @@ Example
        ';
     }
 
+```
+
+[Back to content](#content)
+
+tnt_pass
+--------
+**syntax:** *tnt_pass UPSTREAM*
+
+**default:** *no*
+
+**context:** *location*
+
+Specify the Tarantool server backend.
+
+```nginx
+
+  upstream tnt_upstream {
+     127.0.0.1:9999
+  };
+
+  location = /tnt {
+    tnt_pass 127.0.0.1:9999;
+  }
+
+  location = /tnt_next_location {
+     tnt_pass tnt_upstream;
+  }
 ```
 
 [Back to content](#content)
