@@ -78,53 +78,11 @@ methods = [
 prev_result = None
 
 for method in methods:
-
     for code in http_codes:
-
-        curl = BASE_URL + '/eval_basic?status_code=' + str(code)
-
+        curl = BASE_URL + '/lua?status_code=' + str(code)
         (rcode, result) = method[0](curl, code, {'X-From': 'eval_basic'})
-
+        # Python does not work if server returns some codes!
         if rcode == True:
-            continue
-
-        if VERBOSE:
-            print ('===============')
-            print ('req = ', curl, method[1])
-            print ('rcore = ', rcode)
-            print ('expected code', code)
-            print ('curr = ', result)
-            if prev_result:
-                print ('prev = ', prev_result[1])
-
-        if method[1] != 'GET':
-            assert(rcode == code), 'expected ' + str(code)
-
-        if prev_result:
-            # Here is we don't test those fields [[[
-            prev_result[1]['args']['status_code'] = str(code)
-            prev_result[1]['uri'] = result[1]['uri']
-            prev_result[1]['method'] = result[1]['method']
-            prev_result[1]['headers'] = None
-            result[1]['headers'] = None
-            # ]]]
-
-            if prev_result[1] != result[1]:
-                print ('==== NOT EQUAL ====')
-                print (prev_result[1])
-                print (result[1])
-
-            assert(prev_result[1] == result[1])
-            assert(prev_result[2] == result[2])
-
-        prev_result = result
-
-print('[+] OK')
-
-
-# =============
-#
-print('[+] Test headers')
-loc = BASE_URL + '/eval_headers'
-result = post_success(loc, {'params': []}, {'in_h': 1})
+            continue;
+        assert(code == rcode)
 print('[+] OK')

@@ -30,9 +30,10 @@
  * please see AUTHORS file.
  */
 
+#include <debug.h>
+
 #include <ngx_config.h>
 
-#include <debug.h>
 #include <ngx_http_tnt_version.h>
 #include <ngx_http_tnt_handlers.h>
 
@@ -213,6 +214,13 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_tnt_loc_conf_t, http_rest_methods),
       &ngx_http_tnt_methods },
+
+    { ngx_string("tnt_pure_result"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_bitmask_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_tnt_loc_conf_t, pure_result),
+      &ngx_http_tnt_pass_http_request_masks },
 
     { ngx_string("tnt_http_methods"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
@@ -454,6 +462,9 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                               (NGX_HTTP_POST
                                |NGX_HTTP_DELETE));
 
+    ngx_conf_merge_bitmask_value(conf->pure_result, prev->pure_result,
+                NGX_TNT_CONF_OFF);
+
     if (conf->headers_source == NULL) {
         conf->headers = prev->headers;
         conf->headers_source = prev->headers_source;
@@ -566,6 +577,8 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
         crit("[BUG] failed to call tp_transcode_init(output)");
         return NGX_ERROR;
     }
+
+    tp_reply_to_json_set_options(&tc, tlcf->pure_result == NGX_TNT_CONF_ON);
 
     rc = tp_transcode(&tc, (char *)ctx->tp_cache->start,
                       ctx->tp_cache->end - ctx->tp_cache->start);

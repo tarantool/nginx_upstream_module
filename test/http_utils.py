@@ -182,7 +182,7 @@ def get(url, data, headers):
         return (False, e)
 
 def get_result(o):
-    return o[0]
+    return o['result'][0]
 
 def assert_if_not_error(s, code = None):
     assert('error' in s), 'expected error'

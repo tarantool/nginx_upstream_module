@@ -108,6 +108,11 @@ typedef struct {
      */
     ngx_uint_t               http_methods;
 
+    /** If it is set, then the client will recv. a pure result, e.g. {}
+     * otherwise {"result":[], "id": NUM}id
+     */
+    ngx_uint_t               pure_result;
+
     ngx_array_t              *headers_source;
 
     ngx_http_tnt_headers_t   headers;
@@ -220,7 +225,8 @@ ngx_http_tnt_overhead(void)
             "'code':-XXXXX,"
             "'message':''"
         "},"
-        "[[]]"
+        "{ 'result': [[]],"
+        "'id': 1867996680 }"
     "}");
 }
 

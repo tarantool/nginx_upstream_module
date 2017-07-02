@@ -181,12 +181,10 @@ void tp_transcode_bind_data(tp_transcode_t *t,
 /**
  */
 void
-tp_reply_to_json_set_options(tp_transcode_t *t,
-                             bool pure_result,
-                             int multireturn_skip_count);
+tp_reply_to_json_set_options(tp_transcode_t *t, bool pure_result);
 
 /**
- * WARNING! tp_dump() - is for debug
+ * WARNING! tp_dump() is for debug!
  *
  * Dump Tarantool message in JSON
  * Returns true, false

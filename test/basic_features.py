@@ -57,7 +57,8 @@ def get_id_i(o, i):
     return o[i]['id']
 
 def get_result(o):
-    return o[0]
+    assert('result' in o), "expected 'result'"
+    return o['result'][0]
 
 #
 def batch_cases():
@@ -79,8 +80,8 @@ def batch_cases():
 
     assert(rc == 200), 'expected 200'
     assert(len(res) == 2), 'expected 2 elements, got %i' % len(res)
-    assert(res[0][0][0][1] == '101234567891234567')
-    assert(res[1][0][0][1] == '101234567891234567')
+    assert(res[0]['result'][0][0][1] == '101234567891234567')
+    assert(res[1]['result'][0][0][1] == '101234567891234567')
 
     ##
     batch = []
@@ -97,12 +98,12 @@ def batch_cases():
     assert(len(res) == len(batch)),\
             'expected %i elements, got %i' % (len(batch), len(res))
     for i in range(0, len(res)):
-        rr = res[i][0]
-        #id = get_id_i(res, i)
+        rr = res[i]['result'][0]
+        id = get_id_i(res, i)
         assert(rr[0] == batch[i]['params'][0]),\
                 "expected %s, got %s" % (batch[i]['params'][0], rr[0])
-        #assert(id == batch[i]['id']),\
-        #        "expected id %s, got %s" % (batch[i]['id'], id)
+        assert(id == batch[i]['id']),\
+                "expected id %s, got %s" % (batch[i]['id'], id)
 
     ##
     (rc, res) = request([
@@ -125,21 +126,18 @@ def batch_cases():
     ])
     assert(rc == 200), 'expected 200'
 
-    ## This test is broken, since we don't have ID, should it be fixed? [[[
-    if False:
-        for rr in res:
-            if rr['id'] == 3:
-                assert('error' in rr or 'message' in rr), \
-                        'expected %s returns error/message, got %s' % (rr['id'], rr)
-            elif rr['id'] == 2:
-                rr_ = get_result(rr)
-                assert(rr_[1] == '101234567891234567')
-            elif rr['id'] == 1:
-                rr_ = get_result(rr)
-                assert(rr_ == [{"first":1}, {"second":2}])
-            else:
-                assert False, "unexpected id %s" % rr['id']
-    # ]]]
+    for rr in res:
+        if rr['id'] == 3:
+            assert('error' in rr or 'message' in rr), \
+                'expected %s returns error/message, got %s' % (rr['id'], rr)
+        elif rr['id'] == 2:
+            rr_ = get_result(rr)[0]
+            assert(rr_[1] == '101234567891234567')
+        elif rr['id'] == 1:
+            rr_ = get_result(rr)
+            assert(rr_ == [{"first":1}, {"second":2}])
+        else:
+            assert False, "unexpected id %s" % rr['id']
 
     (rc, res) = request_raw('[{"method":"call", "params":["name", __wrong__], ' +
         '"id":1}, {"method":"call", "params":["name"], "id":2}]');
@@ -173,7 +171,7 @@ for i in range(100):
         'params': bigarray,
         'id': 1
     })
-    assert(res[0][0] == 1), 'expected 1'
+    assert(res['result'][0][0] == 1), 'expected 1'
 print ('[+] Big array OK')
 
 #

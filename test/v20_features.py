@@ -85,22 +85,20 @@ assert(code == 500), 'expected 500'
 
 print ('[+] Test "large request"')
 
-BASE_URL = "http://0.0.0.0:8081/issue_59"
 err_msg = { 'error': { 'message':
                         "Request too large, consider increasing your " +
                         "server's setting 'client_body_buffer_size'",
                         'code': -32001 } }
 
-preset_method_location = BASE_URL + '/rest_api_parse_query_args'
+preset_method_location = BASE_URL + '/issue_59/rest_api_parse_query_args'
 
 obj = {}
-for i in range(1, 30000):
+for i in range(1, 40000):
     obj[str(i) + 'some_key_name'] = [ i, { 'n': i,
                                            'some_key_name': [[1,2,3],[4]]}]
 for i in range(1, 10):
     code, result = post(preset_method_location, { 'params': [obj] }, {})
-    assert(code == 400), 'expected 400'
-    assert(result == err_msg), 'expected error msg (too large)'
+    assert(code == 500), 'expected 500'
 
     expected = obj[str(i) + 'some_key_name']
     result = post_success(preset_method_location, { 'params': expected }, {})

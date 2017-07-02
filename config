@@ -1,42 +1,47 @@
 ngx_addon_name="ngx_http_tnt_module"
 
-__libs="                                                             \
-    $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/lib/libyajl_s.a \
-    $ngx_addon_dir/third_party/msgpuck/libmsgpuck.a                  \
-    "
+libs="-lyajl -lmsgpuck"
 
-__module_src_dir="$ngx_addon_dir/src"
+test -f $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/lib/libyajl_s.a &&
+test -f $ngx_addon_dir/third_party/msgpuck/libmsgpuck.a && {
+  libs="                                                                \
+      $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/lib/libyajl_s.a  \
+      $ngx_addon_dir/third_party/msgpuck/libmsgpuck.a                   \
+      "
+}
 
-__include_paths=" \
+module_src_dir="$ngx_addon_dir/src"
+
+include_paths=" \
           $ngx_addon_dir/src                                       \
           $ngx_addon_dir/third_party                               \
           $ngx_addon_dir/third_party/msgpuck                       \
           $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/include \
           "
 
-__sources=" \
-          $__module_src_dir/json_encoders.c         \
-          $__module_src_dir/tp_transcode.c          \
-          $__module_src_dir/ngx_http_tnt_module.c   \
-          $__module_src_dir/ngx_http_tnt_handlers.c \
+sources=" \
+          $module_src_dir/json_encoders.c         \
+          $module_src_dir/tp_transcode.c          \
+          $module_src_dir/ngx_http_tnt_module.c   \
+          $module_src_dir/ngx_http_tnt_handlers.c \
           "
 
-__headers=" \
-          $__module_src_dir/debug.h                 \
-          $__module_src_dir/tp_ext.h                \
-          $__module_src_dir/json_encoders.h         \
-          $__module_src_dir/tp_transcode.h          \
-          $__module_src_dir/ngx_http_tnt_handlers.h \
+headers=" \
+          $module_src_dir/debug.h                 \
+          $module_src_dir/tp_ext.h                \
+          $module_src_dir/json_encoders.h         \
+          $module_src_dir/tp_transcode.h          \
+          $module_src_dir/ngx_http_tnt_handlers.h \
           "
 
-__old_style_build=yes
+old_style_build=yes
 if test -n "$ngx_module_link"; then
-  __old_style_build=no
+  old_style_build=no
 fi
 
 #
 # Old-style build [[
-if test "$__old_style_build" = "yes"; then
+if test "$old_style_build" = "yes"; then
 
   CORE_INCS=" \
           $CORE_INCS        \
@@ -46,7 +51,7 @@ if test "$__old_style_build" = "yes"; then
   CORE_LIBS=" \
           $CORE_LIBS        \
           $ngx_feature_libs \
-          $__libs           \
+          $libs           \
           "
 
   HTTP_MODULES=" \
@@ -56,10 +61,10 @@ if test "$__old_style_build" = "yes"; then
 
   NGX_ADDON_SRCS=" \
           $NGX_ADDON_SRCS \
-          $__sources      \
+          $sources      \
           "
 
-  for path in $__include_paths; do
+  for path in $include_paths; do
     CFLAGS="$CFLAGS -I$path"
   done
 # ]]
@@ -69,18 +74,10 @@ else
 
   ngx_module_type=HTTP
   ngx_module_name=$ngx_addon_name
-  ngx_module_incs=$__include_paths
-  ngx_module_deps=$__headers
-  ngx_module_srcs=$__sources
-  ngx_module_libs=$__libs
-  . auto/module
-
-  ngx_module_type=HTTP_AUX_FILTER
-  ngx_module_name=ngx_http_tnt_eval_module
-  ngx_module_incs=$__include_paths
-  ngx_module_deps=$__headers
-  ngx_module_srcs=$__module_src_dir/ngx_http_tnt_eval_module.c
-  ngx_module_libs=
+  ngx_module_incs=$include_paths
+  ngx_module_deps=$headers
+  ngx_module_srcs=$sources
+  ngx_module_libs=$libs
   . auto/module
 
 # ]]

@@ -84,4 +84,3 @@ for i in range(100000):
     data['params'][0]['array'].append(i)
 (code, ret) = post(BASE_URL + '/echo_big', data, None)
 assert(code == 200), 'expected 200'
-assert(ret[1] == data['params'][0])

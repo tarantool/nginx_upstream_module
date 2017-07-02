@@ -21,7 +21,8 @@ function rest_api_get(a, b)
 end
 
 function echo_big(...)
-  return ...
+  local a = {...}
+  return a
 end
 
 function ret_4096()
@@ -102,8 +103,8 @@ function insert(request, a1, a2)
   return { request, a1, a2 }
 end
 
-function update(request)
-  return request
+function update(request, ...)
+  return request, ...
 end
 -- ]]
 
@@ -141,39 +142,22 @@ function test_headers_out(req)
   return true
 end
 
-function test_eval(req, ...)
+function tnt_proxy(req, ...)
+
   local out = {...}
   for i = 0, 18012 do
     out[i] = i;
   end
+
   return
     {
-      __ngx = {
+      ngx = {
         tonumber(req.args.status_code) or 200,
         { ["X-Tarantool"] = "FROM_TNT" }
       }
     },
-    req,
-    out
-end
-
-function test_eval_headers(req, ...)
-
-  local headers = {}
-
-  for i = 1, 10 do
-    headers['H' .. tostring(i)] = tostring(i)
-  end
-
-  return
-    {
-      __ngx = {
-        200,
-        headers
-      }
-    },
-    req,
-    ...
+    req
+--    out
 end
 
 -- CFG

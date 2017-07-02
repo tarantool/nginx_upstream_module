@@ -42,8 +42,7 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * [JSON](#json)
 * [Directives](#directives)
   * [tnt_pass](#tnt_pass)
-  * [tnt_eval](#tnt_eval)
-  * [tnt_eval_buffer_size](#tnt_eval_buffer_size)
+  * [HTTP headers and status](#HTTP headers and status)
   * [tnt_http_methods](#tnt_http_methods)
   * [tnt_http_rest_methods](#tnt_http_rest_methods)
   * [tnt_pass_http_request](#tnt_pass_http_request)
@@ -211,7 +210,7 @@ end
     [ { "result": JSON_RESULT_OBJECT, "id":UINT, "error": { "message": STR, "code": INT } }, ...N ]
 
 
-    "result" - DEPRECATED in 2.4.0+
+    "result"
 
       Version 2.4.0+ output a raw result, i.e. "JSON_RESULT_OBJECT".
 
@@ -253,11 +252,11 @@ end
 
       rpc call 1:
       --> { "method": "echo", "params": [42, 23], "id": 1 }
-      <-- [42, 23]
+      <-- { "id": 1, "result": [42, 23]
 
       rpc call 2:
       --> { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
-      <-- [ {"hello": "world"} ], "!" ]
+      <-- { "id": 2, "result": [ {"hello": "world"} ], "!" ]}
 
       rpc call of a non-existent method:
       --> { "method": "echo_2", "id": 1 }
@@ -273,8 +272,8 @@ end
             { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
       ]
       <-- [
-            [42, 23],
-            [{"hello": "world"} ], "!" ],
+            { "id": 1, "result": [42, 23]},
+            { "id": 2, "result" : [{"hello": "world"} ], "!" ]},
       ]
 
       rpc call Batch of a non-existent method:
@@ -284,7 +283,7 @@ end
       ]
       <-- [
             { "error": {"code": -32601, "message": "Method not found"}, "id": 1 },
-            [ {"hello": "world"} ], "!" ]
+            {"id": 2, "result": [ {"hello": "world"} ], "!" ]}
       ]
 
       rpc call Batch with invalid JSON:
@@ -327,27 +326,18 @@ Specify the Tarantool server backend.
 
 [Back to content](#content)
 
-tnt_eval
---------
-**syntax:** *tnt_eval $HTTP_STATUS_VAR_NAME $HTTP_BODY_VAR_NAME*
+HTTP headers and status
+-----------------------
 
-**default:** *no*
+Sometimes you have to set status or headers which came from the Tarantool.
+For this you have to use something like [ngx_lua](https://github.com/openresty/lua-nginx-module)
+or [ngx_perl](http://nginx.org/en/docs/http/ngx_http_perl_module.html) and so on.
 
-**context:** *location*
+Also using the methods you can transform result from the `Tarantool` into
+something else
 
-This directive put execution of tnt_pass into the nginx REWRITE PHASE.
-That exactly this mean? That means that you can have a access to the body (in for of 
-JSON), http codes and http headers which have been passed from the Tarantool
-to the nginx inside nginx config. This very useful for setting custom HTTP
-statuses, headers and for post-processing of the original body.
+Here is an example with `ngx_lua`:
 
-Even more, you can use this for using this module with OpenResty, Nginx Script,
-Nginx Perl and so on.
-
-NOTICE!
-
-1) This directive expects that tarantool returns special object with meta
-information about an HTTP status and an HTTP headers.
 
 Example
 
@@ -358,7 +348,7 @@ Example
     -- First arg. if __ngx exists and tnt_eval is used, then it will be
     -- readed by nginx
     {
-      __ngx = {
+      ngx = {
         200, -- set status HTTP 200
         { ["X-Tarantool"] = "FROM_TNT" } -- set headers
       }
@@ -373,59 +363,66 @@ Example
 
   upstream tnt_upstream {
      127.0.0.1:9999;
+     keepalive 10000;
   }
 
-  location = /tnt {
-
-    tnt_eval_buffer_size 1m;
-
-    tnt_eval $tnt_http_status $tnt_body {
-      tnt_method foo;
-      tnt_pass 127.0.0.1:9999;
-    }
-
-    if ($tnt_http_status = 404) {
-      return 404 $tnt_body;
-    }
-
-    if ($tnt_body ~= 'Tarantool') {
-      return 200 '<html><h1>Found Tarantool!</h1></html>';
-    }
-
-    return 200 $tnt_body;
+  location /tnt_proxy {
+    tnt_method tnt_proxy;
+    tnt_buffer_size 100k;
+    tnt_pass_http_request on parse_args;
+    tnt_pass tnt_upstream;
   }
 
-  location = /tnt/with_echo_module {
+  location /api {
 
-    tnt_eval_buffer_size 1m;
+    lua_need_request_body on;
 
-    tnt_eval $tnt_http_status $tnt_body {
-      tnt_method foo;
-      tnt_pass 127.0.0.1:9999;
+    rewrite_by_lua '
+
+       local cjson = require("cjson")
+
+       local map = {
+         GET = ngx.HTTP_GET,
+         POST = ngx.HTTP_POST,
+         PUT = ngx.HTTP_PUT,
+         -- ...
+       }
+
+       local res = ngx.location.capture("/tnt_proxy", {
+         args = ngx.var.args,
+         method = map[ngx.var.request_method],
+         body = ngx.body
+       })
+
+       if res.status == ngx.HTTP_OK then
+         local answ = cjson.decode(res.body)
+
+         -- Read reply
+         local result = answ["result"]
+
+         if result ~= nil then
+           ngx.status = result[1]["ngx"][1]
+           for k, v in pairs(result[1]["ngx"][2]) do
+             ngx.header[k] = v
+           end
+
+           table.remove(result, 1)
+           ngx.say(cjson.encode(result))
+         else
+           ngx.status = 502
+           ngx.say(res.body)
+         end
+
+         -- Finalize execution
+         ngx.exit(ngx.OK)
+       else
+         ngx.status = 502
+         ngx.say("Tarantool does not work")
+       end
+       ';
     }
 
-    echo $tnt_body;
-  }
-
-  # ...
-  # Also those variables are available in any nginx's languages;
 ```
-
-2) '$'-prefix is required, means that tnt_eval http_code body { ... } will rise an error,
-  it should be tnt_eval $http_status $body { ... }.
-
-[Back to content](#content)
-
-tnt_eval_buffer_size
---------------------
-
-**syntax:** *tnt_eval_buffer_size size*
-
-**default:** *PAGE_SIZE x 16*
-
-**context:** *main, server, location*
-
-Specify the size of the buffer used for `tnt_eval`.
 
 [Back to content](#content)
 
@@ -703,7 +700,7 @@ The 0 value turns off this limitation.
 
 [Back to content](#content)
 
-tnt_pure_result - DEPRECATED in 2.4.0+
+tnt_pure_result
 --------------------------------------
 **syntax:** *tnt_pure_result [on|off]*
 
@@ -714,7 +711,7 @@ tnt_pure_result - DEPRECATED in 2.4.0+
 Whether to wrap tnt response or not.
 When this option is off:
 ```
-{"id":0, "result": [[ 1 ]]}
+{"id":0, "result": [ 1 ]}
 ```
 When this option is on:
 ```

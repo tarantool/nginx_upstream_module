@@ -84,7 +84,7 @@ preset_method_location = BASE_URL + '/tnt'
 rc, resp = request_raw(preset_method_location, data, {})
 params = json.loads(data)['params']
 assert(rc == 200), 'expected 200, got ' + str(rc)
-assert(params == resp[0]), 'not equal'
+assert(params == resp['result'][0]), 'not equal'
 
 # ===========
 #
@@ -144,9 +144,9 @@ preset_method_location = BASE_URL + '/issue_58'
 put_success(preset_method_location, {'id':1}, None)
 delete_success(preset_method_location, {'params':[]}, None)
 delete_success(preset_method_location, None, None)
-
 (rc, result) = request(preset_method_location, [{'id': 1}, {'id': 2}])
-assert(result[0] == result[1])
+assert(result[0]['id'] == 1)
+assert(result[1]['id'] == 2)
 
 data = {"id":0,"params":[
             {
