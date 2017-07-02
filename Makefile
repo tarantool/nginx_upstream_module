@@ -64,8 +64,6 @@ configure-debug:
 						--prefix=$(PREFIX_PATH) \
 						--with-http_addition_module \
 						--add-module=$(MODULE_PATH) \
-						--add-module=$(MODULE_PATH)/../ngx_devel_kit \
-						--add-module=$(MODULE_PATH)/../lua-nginx-module \
 						--with-debug
 
 configure-for-testing: configure-debug
