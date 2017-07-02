@@ -41,7 +41,7 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * [Compilation and install](#compilation-and-install)
 * [REST](#rest)
 * [JSON](#json)
-* [HTTP headers and status](#HTTP-headers-and-status)
+* [HTTP headers and status](#http-headers-and-status)
 * [Directives](#directives)
   * [tnt_pass](#tnt_pass)
   * [tnt_http_methods](#tnt_http_methods)
@@ -295,13 +295,9 @@ end
       
 [Back to content](#content)
 
-## Directives
--------------
-[Back to content](#content)
 
-
-# HTTP headers and status
--------------------------
+## HTTP headers and status
+--------------------------
 
 Sometimes you have to set status or headers which came from the Tarantool.
 For this you have to use something like [ngx_lua](https://github.com/openresty/lua-nginx-module)
@@ -398,6 +394,10 @@ Example
 
 ```
 
+[Back to content](#content)
+
+## Directives
+-------------
 [Back to content](#content)
 
 tnt_pass
