@@ -42,13 +42,12 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * [JSON](#json)
 * [Directives](#directives)
   * [tnt_pass](#tnt_pass)
-  * [HTTP headers and status](#HTTP headers and status)
+  * [HTTP headers and status](#HTTP-headers-andstatus)
   * [tnt_http_methods](#tnt_http_methods)
   * [tnt_http_rest_methods](#tnt_http_rest_methods)
   * [tnt_pass_http_request](#tnt_pass_http_request)
   * [tnt_pass_http_request_buffer_size](#tnt_pass_http_request_buffer_size)
   * [tnt_method](#tnt_method)
-  * [tnt_http_allowed_methods - experemental](#tnt_http_allowed_methods)
   * [tnt_send_timeout](#tnt_send_timeout)
   * [tnt_read_timeout](#tnt_read_timeout)
   * [tnt_buffer_size](#tnt_buffer_size)
@@ -300,7 +299,7 @@ end
 [Back to content](#content)
 
 tnt_pass
-------------
+--------
 **syntax:** *tnt_pass UPSTREAM*
 
 **default:** *no*
@@ -326,8 +325,8 @@ Specify the Tarantool server backend.
 
 [Back to content](#content)
 
-HTTP headers and status
------------------------
+# HTTP headers and status
+-------------------------
 
 Sometimes you have to set status or headers which came from the Tarantool.
 For this you have to use something like [ngx_lua](https://github.com/openresty/lua-nginx-module)
