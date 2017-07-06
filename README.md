@@ -314,16 +314,10 @@ Example
 ```Lua
   -- Tarantool, stored procedure
   function foo(req)
-    return
-    -- First arg. if __ngx exists and tnt_eval is used, then it will be
-    -- readed by nginx
-    {
-      ngx = {
-        200, -- set status HTTP 200
-        { ["X-Tarantool"] = "FROM_TNT" } -- set headers
-      }
-    },
-    req,
+    return {
+      200, -- set status HTTP 200
+      { ["X-Tarantool"] = "FROM_TNT" } -- set headers
+    }
 
   end
 ```
@@ -371,8 +365,8 @@ Example
          local result = answ["result"]
 
          if result ~= nil then
-           ngx.status = result[1]["ngx"][1]
-           for k, v in pairs(result[1]["ngx"][2]) do
+           ngx.status = result[1]
+           for k, v in pairs(result[2]) do
              ngx.header[k] = v
            end
 
