@@ -7,7 +7,7 @@
 # - luarocks
 # - lua rock "lua-cjson" (is necessary to work with tarantool response, can be extended with env variable)
 
-FROM alpine:3.4
+FROM alpine:3.5
 MAINTAINER Konstantin Nazarov "mail@racktear.com"
 
 RUN addgroup -S nginx \
@@ -45,7 +45,7 @@ RUN set -x \
      build-base \
      cmake \
      linux-headers \
-     openssl-dev \
+     libressl-dev \
      pcre-dev \
      zlib-dev \
      libxslt-dev \
@@ -57,17 +57,18 @@ RUN set -x \
      curl \
      perl-dev \
      unzip \
+     gcc \
+     perl \
   && apk add --no-cache --virtual .run-deps \
      ca-certificates \
-     openssl \
+     libressl \
      pcre \
      zlib \
      libxslt \
-     gcc \
      gd \
      geoip \
-     perl \
      gettext \
+     libgcc \
   && : "---------- download nginx-devel-kit ----------" \
   && git clone "$NGINX_DEVEL_KIT_URL" $NGINX_DEVEL_KIT_PATH \
   && : "---------- download nginx-lua-module ----------" \
