@@ -2,22 +2,25 @@ ngx_addon_name="ngx_http_tnt_module"
 
 libs="-lyajl -lmsgpuck"
 
+include_paths=" \
+          $ngx_addon_dir/src                                       \
+          $ngx_addon_dir/third_party                               \
+          "
+
 test -f $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/lib/libyajl_s.a &&
 test -f $ngx_addon_dir/third_party/msgpuck/libmsgpuck.a && {
   libs="                                                                \
       $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/lib/libyajl_s.a  \
       $ngx_addon_dir/third_party/msgpuck/libmsgpuck.a                   \
       "
-}
 
-module_src_dir="$ngx_addon_dir/src"
-
-include_paths=" \
-          $ngx_addon_dir/src                                       \
-          $ngx_addon_dir/third_party                               \
+  include_paths="${include_path} \
           $ngx_addon_dir/third_party/msgpuck                       \
           $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/include \
           "
+}
+
+module_src_dir="$ngx_addon_dir/src"
 
 sources=" \
           $module_src_dir/json_encoders.c         \
