@@ -313,12 +313,13 @@ Example
 
 ```Lua
   -- Tarantool, stored procedure
-  function foo(req)
-    return {
-      200, -- set status HTTP 200
-      { ["X-Tarantool"] = "FROM_TNT" } -- set headers
+  function foo(req, ...)
+    local status = 200
+    local headers = {
+      ["X-Tarantool"] = "FROM_TNT",
     }
-
+    local body = 'It works!'
+    return status, headers, body
   end
 ```
 
@@ -331,6 +332,7 @@ Example
   }
 
   location /tnt_proxy {
+    internal;
     tnt_method tnt_proxy;
     tnt_buffer_size 100k;
     tnt_pass_http_request on parse_args;
@@ -338,8 +340,6 @@ Example
   }
 
   location /api {
-
-    lua_need_request_body on;
 
     rewrite_by_lua '
 
@@ -351,11 +351,16 @@ Example
          PUT = ngx.HTTP_PUT,
          -- ...
        }
-
+       -- hide `{"params": [...]}` from a user
+       ngx.req.read_body()
+       local body = ngx.req.get_body_data()
+       if body then
+            body = "{\\"params\\": [" .. body .. "]}"
+       end
        local res = ngx.location.capture("/tnt_proxy", {
          args = ngx.var.args,
          method = map[ngx.var.request_method],
-         body = ngx.body
+         body = body
        })
 
        if res.status == ngx.HTTP_OK then
