@@ -14,7 +14,7 @@ test -f $ngx_addon_dir/third_party/msgpuck/libmsgpuck.a && {
       $ngx_addon_dir/third_party/msgpuck/libmsgpuck.a                   \
       "
 
-  include_paths="${include_path} \
+  include_paths="${include_paths} \
           $ngx_addon_dir/third_party/msgpuck                       \
           $ngx_addon_dir/third_party/yajl/build/yajl-2.1.0/include \
           "
