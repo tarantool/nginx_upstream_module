@@ -379,14 +379,14 @@ Example
            ngx.say(cjson.encode(result))
          else
            ngx.status = 502
-           ngx.say(res.body)
+           ngx.say("Tarantool does not work")
          end
 
          -- Finalize execution
          ngx.exit(ngx.OK)
        else
-         ngx.status = 502
-         ngx.say("Tarantool does not work")
+         ngx.status = res.status
+         ngx.say(res.body)
        end
        ';
     }
