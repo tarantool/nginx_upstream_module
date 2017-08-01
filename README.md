@@ -333,7 +333,7 @@ Example
 
   location /tnt_proxy {
     internal;
-    tnt_method tnt_proxy;
+    tnt_method foo;
     tnt_buffer_size 100k;
     tnt_pass_http_request on parse_args;
     tnt_pass tnt_upstream;
