@@ -69,6 +69,7 @@ RUN set -x \
      geoip \
      gettext \
      libgcc \
+  && git config --global http.postBuffer 524288000 \
   && : "---------- download nginx-devel-kit ----------" \
   && git clone "$NGINX_DEVEL_KIT_URL" $NGINX_DEVEL_KIT_PATH \
   && : "---------- download nginx-lua-module ----------" \
