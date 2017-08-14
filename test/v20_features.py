@@ -98,7 +98,7 @@ for i in range(1, 40000):
                                            'some_key_name': [[1,2,3],[4]]}]
 for i in range(1, 10):
     code, result = post(preset_method_location, { 'params': [obj] }, {})
-    assert(code == 500), 'expected 500'
+    assert(code == 400), 'expected 400'
 
     expected = obj[str(i) + 'some_key_name']
     result = post_success(preset_method_location, { 'params': expected }, {})
