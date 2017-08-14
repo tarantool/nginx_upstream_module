@@ -36,7 +36,6 @@ services:
               location /tnt_rest {
                   tnt_http_rest_methods get post put delete;
                   tnt_pass_http_request on;
-                  tnt_multireturn_skip_count 2;
                   tnt_pure_result on;
                   tnt_pass backend;
                   add_header Content-Type text/plain;

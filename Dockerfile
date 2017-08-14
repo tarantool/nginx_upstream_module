@@ -94,22 +94,21 @@ RUN set -x \
   && git -C /usr/src/nginx_upstream_module submodule init \
   && git -C /usr/src/nginx_upstream_module submodule update \
   && make -C /usr/src/nginx_upstream_module yajl \
+  && make -C /usr/src/nginx_upstream_module msgpack \
   && : "---------- download nginx ----------" \
   && curl -fSL http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz \
      -o nginx.tar.gz \
   && curl -fSL http://nginx.org/download/nginx-$NGINX_VERSION.tar.gz.asc \
      -o nginx.tar.gz.asc \
   && : "---------- verify signatures ----------" \
-  && export GNUPGHOME="$(mktemp -d)" \
-  && gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$NGINX_GPG_KEYS" \
-  && gpg --batch --verify nginx.tar.gz.asc nginx.tar.gz \
-  && rm -r "$GNUPGHOME" nginx.tar.gz.asc \
   && mkdir -p /usr/src/nginx \
   && tar -xzf nginx.tar.gz -C /usr/src/nginx \
       --strip-components=1 \
   && cd /usr/src/nginx \
   && : "---------- build nginx ----------" \
   && ./configure \
+      --with-cc-opt='-I/usr/src/nginx_upstream_module/third_party/third_party/msgpuck -I /usr/src/nginx_upstream_module/third_party/yajl/build/yajl-2.1.0/include' \
+      --with-ld-opt='/usr/src/nginx_upstream_module/third_party/yajl/build/yajl-2.1.0/lib/libyajl_s.a -L /usr/src/nginx_upstream_module/third_party/third_party/msgpuck' \
       --add-module=/usr/src/nginx_upstream_module \
       --prefix=/etc/nginx \
       --sbin-path=/usr/sbin/nginx \
