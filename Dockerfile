@@ -17,7 +17,7 @@ RUN addgroup -S nginx \
 
 ENV NGINX_VERSION=1.11.1 \
     NGINX_UPSTREAM_MODULE_URL=https://github.com/tarantool/nginx_upstream_module.git \
-    NGINX_UPSTREAM_MODULE_COMMIT=2d2076c97b7bfa689624518d33dd09497aaecc34 \
+    NGINX_UPSTREAM_MODULE_COMMIT=7212ac3b779d34e4295efbfa6ab2bb2828e7ff06 \
     NGINX_GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8
 
 ENV NGINX_LUA_MODULE_URL=https://github.com/openresty/lua-nginx-module \
