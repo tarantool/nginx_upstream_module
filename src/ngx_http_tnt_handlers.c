@@ -469,9 +469,6 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
     ngx_chain_t         *body;
     char                *p;
     ngx_buf_t           unparsed_body;
-    ngx_http_tnt_ctx_t  *ctx;
-
-    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
     root_items = 0;
     root_map_place = tp->p;
