@@ -160,11 +160,27 @@ function tnt_proxy(req, ...)
 --    out
 end
 
+function url_encoded(req, ...)
+  return req, ...
+end
+
+function method_1(req)
+  return req
+end
+
+function method_2(req)
+  return req
+end
+
+function method_3(req)
+  return req
+end
+
 -- CFG
 box.cfg {
-    log_level = 5;
-    listen = 9999;
-    wal_mode = 'none';
+    log_level = 5,
+    listen = 9999,
+    wal_mode = 'none',
 }
 
 box.once('gr', function()

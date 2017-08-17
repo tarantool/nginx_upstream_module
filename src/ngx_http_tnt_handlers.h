@@ -45,14 +45,19 @@ typedef enum ngx_tnt_conf_states {
     NGX_TNT_CONF_UNESCAPE         = 8,
     NGX_TNT_CONF_PASS_BODY        = 16,
     NGX_TNT_CONF_PASS_HEADERS_OUT = 32,
+    NGX_TNT_CONF_PARSE_URLENCODED = 64,
 } ngx_tnt_conf_states_e;
 
-typedef struct {
-    ngx_array_t                   *flushes;
-    ngx_array_t                   *lengths;
-    ngx_array_t                   *values;
-    ngx_hash_t                     hash;
-} ngx_http_tnt_headers_t;
+typedef struct ngx_http_tnt_header_val_s ngx_http_tnt_header_val_t;
+
+typedef ngx_int_t (*ngx_http_set_header_pt)(ngx_http_request_t *r,
+    ngx_http_tnt_header_val_t *hv, ngx_str_t *value);
+
+struct ngx_http_tnt_header_val_s {
+    ngx_http_complex_value_t   value;
+    ngx_str_t                  key;
+    ngx_http_set_header_pt     handler;
+};
 
 /** The structure hold the nginx location variables, e.g. loc_conf.
  */
@@ -68,7 +73,8 @@ typedef struct {
      * If this is set then tp_transcode use only this method name and
      * tp_transcode will ignore the method name from the json or/and uri
      */
-    ngx_str_t                method;
+    ngx_http_complex_value_t *method_ccv;
+    ngx_str_t method;
 
     /** This is max allowed size of query + headers + body, the size in bytes
      */
@@ -113,9 +119,7 @@ typedef struct {
      */
     ngx_uint_t               pure_result;
 
-    ngx_array_t              *headers_source;
-
-    ngx_http_tnt_headers_t   headers;
+    ngx_array_t               *headers;
 
 } ngx_http_tnt_loc_conf_t;
 
@@ -167,6 +171,10 @@ typedef struct ngx_http_tnt_ctx {
      */
     ngx_int_t          greeting:1;
 
+    /**
+     */
+    ngx_int_t          url_encoded_body:1;
+
     /** The preset method and its length
      */
     u_char             preset_method[128];
@@ -182,7 +190,7 @@ ngx_int_t ngx_http_tnt_init_handlers(ngx_http_request_t *r,
 
 /** Request handlers [
  */
-ngx_int_t ngx_http_tnt_body_json_handler(ngx_http_request_t *r);
+ngx_int_t ngx_http_tnt_body_handler(ngx_http_request_t *r);
 ngx_int_t ngx_http_tnt_query_handler(ngx_http_request_t *r);
 /* ] */
 

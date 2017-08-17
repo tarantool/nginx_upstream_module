@@ -48,6 +48,7 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
   * [tnt_pass_http_request](#tnt_pass_http_request)
   * [tnt_pass_http_request_buffer_size](#tnt_pass_http_request_buffer_size)
   * [tnt_method](#tnt_method)
+  * [tnt_set_header](#tnt_set_header)
   * [tnt_send_timeout](#tnt_send_timeout)
   * [tnt_read_timeout](#tnt_read_timeout)
   * [tnt_buffer_size](#tnt_buffer_size)
@@ -480,7 +481,7 @@ Example
 
 tnt_pass_http_request
 ------------------
-**syntax:** *tnt_pass_http_request [on|off|parse_args|unescape|pass_body|pass_headers_out]*
+**syntax:** *tnt_pass_http_request [on|off|parse_args|unescape|pass_body|pass_headers_out|parse_urlencoded]*
 
 **default:** *off*
 
@@ -519,6 +520,7 @@ Examples #1
     req.body -- request body, type string
   end
 ```
+
 Examples #2 (pass_headers_out)
 ```nginx
   location @tnt {
@@ -543,6 +545,24 @@ Examples #2 (pass_headers_out)
   end
 ```
 
+Examples #3 (parse_urlencoded)
+```nginx
+  location /tnt {
+    tnt_http_rest_methods post;
+    tnt_pass_http_request on parse_urlencoded;
+    tnt_method tarantool_stored_procedure_name;
+    tnt_pass 127.0.0.1:9999;
+  }
+```
+```lua
+  function tarantool_stored_procedure_name(req, ...)
+    req.headers -- a lua table
+    req.query -- a string
+    req.body -- a lua table with url encoded args
+    return true
+  end
+```
+
 ```bash
   # Call tarantool_stored_procedure_name()
   $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
@@ -551,7 +571,7 @@ Examples #2 (pass_headers_out)
 [Back to content](#content)
 
 tnt_pass_http_request_buffer_size
-------------------------
+---------------------------------
 **syntax:** *tnt_pass_http_request_buffer_size SIZE*
 
 **default:** *4k, 8k*
@@ -563,14 +583,14 @@ Specify the size of the buffer used for `tnt_pass_http_request`.
 [Back to content](#content)
 
 tnt_method
------------
+----------
 **syntax:** *tnt_method STR*
 
 **default:** *no*
 
 **context:** *location, location if*
 
-Specify the Tarantool call method.
+Specify the Tarantool call method. It can take a nginx's variable.
 
 Examples
 ```nginx
@@ -584,12 +604,30 @@ Examples
     tnt_pass_http_request on;
     tnt_pass 127.0.0.1:9999;
   }
+
+  location ~ /api/([-_a-zA-Z0-9/]+)/ {
+    # Also tnt_pass_http_request can mix with JSON communication [[
+    tnt_http_rest_methods get;
+    tnt_method $1;
+    #]]
+
+    # [on|of]
+    tnt_pass_http_request on;
+    tnt_pass 127.0.0.1:9999;
+  }
+
 ```
 ```lua
   function tarantool_stored_procedure_name(req, ...)
     req.headers -- lua table
     req.query -- string
     return { 'OK' }
+  end
+
+  function call(req, ...)
+    req.headers -- lua table
+    req.query -- string
+    return req, ...
   end
 ```
 ```bash
@@ -598,12 +636,58 @@ Examples
 
   # Error Call tarantool_stored_procedure_XXX()
   $> wget NGINX_HOST/tarantool_stored_procedure_XXX/some/mega/path?q=1
+
+  # OK Call api_function
+  $> wget NGINX_HOST/api/call/path?q=1
+
+```
+
+[Back to content](#content)
+
+tnt_set_header
+--------------
+**syntax:** *tnt_set_header STR STR*
+
+**default:** *no*
+
+**context:** *location, location if*
+
+Allows redefining or appending fields to the request header passed to the
+tarantool proxied server. The value can contain text, variables, and their combinations.
+
+Examples
+```nginx
+  location tnt {
+    # Also tnt_pass_http_request can mix with JSON communication [[
+    tnt_http_rest_methods get;
+    tnt_method tarantool_stored_procedure_name;
+    #]]
+
+    tnt_set_header X-Host $host;
+    tnt_set_header X-GEO-COUNTRY $geoip_country_code;
+
+    # [on|of]
+    tnt_pass_http_request on;
+    tnt_pass 127.0.0.1:9999;
+  }
+
+```
+```lua
+  function tarantool_stored_procedure_name(req, ...)
+    req.headers['X-Host'] -- a hostname
+    req.headers['X-GEO-COUNTRY'] -- a geo country
+    return { 'OK' }
+  end
+```
+```bash
+  # OK Call tarantool_stored_procedure_name()
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
 ```
 
 [Back to content](#content)
 
 tnt_send_timeout
--------------------
+----------------
 **syntax:** *tnt_send_timeout TIME*
 
 **default:** *60s*

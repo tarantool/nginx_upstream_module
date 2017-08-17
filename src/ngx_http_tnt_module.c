@@ -37,48 +37,34 @@
 #include <ngx_http_tnt_version.h>
 #include <ngx_http_tnt_handlers.h>
 
-/** Filters
- */
-
+/** Filters */
 static ngx_int_t ngx_http_tnt_filter_init(void *data);
-
-static ngx_int_t ngx_http_tnt_send_reply(
-    ngx_http_request_t *r,
-    ngx_http_upstream_t *u,
-    ngx_http_tnt_ctx_t *ctx);
-
-static ngx_int_t ngx_http_tnt_filter_reply(
-    ngx_http_request_t *r,
-    ngx_http_upstream_t *u,
-    ngx_buf_t *b);
-
+static ngx_int_t ngx_http_tnt_send_reply(ngx_http_request_t *r,
+    ngx_http_upstream_t *u, ngx_http_tnt_ctx_t *ctx);
+static ngx_int_t ngx_http_tnt_filter_reply(ngx_http_request_t *r,
+    ngx_http_upstream_t *u, ngx_buf_t *b);
 static ngx_int_t ngx_http_tnt_filter(void *data, ssize_t bytes);
 
-/** Other functions and utils
- */
-static inline ngx_buf_t * ngx_http_tnt_create_mem_buf(
-    ngx_http_request_t *r,
-    ngx_http_upstream_t *u,
-    size_t size);
+/** Other functions  */
+static inline ngx_buf_t * ngx_http_tnt_create_mem_buf(ngx_http_request_t *r,
+    ngx_http_upstream_t *u, size_t size);
+static inline ngx_int_t ngx_http_tnt_output(ngx_http_request_t *r,
+    ngx_http_upstream_t *u, ngx_buf_t *b);
 
-static inline ngx_int_t ngx_http_tnt_output(
-    ngx_http_request_t *r,
-    ngx_http_upstream_t *u,
-    ngx_buf_t *b);
-
-/** Confs
- */
+/** Nginx handlers */
 static ngx_int_t ngx_http_tnt_preconfiguration(ngx_conf_t *cf);
 static void *ngx_http_tnt_create_loc_conf(ngx_conf_t *cf);
-static char *ngx_http_tnt_merge_loc_conf(
-    ngx_conf_t *cf,
-    void *parent,
+static char *ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent,
     void *child);
-
-static char *ngx_http_tnt_pass(
-    ngx_conf_t *cf,
-    ngx_command_t *cmd,
+static char * ngx_http_tnt_method(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
+static char * ngx_http_tnt_headers_add(ngx_conf_t *cf, ngx_command_t *cmd,
+    void *conf);
+static ngx_int_t ngx_http_tnt_add_header_in(ngx_http_request_t *r,
+    ngx_http_tnt_header_val_t *hv, ngx_str_t *value);
+static ngx_int_t ngx_http_tnt_process_headers(ngx_http_request_t *r,
+        ngx_http_tnt_loc_conf_t *tlcf);
+static char *ngx_http_tnt_pass(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static ngx_conf_bitmask_t  ngx_http_tnt_next_upstream_masks[] = {
     { ngx_string("error"), NGX_HTTP_UPSTREAM_FT_ERROR },
@@ -95,6 +81,7 @@ static ngx_conf_bitmask_t  ngx_http_tnt_pass_http_request_masks[] = {
     { ngx_string("unescape"), NGX_TNT_CONF_UNESCAPE },
     { ngx_string("pass_body"), NGX_TNT_CONF_PASS_BODY },
     { ngx_string("pass_headers_out"), NGX_TNT_CONF_PASS_HEADERS_OUT },
+    { ngx_string("parse_urlencoded"), NGX_TNT_CONF_PARSE_URLENCODED },
     { ngx_null_string, 0 }
 };
 
@@ -188,9 +175,9 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
 
     { ngx_string("tnt_method"),
       NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
+      ngx_http_tnt_method,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(ngx_http_tnt_loc_conf_t, method),
+      0,
       NULL },
 
     { ngx_string("tnt_pass_http_request_buffer_size"),
@@ -231,9 +218,9 @@ static ngx_command_t  ngx_http_tnt_commands[] = {
 
     { ngx_string("tnt_set_header"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
-      ngx_conf_set_keyval_slot,
+      ngx_http_tnt_headers_add,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(ngx_http_tnt_loc_conf_t, headers_source),
+      0,
       NULL },
 
       ngx_null_command
@@ -281,6 +268,19 @@ ngx_http_tnt_handler(ngx_http_request_t *r)
     ngx_http_tnt_loc_conf_t *tlcf;
 
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
+
+    if (tlcf->method_ccv != NULL) {
+
+        if (ngx_http_complex_value(r, tlcf->method_ccv, &tlcf->method)
+                    != NGX_OK)
+        {
+            return NGX_ERROR;
+        }
+    }
+
+    if (ngx_http_tnt_process_headers(r, tlcf) != NGX_OK) {
+        return NGX_ERROR;
+    }
 
     if ((!tlcf->method.len && r->uri.len <= 1 /* i.e '/' */) ||
         !(r->method & ngx_http_tnt_allowed_methods))
@@ -444,7 +444,9 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 
     ngx_conf_merge_size_value(conf->out_multiplier, prev->out_multiplier, 2);
 
-    ngx_conf_merge_str_value(conf->method, prev->method, "");
+    if (conf->method_ccv == NULL) {
+        conf->method_ccv = prev->method_ccv;
+    }
 
     ngx_conf_merge_size_value(conf->pass_http_request_buffer_size,
                   prev->pass_http_request_buffer_size, 4096*2);
@@ -465,12 +467,145 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_conf_merge_bitmask_value(conf->pure_result, prev->pure_result,
                 NGX_TNT_CONF_OFF);
 
-    if (conf->headers_source == NULL) {
+    if (conf->headers == NULL) {
         conf->headers = prev->headers;
-        conf->headers_source = prev->headers_source;
     }
 
     return NGX_CONF_OK;
+}
+
+
+static char *
+ngx_http_tnt_method(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_http_tnt_loc_conf_t *tlcf = conf;
+
+    ngx_http_compile_complex_value_t   ccv;
+    ngx_str_t                          *value;
+    ngx_http_complex_value_t           cv;
+
+    ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+    value = cf->args->elts;
+
+    ccv.cf = cf;
+    ccv.value = &value[1];
+    ccv.complex_value = &cv;
+
+    if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
+        return NGX_CONF_ERROR;
+    }
+
+    tlcf->method_ccv = ngx_palloc(cf->pool, sizeof(ngx_http_complex_value_t));
+    if (tlcf->method_ccv == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    *tlcf->method_ccv = cv;
+
+    return NGX_CONF_OK;
+}
+
+
+static char *
+ngx_http_tnt_headers_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_http_tnt_loc_conf_t *tlcf = conf;
+
+    ngx_str_t                          *value;
+    ngx_http_tnt_header_val_t          *hv;
+    ngx_http_compile_complex_value_t   ccv;
+
+    value = cf->args->elts;
+
+    if (tlcf->headers == NULL) {
+
+        tlcf->headers = ngx_array_create(cf->pool, 1,
+                                        sizeof(ngx_http_tnt_header_val_t));
+        if (tlcf->headers == NULL) {
+            return NGX_CONF_ERROR;
+        }
+    }
+
+    hv = ngx_array_push(tlcf->headers);
+    if (hv == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    hv->key = value[1];
+    hv->handler = ngx_http_tnt_add_header_in;
+
+    if (value[2].len == 0) {
+        ngx_memzero(&hv->value, sizeof(ngx_http_complex_value_t));
+
+    } else {
+        ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+
+        ccv.cf = cf;
+        ccv.value = &value[2];
+        ccv.complex_value = &hv->value;
+
+        if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
+            return NGX_CONF_ERROR;
+        }
+    }
+
+    if (cf->args->nelts == 3) {
+        return NGX_CONF_OK;
+    }
+
+    return NGX_CONF_OK;
+}
+
+
+static ngx_int_t
+ngx_http_tnt_add_header_in(ngx_http_request_t *r,
+                           ngx_http_tnt_header_val_t *hv,
+                           ngx_str_t *value)
+{
+    ngx_table_elt_t  *h;
+
+    if (value->len) {
+
+        h = ngx_list_push(&r->headers_in.headers);
+        if (h == NULL) {
+            return NGX_ERROR;
+        }
+
+        h->hash = 1;
+        h->key = hv->key;
+        h->value = *value;
+    }
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_http_tnt_process_headers(ngx_http_request_t *r,
+                             ngx_http_tnt_loc_conf_t *tlcf)
+{
+    ngx_uint_t                i;
+    ngx_str_t                 value;
+    ngx_http_tnt_header_val_t *h;
+
+    if (tlcf->headers == NULL) {
+        return NGX_OK;
+    }
+
+    h = tlcf->headers->elts;
+
+    for (i = 0; i < tlcf->headers->nelts; i++) {
+
+        if (ngx_http_complex_value(r, &h[i].value, &value) != NGX_OK) {
+            return NGX_ERROR;
+        }
+
+        if (h[i].handler(r, &h[i], &value) != NGX_OK) {
+            return NGX_ERROR;
+        }
+    }
+
+    return NGX_OK;
 }
 
 
@@ -574,7 +709,8 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
 
     rc = tp_transcode_init(&tc, &args);
     if (rc == TP_TRANSCODE_ERROR) {
-        crit("[BUG] failed to call tp_transcode_init(output)");
+        ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+                "[BUG] failed to call tp_transcode_init(output)");
         return NGX_ERROR;
     }
 
@@ -589,7 +725,9 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
         size_t complete_msg_size = 0;
         rc = tp_transcode_complete(&tc, &complete_msg_size);
         if (rc == TP_TRANSCODE_ERROR) {
-            crit("[BUG] failed to complete output transcoding. UNKNOWN ERROR");
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                    "[BUG] failed to complete output transcoding. "
+                    "UNKNOWN ERROR");
             goto error_exit;
         }
 
@@ -612,9 +750,9 @@ ngx_http_tnt_send_reply(ngx_http_request_t *r,
     /* Transcoder down
     */
     else {
-        crit("[BUG] failed to transcode output. errcode: '%d', errmsg: '%s'",
-            tc.errcode,
-            get_str_safe((const u_char *)tc.errmsg));
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+            "[BUG] failed to transcode output. errcode: '%d', errmsg: '%s'",
+            tc.errcode, get_str_safe((const u_char *) tc.errmsg));
         goto error_exit;
     }
 
@@ -684,8 +822,9 @@ ngx_http_tnt_filter_reply(ngx_http_request_t *r,
             ctx->payload_size = tp_read_payload((char *)&ctx->payload.mem[0],
                                                 (char *)ctx->payload.e);
             if (ctx->payload_size <= 0) {
-                crit("[BUG] tp_read_payload failed, ret:%i",
-                        (int)ctx->payload_size);
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                        "[BUG] tp_read_payload failed, ret:%i",
+                        (int) ctx->payload_size);
                 return NGX_ERROR;
             }
 

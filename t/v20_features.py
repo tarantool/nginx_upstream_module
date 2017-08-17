@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys
-sys.path.append('./test')
+sys.path.append('./t')
 from http_utils import *
 
 big_args_in = {}

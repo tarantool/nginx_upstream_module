@@ -2,7 +2,7 @@
 
 set -x -e
 
-for ver_tag in `cat test/ngx_versions_list`; do
+for ver_tag in `cat t/ngx_versions_list`; do
 
   # Checkout nginx version via tag
   cd nginx
@@ -21,9 +21,9 @@ for ver_tag in `cat test/ngx_versions_list`; do
       echo "[+] Start testing $ver_tag"
       ./nginx/objs/nginx 2> /dev/null &
       nginx_pid=$!
-      tarantool test/test.lua 2> /dev/null &
+      tarantool t/test.lua 2> /dev/null &
       tnt_pid=$!
-      ./test/run_all.sh
+      ./t/run_all.sh
       for pid in $nginx_pid $tnt_pid; do
         echo "[+] Terminating $pid"
         kill -s TERM $pid

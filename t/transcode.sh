@@ -14,23 +14,23 @@ do_trasncode() {
   fi
 
   if [[ x"$DUMP_RESULT_ONLY" = x"yes" ]]; then
-    echo "$name -> $result" >> ${PWD}/test/cases/tc.out
+    echo "$name -> $result" >> ${PWD}/t/cases/tc.out
     return;
   fi
 }
 
 ####
 echo "[+] Testing ..."
-rm -f ${PWD}/test/cases/tc.out > /dev/null
+rm -f ${PWD}/t/cases/tc.out > /dev/null
 if [[ x"$TRANSCODE_OFF" != x"yes" ]]; then
-  for _case in `ls ${PWD}/test/cases/*json`; do
+  for _case in `ls ${PWD}/t/cases/*json`; do
     do_trasncode $_case
   done
 fi
 
-cat ${PWD}/test/cases/tc.out | sort > ${PWD}/test/cases/tc.out.sorted
-diff_result=`diff ${PWD}/test/cases/tc.out.sorted \
-                  ${PWD}/test/cases/expected`
+cat ${PWD}/t/cases/tc.out | sort > ${PWD}/t/cases/tc.out.sorted
+diff_result=`diff ${PWD}/t/cases/tc.out.sorted \
+                  ${PWD}/t/cases/expected`
 if [[ ! x"$diff_result" = x'' ]]; then
   echo "[-] $diff_result"
   exit 1

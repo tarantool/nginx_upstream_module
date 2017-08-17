@@ -47,20 +47,11 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-#if 0
-#define dd(...) fprintf(stderr, __VA_ARGS__)
-#else
-#define dd(...)
-#endif
-
-#define ALLOC(ctx_, size) \
-    (ctx_)->tc->mf.alloc((ctx_)->tc->mf.ctx, (size))
-#define REALLOC(ctx_, mem, size) \
-    (ctx_)->tc->mf.realloc((ctx_)->tc->mf.ctx, (mem), (size))
-#define FREE(ctx_, mem) \
-    (ctx_)->tc->mf.free((ctx_)->tc->mf.ctx, (mem))
-
-enum type { TYPE_MAP = 1, TYPE_ARRAY = 2, TYPE_KEY = 4 };
+enum type {
+    TYPE_MAP = 1,
+    TYPE_ARRAY = 2,
+    TYPE_KEY = 4
+};
 
 static inline void
 say_error_(tp_transcode_t *t, int code, const char *e, size_t len)
@@ -91,10 +82,27 @@ say_error_(tp_transcode_t *t, int code, const char *e, size_t len)
 
 #define say_wrong_params(ctx) \
             say_error((ctx), -32700, \
-                  "'params' _must_ be array, 'params' _may_ be empty array")
+                  "'params' _must_ be array, 'params' _may_ be an empty array")
 
 #define say_invalid_json(ctx) \
             say_error((ctx), -32700, "invalid json")
+
+#define ALLOC(ctx_, size) \
+    (ctx_)->tc->mf.alloc((ctx_)->tc->mf.ctx, (size))
+#define REALLOC(ctx_, mem, size) \
+    (ctx_)->tc->mf.realloc((ctx_)->tc->mf.ctx, (mem), (size))
+#define FREE(ctx_, mem) \
+    (ctx_)->tc->mf.free((ctx_)->tc->mf.ctx, (mem))
+
+#if 0
+# define dd(...) do { \
+        fprintf(stderr, "tnt *** "); \
+        fprintf(stderr, __VA_ARGS__); \
+        fprintf(stderr, " at %s line %d.\n", __FILE__, __LINE__); \
+      } while(0)
+#else
+# define dd(...)
+#endif
 
 /*
  * CODEC - YAJL_JSON_RPC
@@ -773,7 +781,7 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
 static enum tt_result
 yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
 {
-    yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
+    yajl_ctx_t *s_ctx = (yajl_ctx_t *) ctx;
 
     const yajl_status stat = yajl_complete_parse(s_ctx->hand);
 
@@ -791,56 +799,6 @@ yajl_json2tp_complete(void *ctx, size_t *complete_msg_size)
     /* ? */
     return TP_TRANSCODE_ERROR;
 }
-
-
-/**
- * CODEC - uri query to Tarantool message
- */
-
-typedef struct query2tp_ctx {
-    char *pos;
-    char *end;
-    tp_transcode_t *tc;
-} query2tp_ctx_t;
-
-static void*
-query2tp_create(tp_transcode_t *tc, char *output, size_t output_size)
-{
-    query2tp_ctx_t *ctx = tc->mf.alloc(tc->mf.ctx, sizeof(query2tp_ctx_t));
-    if (unlikely(!ctx))
-        return NULL;
-
-    ctx->pos =  output;
-    ctx->end = output + output_size;
-    ctx->tc = tc;
-
-    return ctx;
-}
-
-static void
-query2tp_free(void *ctx_)
-{
-    if (unlikely(!ctx_))
-        return;
-    query2tp_ctx_t *ctx = ctx_;
-    tp_transcode_t * tc = ctx->tc;
-    tc->mf.free(tc->mf.ctx, ctx);
-}
-
-enum tt_result
-query2tp_transcode(void *ctx, const char *in, size_t in_size)
-{
-    (void)ctx, (void)in, (void)in_size;
-    return 0;
-}
-
-enum tt_result
-query2tp_complete(void *ctx, size_t *cmpl_msg_size)
-{
-    (void)ctx, (void)cmpl_msg_size;
-    return 0;
-}
-
 
 /**
  * CODEC - Tarantool message to JSON RPC
@@ -1144,7 +1102,7 @@ tp2json_transcode(void *ctx_, const char *in, size_t in_size)
     const char *it = in, *end = in + in_size;
 
     /* TODO
-     * Need add tarantool message structure check like in tp_reply
+     * I have to add tarantool message check like tp_reply does
      */
 
     /* Message len */
@@ -1201,11 +1159,6 @@ tp_codec_t codecs[TP_CODEC_MAX] = {
             &yajl_json2tp_complete,
             &yajl_json2tp_free),
 
-    CODEC(&query2tp_create,
-            &query2tp_transcode,
-            &query2tp_complete,
-            &query2tp_free),
-
     CODEC(&tp2json_create,
             &tp_reply2json_transcode,
             &tp2json_complete,
@@ -1214,7 +1167,7 @@ tp_codec_t codecs[TP_CODEC_MAX] = {
     CODEC(&tp2json_create,
             &tp2json_transcode,
             &tp2json_complete,
-            &tp2json_free)
+            &tp2json_free),
 
 };
 #undef CODEC
@@ -1226,22 +1179,23 @@ tp_codec_t codecs[TP_CODEC_MAX] = {
 static void *
 def_alloc(void *ctx, size_t s)
 {
-    (void)ctx;
+    (void) ctx;
     return malloc(s);
 }
 
 static void *
 def_realloc(void *ctx, void *m, size_t s)
 {
-    (void)ctx;
+    (void) ctx;
     return realloc(m, s);
 }
 
 static void
 def_free(void *ctx, void *m)
 {
-    (void)ctx;
-    free(m);
+    (void) ctx;
+    if (m)
+        free(m);
 }
 
 enum tt_result

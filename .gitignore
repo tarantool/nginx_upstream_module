@@ -1,3 +1,5 @@
+tp_allowed
+__pycache__
 test-root
 nginx
 *.dSYM

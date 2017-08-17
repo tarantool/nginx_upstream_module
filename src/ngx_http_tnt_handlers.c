@@ -26,7 +26,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2016 Tarantool AUTHORS:
+ * Copyright (C) 2015-2017 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
@@ -195,6 +195,7 @@ ngx_http_tnt_send_once(ngx_http_request_t *r,
 {
     tp_transcode_t           tc;
     size_t                   complete_msg_size;
+
     tp_transcode_init_args_t args = {
         .output = (char *) out_chain->buf->start,
         .output_size = out_chain->buf->end - out_chain->buf->start,
@@ -381,23 +382,26 @@ ngx_http_tnt_encode_str_map_item(ngx_http_request_t *r,
     return NGX_OK;
 }
 
-static inline ngx_int_t
-ngx_http_tnt_encode_query_args(
-        ngx_http_request_t *r,
-        ngx_http_tnt_loc_conf_t *tlcf,
-        struct tp *tp,
-        ngx_uint_t *args_items)
-{
-    u_char *arg_begin, *end;
 
-    if (r->args.len == 0) {
+static inline ngx_int_t
+ngx_http_tnt_encode_query_args(ngx_http_request_t *r,
+                               ngx_http_tnt_loc_conf_t *tlcf,
+                               struct tp *tp,
+                               ngx_str_t *args,
+                               ngx_uint_t *args_items)
+{
+    u_char                  *arg_begin, *end;
+    ngx_http_tnt_next_arg_t arg;
+
+    if (args->len == 0) {
         return NGX_OK;
     }
 
-    arg_begin = r->args.data;
-    end = arg_begin + r->args.len;
+    arg_begin = args->data;
+    end = arg_begin + args->len;
 
-    ngx_http_tnt_next_arg_t arg = { .it = arg_begin, .value = NULL };
+    arg.it = arg_begin;
+    arg.value = NULL;
 
     for (; arg.it < end; ) {
 
@@ -426,170 +430,269 @@ ngx_http_tnt_encode_query_args(
 
 
 static inline ngx_int_t
+ngx_http_tnt_encode_urlencoded_body(ngx_http_request_t *r,
+                                    ngx_http_tnt_loc_conf_t *tlcf,
+                                    struct tp *tp,
+                                    ngx_buf_t *b,
+                                    ngx_uint_t *args_items)
+{
+    ngx_str_t args;
+
+    if (b->start == b->last) {
+        return NGX_OK;
+    }
+
+    args.data = b->start;
+    args.len = (size_t) (b->last - b->start);
+
+    return ngx_http_tnt_encode_query_args(r, tlcf, tp, &args, args_items);
+}
+
+
+static inline ngx_int_t
 ngx_http_tnt_get_request_data(ngx_http_request_t *r,
                               ngx_http_tnt_loc_conf_t *tlcf,
                               struct tp *tp)
 {
-    char            *root_map_place;
-    char            *map_place;
-    size_t          root_items;
-    size_t          map_items;
-    ngx_buf_t       *b;
-    ngx_chain_t     *body;
-    char            *p;
+    /** TODO:
+     *      This function should be part of tp_transcode.{c,h}. It's very
+     *      strange have this function here, so the best way is piece by piece
+     *      move a functionality ...
+     *
+     *      Also it would be nice to tie nginx structures with tp_transcode
+     */
+    char                *root_map_place;
+    char                *map_place;
+    size_t              root_items;
+    size_t              map_items;
+    ngx_buf_t           *b;
+    ngx_chain_t         *body;
+    char                *p;
+    ngx_buf_t           unparsed_body;
+    ngx_http_tnt_ctx_t  *ctx;
+
+    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
     root_items = 0;
     root_map_place = tp->p;
-    tp_add(tp, 1 + sizeof(uint32_t));
 
-    /** Encode protocol
-     */
+    if (tp_add(tp, 1 + sizeof(uint32_t)) == NULL) {
+        goto oom_cant_encode;
+    }
+
+    /** Encode protocol */
     ++root_items;
 
-    if (!tp_encode_str_map_item(tp,
+    if (tp_encode_str_map_item(tp,
                                 "proto", sizeof("proto") - 1,
                                 (const char*) r->http_protocol.data,
-                                r->http_protocol.len))
+                                r->http_protocol.len) == NULL)
     {
-        return NGX_ERROR;
+        goto oom_cant_encode;
     }
 
-    /** Encode method
-     */
+    /** Encode method */
     ++root_items;
 
-    if (!tp_encode_str_map_item(tp,
+    if (tp_encode_str_map_item(tp,
                                 "method", sizeof("method") - 1,
                                 (const char *) r->method_name.data,
-                                r->method_name.len))
+                                r->method_name.len) == NULL)
     {
-        return NGX_ERROR;
+        goto oom_cant_encode;
     }
 
-    /** Encode raw uri
-     */
+    /** Encode raw uri */
     ++root_items;
 
     if (ngx_http_tnt_encode_str_map_item(r, tlcf, tp,
-                                         (u_char *)"uri", sizeof("uri") - 1,
+                                         (u_char *) "uri", sizeof("uri") - 1,
                                          r->unparsed_uri.data,
                                          r->unparsed_uri.len) == NGX_ERROR)
     {
-        return NGX_ERROR;
+        goto oom_cant_encode;
     }
 
-    /** Encode query args
-     */
+    /** Encode query args */
     if (tlcf->pass_http_request & NGX_TNT_CONF_PARSE_ARGS) {
 
         ++root_items;
 
-        if (!tp_encode_str(tp, "args", sizeof("args") - 1)) {
-            return NGX_ERROR;
+        if (tp_encode_str(tp, "args", sizeof("args") - 1) == NULL) {
+            goto oom_cant_encode;
         }
 
         map_place = tp->p;
-        if (!tp_add(tp, 1 + sizeof(uint32_t))) {
-            return NGX_ERROR;
+        if (tp_add(tp, 1 + sizeof(uint32_t)) == NULL) {
+            goto oom_cant_encode;
         }
 
         map_items = 0;
 
         if (ngx_http_tnt_encode_query_args(
-                    r, tlcf, tp, &map_items) == NGX_ERROR)
+                    r, tlcf, tp, &r->args, &map_items) == NGX_ERROR)
         {
-            return NGX_ERROR;
+            goto oom_cant_encode;
         }
 
         *(map_place++) = 0xdf;
         *(uint32_t *) map_place = mp_bswap_u32(map_items);
     }
 
-    /** Encode http headers
-     */
+    /** Encode http headers */
     ++root_items;
 
-    if (!tp_encode_str(tp, "headers", sizeof("headers") - 1)) {
-        return NGX_ERROR;
+    if (tp_encode_str(tp, "headers", sizeof("headers") - 1) == NULL) {
+        goto oom_cant_encode_headers;
     }
 
     map_items = 0;
     map_place = tp->p;
 
-    if (!tp_add(tp, 1 + sizeof(uint32_t))) {
-        return NGX_ERROR;
+    if (tp_add(tp, 1 + sizeof(uint32_t)) == NULL) {
+        goto oom_cant_encode_headers;
     }
-
-    // XXX set_header
-#if 0
-    ngx_http_script_flush_no_cacheable_variables(r, tlcf->headers.flushes);
-#endif
 
     if (ngx_http_tnt_copy_headers(tp, &r->headers_in.headers, &map_items) ==
             NGX_ERROR)
     {
-        return NGX_ERROR;
+        goto oom_cant_encode_headers;
     }
 
     if ((tlcf->pass_http_request & NGX_TNT_CONF_PASS_HEADERS_OUT) &&
         (ngx_http_tnt_copy_headers(tp, &r->headers_out.headers, &map_items) ==
             NGX_ERROR) )
     {
-        return NGX_ERROR;
+        goto oom_cant_encode_headers;
     }
 
     *(map_place++) = 0xdf;
     *(uint32_t *) map_place = mp_bswap_u32(map_items);
 
-    /* Encode body
-     */
-    if ((tlcf->pass_http_request & NGX_TNT_CONF_PASS_BODY) &&
+    /** Encode body */
+    if ((tlcf->pass_http_request & NGX_TNT_CONF_PASS_BODY ||
+                tlcf->pass_http_request & NGX_TNT_CONF_PARSE_URLENCODED) &&
             r->headers_in.content_length_n > 0 &&
             r->upstream->request_bufs)
     {
         ++root_items;
 
-        if (!tp_encode_str(tp, "body", sizeof("body") - 1)) {
-            return NGX_ERROR;
+        if (tp_encode_str(tp, "body", sizeof("body") - 1) == NULL) {
+            goto oom_cant_encode_body;
         }
 
-        int sz = mp_sizeof_str(r->headers_in.content_length_n);
-        if (tp_ensure(tp, sz) == -1) {
-            return NGX_ERROR;
-        }
+        /** Encode urlencoded body as map - body = { K = V, .. } */
+        if (tlcf->pass_http_request & NGX_TNT_CONF_PARSE_URLENCODED) {
 
-        p = mp_encode_strl(tp->p, r->headers_in.content_length_n);
-        for (body = r->upstream->request_bufs; body; body = body->next) {
+            map_place = tp->p;
 
-            b = body->buf;
-
-            if (b->in_file) {
-                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                    "tnt: in-file buffer found. aborted. "
-                    "consider increasing your 'client_body_buffer_size' "
-                    "setting");
-                return NGX_ERROR;
+            if (tp_add(tp, 1 + sizeof(uint32_t)) == NULL) {
+                goto oom_cant_encode_body;
             }
 
-            p = (char *) ngx_copy(p, b->pos, b->last - b->pos);
-        }
+            ngx_memset(&unparsed_body, 0, sizeof(ngx_buf_t));
 
-        if (!tp_add(tp, sz)) {
-            return NGX_ERROR;
-       }
+            unparsed_body.pos = ngx_pnalloc(r->pool,
+                            sizeof(u_char) * r->headers_in.content_length_n + 1);
+            if (unparsed_body.pos == NULL) {
+                return NGX_ERROR;
+            }
+            unparsed_body.last = unparsed_body.pos;
+            unparsed_body.start = unparsed_body.pos;
+            unparsed_body.end = unparsed_body.pos +
+                    r->headers_in.content_length_n + 1;
+
+            for (body = r->upstream->request_bufs; body; body = body->next) {
+
+                b = body->buf;
+
+                if (b->in_file) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                        "tnt: in-file buffer found. aborted. "
+                        "consider increasing your 'client_body_buffer_size' "
+                        "setting");
+                    return NGX_ERROR;
+                }
+
+                unparsed_body.last = ngx_copy(unparsed_body.last,
+                            b->pos, b->last - b->pos);
+            }
+
+            map_items = 0;
+
+            if (ngx_http_tnt_encode_urlencoded_body(r, tlcf, tp,
+                        &unparsed_body, &map_items) != NGX_OK)
+            {
+                goto oom_cant_encode_body;
+            }
+
+            *(map_place++) = 0xdf;
+            *(uint32_t *) map_place = mp_bswap_u32(map_items);
+
+        }
+        /** Unknown body type - encode as mp string
+         */
+        else {
+
+            int sz = mp_sizeof_str(r->headers_in.content_length_n);
+            if (tp_ensure(tp, sz) == -1) {
+                goto oom_cant_encode_body;
+            }
+
+            p = mp_encode_strl(tp->p, r->headers_in.content_length_n);
+
+            for (body = r->upstream->request_bufs; body; body = body->next) {
+
+                b = body->buf;
+
+                if (b->in_file) {
+                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                        "tnt: in-file buffer found. aborted. "
+                        "consider increasing your 'client_body_buffer_size' "
+                        "setting");
+                    return NGX_ERROR;
+                }
+
+                p = (char *) ngx_copy(p, b->pos, b->last - b->pos);
+            }
+
+            if (tp_add(tp, sz) == NULL) {
+                goto oom_cant_encode_body;
+            }
+        }
     }
 
     *(root_map_place++) = 0xdf;
     *(uint32_t *) root_map_place = mp_bswap_u32(root_items);
 
     return NGX_OK;
+
+oom_cant_encode:
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+            "tnt: can't encode uri, schema etc. "
+            "aborted. consider increasing your "
+            "'tnt_pass_http_request_buffer_size' setting");
+    return NGX_ERROR;
+
+oom_cant_encode_headers:
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+            "tnt: can't encode HTTP headers. "
+            "aborted. consider increasing your "
+            "'tnt_pass_http_request_buffer_size' setting");
+    return NGX_ERROR;
+
+oom_cant_encode_body:
+
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+            "tnt: can't encode body. aborted. consider increasing your "
+            "'tnt_pass_http_request_buffer_size' setting");
+    return NGX_ERROR;
 }
 
 
 static inline ngx_buf_t *
-ngx_http_tnt_get_request_data_map(
-    ngx_http_request_t *r,
-    ngx_http_tnt_loc_conf_t *tlcf)
+ngx_http_tnt_get_request_data_map(ngx_http_request_t *r,
+                                  ngx_http_tnt_loc_conf_t *tlcf)
 {
     ngx_int_t rc;
     struct tp tp;
@@ -597,8 +700,10 @@ ngx_http_tnt_get_request_data_map(
 
     b = ngx_create_temp_buf(r->pool, tlcf->pass_http_request_buffer_size);
     if (b == NULL) {
-        crit("[BUG?] ngx_http_tnt_get_request_data_map - "
-             "failed to allocate output buffer, size");
+        ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+            "ngx_http_tnt_get_request_data_map can't allocate "
+            "output buffer with size = %d",
+            (int) tlcf->pass_http_request_buffer_size);
         return NULL;
     }
 
@@ -607,7 +712,7 @@ ngx_http_tnt_get_request_data_map(
 
     b->pos = b->start;
 
-    tp_init(&tp, (char *)b->start, b->end - b->start, NULL, NULL);
+    tp_init(&tp, (char *) b->start, b->end - b->start, NULL, NULL);
     tp.size = tp.p;
 
     rc = ngx_http_tnt_get_request_data(r, tlcf, &tp);
@@ -615,7 +720,7 @@ ngx_http_tnt_get_request_data_map(
         return NULL;
     }
 
-    b->last = (u_char *)tp.p;
+    b->last = (u_char *) tp.p;
 
     return b;
 }
@@ -668,7 +773,7 @@ ngx_int_t ngx_http_tnt_init_handlers(ngx_http_request_t *r,
                                      ngx_http_upstream_t *u,
                                      ngx_http_tnt_loc_conf_t *tlcf)
 {
-    ngx_http_tnt_ctx_t *ctx;
+    ngx_http_tnt_ctx_t  *ctx;
 
     ctx = ngx_http_tnt_create_ctx(r);
     if (ctx == NULL) {
@@ -684,18 +789,15 @@ ngx_int_t ngx_http_tnt_init_handlers(ngx_http_request_t *r,
     u->abort_request = ngx_http_tnt_abort_request;
     u->finalize_request = ngx_http_tnt_finalize_request;
 
-    if (tlcf->pass_http_request & NGX_TNT_CONF_PASS_BODY) {
-        dd("NGX_TNT_CONF_PASS_BODY");
-        u->create_request = ngx_http_tnt_query_handler;
-    } else {
+    /** Default */
+    u->create_request = ngx_http_tnt_query_handler;
 
-        if (r->headers_in.content_length_n > 0) {
-            dd("ngx_http_tnt_body_json_handler");
-            u->create_request = ngx_http_tnt_body_json_handler;
-        } else {
-            dd("ngx_http_tnt_query_handler");
-            u->create_request = ngx_http_tnt_query_handler;
-        }
+    if (tlcf->pass_http_request & NGX_TNT_CONF_PASS_BODY) {
+        return NGX_OK;
+    }
+
+    if (r->headers_in.content_length_n > 0) {
+        u->create_request = ngx_http_tnt_body_handler;
     }
 
     return NGX_OK;
@@ -703,15 +805,16 @@ ngx_int_t ngx_http_tnt_init_handlers(ngx_http_request_t *r,
 
 
 ngx_int_t
-ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
+ngx_http_tnt_body_handler(ngx_http_request_t *r)
 {
-    ngx_buf_t               *b, *request_b = NULL;
-    ngx_chain_t             *body;
-    size_t                  complete_msg_size;
-    tp_transcode_t          tc;
-    ngx_http_tnt_ctx_t      *ctx;
-    ngx_chain_t             *out_chain;
-    ngx_http_tnt_loc_conf_t *tlcf;
+    ngx_buf_t                   *b, *request_b = NULL;
+    ngx_chain_t                 *body;
+    size_t                      complete_msg_size;
+    tp_transcode_t              tc;
+    ngx_http_tnt_ctx_t          *ctx;
+    ngx_chain_t                 *out_chain;
+    ngx_http_tnt_loc_conf_t     *tlcf;
+    const ngx_http_tnt_error_t  *e;
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
@@ -732,9 +835,10 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
     out_chain->buf = ngx_create_temp_buf(r->pool,
                         ngx_http_tnt_get_output_size(r, ctx, tlcf, request_b));
     if (out_chain->buf == NULL) {
-        crit("[BUG?] ngx_http_tnt_body_json_handler -- "
-             "failed to allocate output buffer, size %ui",
-             (r->headers_in.content_length_n + 1) * tlcf->in_multiplier);
+        ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+                "ngx_http_tnt_body_handler -- "
+                "failed to allocate output buffer, size %ui",
+                (r->headers_in.content_length_n + 1) * tlcf->in_multiplier);
         return NGX_ERROR;
     }
 
@@ -747,7 +851,7 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
     out_chain->buf->last_in_chain = 1;
 
     /**
-     *  Conv. input json to Tarantool message [
+     *  Conv. input (json, x-url-encoded) into Tarantool's message [
      */
     tp_transcode_init_args_t args = {
         .output = (char *) out_chain->buf->start,
@@ -759,49 +863,61 @@ ngx_http_tnt_body_json_handler(ngx_http_request_t *r)
     };
 
     if (tp_transcode_init(&tc, &args) == TP_TRANSCODE_ERROR) {
-        crit("[BUG] failed to call tp_transcode_init(input)");
+        ngx_log_error(NGX_LOG_CRIT, r->connection->log, 0,
+                "[BUG] failed to call tp_transcode_init(input)");
         return NGX_ERROR;
     }
 
-    /**
-     * Bind extra data e.g. http headers, uri ...
-     */
+    /** Bind extra data e.g. http headers, uri etc */
     if (request_b != NULL) {
-        tp_transcode_bind_data(&tc,
-                               (const char *) request_b->start,
-                               (const char *) request_b->last);
+        tp_transcode_bind_data(&tc, (const char *) request_b->start,
+                (const char *) request_b->last);
     }
 
-    for (body = r->upstream->request_bufs; body; body = body->next) {
+    /** Parse url-encoded*/
+    if (tlcf->pass_http_request & NGX_TNT_CONF_PARSE_URLENCODED) {
 
-        if (body->buf->in_file) {
-
-            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                "tnt: in-file buffer found. aborted. "
-                "consider increasing your 'client_body_buffer_size' "
-                "setting");
-
-            const ngx_http_tnt_error_t *e = get_error_text(REQUEST_TOO_LARGE);
-            ctx->in_err = ngx_http_tnt_set_err(r,
-                                               e->code,
-                                               e->msg.data, e->msg.len);
-            if (ctx->in_err == NULL) {
-                goto error_exit;
-            }
-
-            ctx->state = INPUT_TO_LARGE;
-
-            goto read_input_done;
-
-        } else {
-            b = body->buf;
-        }
-
-        if (tp_transcode(&tc, (char *)b->pos, b->last - b->pos)
+        if (tp_transcode(&tc, "{\"params\":[]}", sizeof("{\"params\":[]}") - 1)
                 == TP_TRANSCODE_ERROR)
         {
             ctx->state = INPUT_JSON_PARSE_FAILED;
             goto read_input_done;
+        }
+    }
+
+    /** Parse JSON*/
+    else {
+
+        for (body = r->upstream->request_bufs; body; body = body->next) {
+
+
+            if (body->buf->in_file) {
+
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                    "tnt: in-file buffer found. aborted. "
+                    "consider increasing your 'client_body_buffer_size' "
+                    "setting");
+
+                e = get_error_text(REQUEST_TOO_LARGE);
+                ctx->in_err = ngx_http_tnt_set_err(r, e->code,
+                        e->msg.data, e->msg.len);
+                if (ctx->in_err == NULL) {
+                    goto error_exit;
+                }
+
+                ctx->state = INPUT_TO_LARGE;
+                goto read_input_done;
+
+            } else {
+                b = body->buf;
+            }
+
+            if (tp_transcode(&tc, (char *) b->pos, b->last - b->pos)
+                    == TP_TRANSCODE_ERROR)
+            {
+                ctx->state = INPUT_JSON_PARSE_FAILED;
+                goto read_input_done;
+            }
         }
     }
 
@@ -925,19 +1041,22 @@ ngx_http_tnt_query_handler(ngx_http_request_t *r)
     buf = out_chain->buf;
     tp_init(&tp, (char *)buf->start, buf->end - buf->start, NULL, NULL);
 
-    if (!tp_call_nargs(&tp,
-                       (const char *)ctx->preset_method,
-                       (size_t)ctx->preset_method_len, 1))
+    if (!tp_call_nargs(&tp, (const char *) ctx->preset_method,
+                            (size_t) ctx->preset_method_len, 1))
     {
         err = get_error_text(HTTP_REQUEST_TOO_LARGE);
-        crit("ngx_http_tnt_query_handler - %s", get_str_safe(err->msg.data));
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                "ngx_http_tnt_query_handler - %s",
+                get_str_safe(err->msg.data));
         return NGX_ERROR;
     }
 
     rc = ngx_http_tnt_get_request_data(r, tlcf, &tp);
     if (rc != NGX_OK) {
         err = get_error_text(HTTP_REQUEST_TOO_LARGE);
-        crit("ngx_http_tnt_query_handler - %s", get_str_safe(err->msg.data));
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                "ngx_http_tnt_query_handler - %s",
+                get_str_safe(err->msg.data));
         return rc;
     }
 
@@ -1008,7 +1127,8 @@ ngx_http_tnt_process_header(ngx_http_request_t *r)
     case INPUT_EMPTY:
         return ngx_http_tnt_output_err(r, ctx, NGX_HTTP_BAD_REQUEST);
     default:
-        crit("[BUG] unexpected ctx->stage(%i)", ctx->state);
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                "[BUG] unexpected ctx->stage(%i)", ctx->state);
         return NGX_ERROR;
     }
 
@@ -1077,8 +1197,7 @@ ngx_http_tnt_set_err(ngx_http_request_t *r,
     return b;
 }
 
-/**
- */
+
 static const ngx_http_tnt_error_t errors[] = {
 
     {   ngx_string("Request too large, consider increasing your "
@@ -1095,6 +1214,7 @@ static const ngx_http_tnt_error_t errors[] = {
         -32001
     }
 };
+
 
 const ngx_http_tnt_error_t *
 get_error_text(int type)

@@ -74,10 +74,6 @@ enum tp_codec_type {
    */
   YAJL_JSON_TO_TP = 0,
 
-  /**
-   */
-  QUERY_TO_TP,
-
   /** Tarantool reply message to JSON
    */
   TP_REPLY_TO_JSON,

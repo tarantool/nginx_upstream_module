@@ -2,7 +2,7 @@
 # -_- encoding: utf8 -_-
 
 import sys
-sys.path.append('./test')
+sys.path.append('./t')
 from http_utils import *
 
 # =============

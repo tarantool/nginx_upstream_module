@@ -26,7 +26,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2016 Tarantool AUTHORS:
+ * Copyright (C) 2015-2017 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
@@ -71,19 +71,7 @@ dd(const char* fmt, ...) { }
 
 static inline const u_char*
 get_str_safe(const u_char *str) {
-  return (str ? str : (const u_char *)"NULL");
+  return (str ? str : (const u_char *) "NULL");
 }
-
-#if (NGX_HAVE_VARIADIC_MACROS)
-# define log_crit(log, ...) \
-     ngx_log_error_core(NGX_LOG_CRIT, (log), 0, __VA_ARGS__)
-# define crit(...) log_crit(r->connection->log, __VA_ARGS__)
-# else
-/** TODO
- *  Need I add some warn message?
- */
-static inline void
-crit(...) {}
-#endif /* NGX_HAVE_VARIADIC_MACROS */
 
 #endif
