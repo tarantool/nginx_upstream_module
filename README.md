@@ -72,7 +72,10 @@ git clone https://github.com/tarantool/nginx_upstream_module.git nginx_upstream_
 cd nginx_upstream_module
 git submodule update --init --recursive
 git clone https://github.com/nginx/nginx.git nginx
-sudo apt-get install libpcre-dev zlib1-dev # install dependencies to build nginx
+
+# Ubuntu
+apt-get install libpcre++0 gcc unzip libpcre3-dev zlib1g-dev libssl-dev libxslt-dev
+
 make build-all
 ```
 [Back to content](#content)
