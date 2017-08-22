@@ -370,12 +370,12 @@ ngx_http_tnt_encode_str_map_item(ngx_http_request_t *r,
        (int)key_len, (char *)dkey, (int)value_len, (char *)dvalue);
 #endif
 
-    if (!tp_encode_str_map_item(
-            tp,
-            (const char *)dkey, key_len,
-            (const char *)dvalue, value_len))
+    if (!tp_encode_str_map_item(tp,
+                                (const char *) dkey, key_len,
+                                (const char *) dvalue, value_len))
     {
-        dd("ngx_http_tnt_encode_str_map_item: tp_encode_str_map_item failed");
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+            "ngx_http_tnt_encode_str_map_item: tp_encode_str_map_item failed");
         return NGX_ERROR;
     }
 
@@ -436,16 +436,44 @@ ngx_http_tnt_encode_urlencoded_body(ngx_http_request_t *r,
                                     ngx_buf_t *b,
                                     ngx_uint_t *args_items)
 {
-    ngx_str_t args;
+    u_char                  *arg_begin, *end;
+    ngx_http_tnt_next_arg_t arg;
+    size_t                  value_len;
 
     if (b->start == b->last) {
         return NGX_OK;
     }
 
-    args.data = b->start;
-    args.len = (size_t) (b->last - b->start);
+    arg_begin = b->start;
+    end = b->last;
 
-    return ngx_http_tnt_encode_query_args(r, tlcf, tp, &args, args_items);
+    arg.it = arg_begin;
+    arg.value = NULL;
+
+    for (; arg.it < end; ) {
+
+        arg = ngx_http_tnt_get_next_arg(arg.it, end);
+
+        value_len = arg.it - arg.value;
+
+        if (arg.value && value_len > 0) {
+
+            if (tp_encode_map(tp, 1) &&
+                ngx_http_tnt_encode_str_map_item(r, tlcf, tp,
+                                                 arg_begin,
+                                                 arg.value - arg_begin - 1,
+                                                 arg.value,
+                                                 value_len) != NGX_OK)
+            {
+                return NGX_ERROR;
+            }
+
+            ++(*args_items);
+        }
+        arg_begin = ++arg.it;
+    }
+
+    return NGX_OK;
 }
 
 
@@ -615,6 +643,9 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
                             b->pos, b->last - b->pos);
             }
 
+            /** Actually this is array not map, I used this variable since it's
+             * avaliable
+             */
             map_items = 0;
 
             if (ngx_http_tnt_encode_urlencoded_body(r, tlcf, tp,
@@ -623,7 +654,7 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
                 goto oom_cant_encode_body;
             }
 
-            *(map_place++) = 0xdf;
+            *(map_place++) = 0xdd;
             *(uint32_t *) map_place = mp_bswap_u32(map_items);
 
         }

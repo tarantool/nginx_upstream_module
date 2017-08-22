@@ -26,21 +26,34 @@ assert rc == 200, "rc != 200"
 assert len(out['result']) == 1, "len(result) != 1"
 assert out['result'][0]["headers"]["Content-Type"] == \
         default_headers["Content-Type"], "Content-Type not equals"
-assert out['result'][0]['body'] == {"a": "b"}, "not expected result"
+assert out['result'][0]['body'][0] == {"a": "b"}, "not expected result"
 print ('[+] OK')
 
 
 print ('[+] Post form - N param')
 args = {}
+expected = []
 for i in range(1, 1000):
-    args['a' + str(i)] = str(i)
+    key = 'a' + str(i)
+    value = str(i)
+    args[key] = value
+    expected.append({key: value})
+
 rc, out = post_form(preset_method_location, args, default_headers)
-assert rc == 200, "rc != 200"
 assert rc == 200, "rc != 200"
 assert len(out['result']) == 1, "len(result) != 1"
 assert out['result'][0]["headers"]["Content-Type"] == \
         default_headers["Content-Type"], "Content-Type not equals"
-assert out['result'][0]['body'] == args, "not expected result"
+assert len(out['result'][0]['body']) == len(expected), 'Expected more/less data'
+count = 0
+from_tt = sorted(out['result'][0]['body'], key=lambda k: k.keys())
+expected = sorted(expected, key=lambda k: k.keys())
+for k in from_tt:
+    if expected[count] != k:
+        print ('DIFF res = ', k, ', expected = ', expected[count], \
+                ' at', count)
+        assert False, 'It has a diff'
+    count = count + 1
 print ('[+] OK')
 
 
@@ -64,5 +77,17 @@ assert out['result'][0]['headers']['X-Str'] == 'str', \
         'X-Str is not expected'
 assert out['result'][0]['headers']['X-Uri'] == '/headers_ccv', \
         'X-Uri is not expected'
+print ('[+] OK')
+
+
+print ('[+] Post form - identical params')
+preset_method_location = BASE_URL + '/url_encoded'
+rc, out = post_form(preset_method_location, "a=b&a=b&a=b&a=b",
+        default_headers)
+assert rc == 200, "rc != 200"
+assert len(out['result'][0]['body']) == 4, 'expected 4'
+for k in out['result'][0]['body']:
+    assert k['a'] == 'b', 'not expected'
+
 print ('[+] OK')
 

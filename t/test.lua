@@ -161,6 +161,7 @@ function tnt_proxy(req, ...)
 end
 
 function url_encoded(req, ...)
+  print (yaml.encode(req.body))
   return req, ...
 end
 

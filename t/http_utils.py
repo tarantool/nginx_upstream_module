@@ -16,7 +16,10 @@ BASE_URL = 'http://0.0.0.0:8081'
 def post_form(url, values, headers=None):
     out = '{}'
     try:
-        data = urllib.urlencode(values)
+        if isinstance(values, dict):
+            data = urllib.urlencode(values)
+        else:
+            data = values
         req = urllib2.Request(url, data)
         if headers:
             for header in headers:
