@@ -458,7 +458,7 @@ Example
 [Back to content](#content)
 
 tnt_http_rest_methods
-----------------
+---------------------
 **syntax:** *tnt_http_rest_methods get, post, put, patch, delete, all*
 
 **default:** *no*
@@ -484,7 +484,7 @@ Example
 [Back to content](#content)
 
 tnt_pass_http_request
-------------------
+---------------------
 **syntax:** *tnt_pass_http_request [on|off|parse_args|unescape|pass_body|pass_headers_out|parse_urlencoded]*
 
 **default:** *off*
@@ -562,14 +562,16 @@ Examples #3 (parse_urlencoded)
   function tarantool_stored_procedure_name(req, ...)
     req.headers -- a lua table
     req.query -- a string
-    req.body -- a lua table with url encoded args
+    req.body[0]['q'] -- 1
+    req.body[1]['q'] -- 2
+    req.body[2]['q'] -- 3
     return true
   end
 ```
 
 ```bash
   # Call tarantool_stored_procedure_name()
-  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1&q=2&q=3
 ```
 
 [Back to content](#content)
