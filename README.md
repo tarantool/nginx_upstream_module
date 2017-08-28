@@ -722,7 +722,7 @@ Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(month
 [Back to content](#content)
 
 tnt_connect_timeout
-----------------------
+-------------------
 **syntax:** *tnt_connect_timeout TIME*
 
 **default:** *60s*
@@ -738,7 +738,7 @@ This time must be strictly less than 597 hours.
 [Back to content](#content)
 
 tnt_buffer_size
-------------------
+---------------
 **syntax:** *tnt_buffer_size SIZE*
 
 **default:** *4k, 8k*
@@ -765,7 +765,7 @@ servers.
 [Back to content](#content)
 
 tnt_next_upstream_tries
---------------------
+-----------------------
 **syntax:** *tnt_next_upstream_tries SIZE*
 
 **default:** *0*
@@ -776,7 +776,7 @@ Limit the number of possible tries for passing a request to the next server.
 The 0 value turns off this limitation.
 
 tnt_next_upstream_timeout
---------------------
+-------------------------
 **syntax:** *tnt_next_upstream_timeout TIME*
 
 **default:** *0*
@@ -790,7 +790,7 @@ The 0 value turns off this limitation.
 [Back to content](#content)
 
 tnt_pure_result
---------------------------------------
+---------------
 **syntax:** *tnt_pure_result [on|off]*
 
 **default:** *off*
@@ -809,8 +809,8 @@ When this option is on:
 
 [Back to content](#content)
 
-tnt_multireturn_skip_count - DEPRECATED in 2.4.0+, RETURNED IN 2.4.6-rc3+
--------------------------------------------------
+tnt_multireturn_skip_count - DEPRECATED in 2.4.0+, RETURNED IN 2.5.0-rc2+
+-------------------------------------------------------------------------
 **syntax:** *tnt_multireturn_skip_count [0|1|2]*
 
 **default:** *0*
