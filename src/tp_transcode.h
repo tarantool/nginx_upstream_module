@@ -177,7 +177,8 @@ void tp_transcode_bind_data(tp_transcode_t *t,
 /**
  */
 void
-tp_reply_to_json_set_options(tp_transcode_t *t, bool pure_result);
+tp_reply_to_json_set_options(tp_transcode_t *t, bool pure_result,
+    size_t multireturn_skip_count);
 
 /**
  * WARNING! tp_dump() is for debug!

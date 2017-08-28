@@ -88,6 +88,24 @@ assert rc == 200, "rc != 200"
 assert len(out['result'][0]['body']) == 4, 'expected 4'
 for k in out['result'][0]['body']:
     assert k['a'] == 'b', 'not expected'
-
 print ('[+] OK')
 
+
+print ('[+] Post - skip_count_1')
+preset_method_location = BASE_URL + '/skip_count_1'
+rc, out = post(preset_method_location, {'params': [{"arg1": 1}], 'id': 1},
+        default_headers)
+assert rc == 200, "rc != 200"
+assert len(out['result']) == 1, 'result should be an array with 2 elems'
+assert out['result'][0]['arg1'] == 1, 'arg1 != 1'
+print ('[+] OK')
+
+
+print ('[+] Post - skip_count_2')
+preset_method_location = BASE_URL + '/skip_count_2'
+rc, out = post(preset_method_location, {'params': [{"arg1": 1}], 'id': 1},
+        default_headers)
+assert rc == 200, "rc != 200"
+assert isinstance(out['result'], dict), 'not {}'
+assert out['result']['arg1'] == 1, 'arg1 != 1'
+print ('[+] OK')

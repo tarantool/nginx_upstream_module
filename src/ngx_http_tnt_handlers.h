@@ -119,6 +119,14 @@ typedef struct {
      */
     ngx_uint_t               pure_result;
 
+    /** Tarantool returns array of array as the result set,
+     * this option will help avoid "array of array" behavior.
+     * For instance.
+     * If this option is set to 2, then the result will: result:{}.
+     * If this option is set to 0, then the result will: result:[[{}]].
+     */
+    ngx_uint_t                multireturn_skip_count;
+
     ngx_array_t               *headers;
 
 } ngx_http_tnt_loc_conf_t;

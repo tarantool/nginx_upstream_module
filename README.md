@@ -809,7 +809,7 @@ When this option is on:
 
 [Back to content](#content)
 
-tnt_multireturn_skip_count - DEPRECATED in 2.4.0+
+tnt_multireturn_skip_count - DEPRECATED in 2.4.0+, RETURNED IN 2.4.6-rc3+
 -------------------------------------------------
 **syntax:** *tnt_multireturn_skip_count [0|1|2]*
 

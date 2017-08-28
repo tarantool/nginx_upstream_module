@@ -823,6 +823,9 @@ typedef struct tp2json {
      */
     bool pure_result;
 
+    size_t multireturn_skip_count;
+    size_t multireturn_skiped;
+
 } tp2json_t;
 
 static inline int
@@ -957,20 +960,29 @@ tp2json_transcode_internal(tp2json_t *ctx, const char **beg, const char *end)
     {
         const uint32_t size = mp_decode_array(beg);
 
-        if (unlikely(len < size + 2/*,[]*/))
-            OOM_TP2JSON;
+        if (ctx->multireturn_skiped > 0) {
 
-        APPEND_CH('[');
-        uint32_t i = 0;
-        for (i = 0; i < size; i++) {
-            if (i)
-                APPEND_CH(',');
-            rc = tp2json_transcode_internal(ctx, beg, end);
-            if (rc != TP_TRANSCODE_OK)
-                return rc;
+            --ctx->multireturn_skiped;
+             rc = tp2json_transcode_internal(ctx, beg, end);
+             if (rc != TP_TRANSCODE_OK)
+                 return rc;
+
+        } else {
+
+            if (unlikely(len < size + 2 /*,[]*/))
+                OOM_TP2JSON;
+
+            APPEND_CH('[');
+            uint32_t i = 0;
+            for (i = 0; i < size; i++) {
+                if (i)
+                    APPEND_CH(',');
+                rc = tp2json_transcode_internal(ctx, beg, end);
+                if (rc != TP_TRANSCODE_OK)
+                    return rc;
+            }
+            APPEND_CH(']');
         }
-        APPEND_CH(']');
-
         break;
     }
     case MP_MAP:
@@ -1050,6 +1062,7 @@ tp_reply2json_transcode(void *ctx_, const char *in, size_t in_size)
         }
 
         ctx->first_entry = false;
+        ctx->multireturn_skiped = ctx->multireturn_skip_count;
     }
 
     if (ctx->r.error) {
@@ -1275,12 +1288,15 @@ tp_transcode_bind_data(tp_transcode_t *t,
 }
 
 void
-tp_reply_to_json_set_options(tp_transcode_t *t, bool pure_result)
+tp_reply_to_json_set_options(tp_transcode_t *t,
+                             bool pure_result,
+                             size_t multireturn_skip_count)
 {
     assert(t);
     assert(t->codec.ctx);
     tp2json_t *ctx = t->codec.ctx;
     ctx->pure_result = pure_result;
+    ctx->multireturn_skip_count = multireturn_skip_count;
 }
 
 bool
