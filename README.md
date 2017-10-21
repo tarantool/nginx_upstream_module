@@ -818,8 +818,15 @@ tnt_multireturn_skip_count - DEPRECATED in 2.4.0+, RETURNED IN 2.5.0-rc2+
 
 **context:** *http, server, location*
 
+Notice. Use this option wisely, it does not validate outcoming json!
+For details you can check this issue:
+https://github.com/tarantool/nginx_upstream_module/issues/102
+
 Module will skip one or more multireturn parts when this option is > 0
 When it is set to 0:
+
+This information is actual for tarantool 1.6.+
+
 ```
 {"id":0, "result": [[1]]}
 ```
@@ -832,6 +839,17 @@ When it is set to 1:
 When it is set to 2:
 ```
 {"id": 0, "result": 1}
+```
+
+This information is actual for tarantool 1.7.+
+
+```
+{"id":0, "result": [1]}
+```
+
+When it is set to 1:
+```
+{"id":0, "result": 1}
 ```
 
 [Back to content](#content)
