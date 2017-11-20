@@ -33,6 +33,6 @@
 #ifndef NGX_HTTP_TNT_VERSION_H
 #define NGX_HTTP_TNT_VERSION_H 1
 
-#define NGX_HTTP_TNT_MODULE_VERSION_STRING "v2.5-stable"
+#define NGX_HTTP_TNT_MODULE_VERSION_STRING "v2.5.1-stable"
 
 #endif

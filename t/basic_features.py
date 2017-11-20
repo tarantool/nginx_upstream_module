@@ -79,7 +79,7 @@ def batch_cases():
     ])
 
     assert(rc == 200), 'expected 200'
-    assert(len(res) == 2), 'expected 2 elements, got %i' % len(res)
+    assert(len(res) == 2), 'expected 2 elements, got ' + str(len(res))
     assert(res[0]['result'][0][0][1] == '101234567891234567')
     assert(res[1]['result'][0][0][1] == '101234567891234567')
 

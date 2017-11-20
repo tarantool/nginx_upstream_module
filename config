@@ -26,7 +26,6 @@ sources=" \
           $module_src_dir/json_encoders.c         \
           $module_src_dir/tp_transcode.c          \
           $module_src_dir/ngx_http_tnt_module.c   \
-          $module_src_dir/ngx_http_tnt_handlers.c \
           "
 
 headers=" \
@@ -34,7 +33,6 @@ headers=" \
           $module_src_dir/tp_ext.h                \
           $module_src_dir/json_encoders.h         \
           $module_src_dir/tp_transcode.h          \
-          $module_src_dir/ngx_http_tnt_handlers.h \
           "
 
 old_style_build=yes

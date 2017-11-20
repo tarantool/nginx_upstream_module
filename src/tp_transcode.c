@@ -1244,36 +1244,36 @@ tp_transcode_init(tp_transcode_t *t, const tp_transcode_init_args_t *args)
 void
 tp_transcode_free(tp_transcode_t *t)
 {
-  assert(t);
-  assert(t->codec.ctx);
+    assert(t);
+    assert(t->codec.ctx);
 
-  if (unlikely(t->errmsg != NULL)) {
-    t->mf.free(t->mf.ctx, t->errmsg);
-    t->errmsg = NULL;
-  }
+    if (unlikely(t->errmsg != NULL)) {
+        t->mf.free(t->mf.ctx, t->errmsg);
+        t->errmsg = NULL;
+    }
 
-  t->codec.free(t->codec.ctx);
-  t->codec.ctx = NULL;
+    t->codec.free(t->codec.ctx);
+    t->codec.ctx = NULL;
 
-  t->method = NULL;
-  t->method_len = 0;
+    t->method = NULL;
+    t->method_len = 0;
 }
 
 enum tt_result
 tp_transcode_complete(tp_transcode_t *t, size_t *complete_msg_size)
 {
-  assert(t);
-  assert(t->codec.ctx);
-  *complete_msg_size = 0;
-  return t->codec.complete(t->codec.ctx, complete_msg_size);
+    assert(t);
+    assert(t->codec.ctx);
+    *complete_msg_size = 0;
+    return t->codec.complete(t->codec.ctx, complete_msg_size);
 }
 
 enum tt_result
 tp_transcode(tp_transcode_t *t, const char *b, size_t s)
 {
-  assert(t);
-  assert(t->codec.ctx);
-  return t->codec.transcode(t->codec.ctx, b, s);
+    assert(t);
+    assert(t->codec.ctx);
+    return t->codec.transcode(t->codec.ctx, b, s);
 }
 
 void
@@ -1281,10 +1281,10 @@ tp_transcode_bind_data(tp_transcode_t *t,
                        const char *data_beg,
                        const char *data_end)
 {
-  assert(t);
-  t->data.pos = data_beg;
-  t->data.end = data_end;
-  t->data.len = data_end - data_beg;
+    assert(t);
+    t->data.pos = data_beg;
+    t->data.end = data_end;
+    t->data.len = data_end - data_beg;
 }
 
 void
