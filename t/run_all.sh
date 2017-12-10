@@ -26,7 +26,10 @@ for i in {1..10}; do
 #      echo "[-] $WORK_DIR/lua.py failed" && exit 1
 #    )
   $WORK_DIR/v25_features.py 1> /dev/null || (
-      echo "[-] $WORK_DIR/v24_features.py failed" && exit 1
+      echo "[-] $WORK_DIR/v25_features.py failed" && exit 1
+    )
+  $WORK_DIR/v26_features.py 1> /dev/null || (
+      echo "[-] $WORK_DIR/v26_features.py failed" && exit 1
     )
 done
 
@@ -52,8 +55,11 @@ for i in {1..3}; do
 #      echo "[-] $WORK_DIR/lua.py failed" && exit 1
 #    )` &
   $WORK_DIR/v25_features.py 1> /dev/null || (
-      echo "[-] $WORK_DIR/v24_features.py failed" && exit 1
-    )
+      echo "[-] $WORK_DIR/v25_features.py failed" && exit 1
+    ) &
+  $WORK_DIR/v26_features.py 1> /dev/null || (
+      echo "[-] $WORK_DIR/v26_features.py failed" && exit 1
+    ) &
   clients_pids="$clients_pids $!"
 done
 for job in $clients_pids; do

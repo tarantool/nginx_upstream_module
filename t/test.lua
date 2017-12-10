@@ -3,6 +3,7 @@
 json = require('json')
 yaml = require('yaml')
 os   = require('os')
+fiber = require('fiber')
 
 function echo_1(a)
   return {a}
@@ -176,6 +177,17 @@ function method_3(req)
   return req
 end
 
+-- Issue -- https://github.com/tarantool/nginx_upstream_module/issues/98
+function error_if_escaped(req)
+  print (yaml.encode(req))
+  local get_arg = req.args.getArg
+  if get_arg == 'a+b' then
+    error (string.format('regression, it should have +, getArg = %s',
+      req.args.getArg))
+  end
+  return true
+end
+
 -- CFG
 box.cfg {
     log_level = 5,
@@ -186,3 +198,13 @@ box.cfg {
 box.once('gr', function()
     box.schema.user.grant('guest', 'read,write,execute', 'universe')
 end)
+
+local t = box.schema.space.create('t', {if_not_exists=true})
+t:create_index('pk', {if_not_exists=true})
+--print (yaml.encode(box.space.t.index))
+--fiber.create(function()
+--  while true do
+--    print (yaml.encode(box.space.t:select{}))
+--    fiber.sleep(1.5)
+--  end
+--end)

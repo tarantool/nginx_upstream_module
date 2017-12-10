@@ -194,11 +194,13 @@ def assert_if_not_error(s, code = None):
     if code:
         assert(s['error']['code'] == code), 'expected code'
 
-def get_success(url, data, headers):
+def get_success(url, data, headers, expand_result = True):
     (code, msg) = get(url, data, headers)
     assert(code == 200), 'expected 200'
-    result = get_result(msg)
-    return result
+    if expand_result:
+        result = get_result(msg)
+        return result
+    return msg
 
 def get_success_pure(url, data, headers):
     (code, msg) = get(url, data, headers)

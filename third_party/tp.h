@@ -365,7 +365,7 @@ tp_replace(struct tp *p, uint32_t space);
  * tp_sz(&req, "key");
  */
 static inline char *
-tp_delete(struct tp *p, uint32_t space);
+tp_delete(struct tp *p, uint32_t space, uint32_t index);
 
 /**
  * Create an update request.
@@ -1073,18 +1073,23 @@ tp_replace(struct tp *p, uint32_t space)
  * tp_sz(&req, "key");
  */
 static inline char *
-tp_delete(struct tp *p, uint32_t space)
+tp_delete(struct tp *p, uint32_t space, uint32_t index)
 {
 	int hsz = tpi_sizeof_header(TP_DELETE);
-	int  sz = mp_sizeof_map(2) +
+	int  sz = mp_sizeof_map(3) +
 		mp_sizeof_uint(TP_SPACE) +
 		mp_sizeof_uint(space) +
+    mp_sizeof_uint(TP_INDEX) +
+    mp_sizeof_uint(index) +
 		mp_sizeof_uint(TP_KEY);
 	if (tpunlikely(tp_ensure(p, hsz + sz) == -1))
 		return NULL;
 	char *h = tpi_encode_header(p, TP_DELETE);
+	h = mp_encode_map(h, 3);
 	h = mp_encode_uint(h, TP_SPACE);
 	h = mp_encode_uint(h, space);
+	h = mp_encode_uint(h, TP_INDEX);
+	h = mp_encode_uint(h, index);
 	h = mp_encode_uint(h, TP_KEY);
 	return tp_add(p, hsz + sz);
 }
