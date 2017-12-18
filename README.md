@@ -1,27 +1,33 @@
+<a href="http://tarantool.org">
+	<img src="https://avatars2.githubusercontent.com/u/2344919?v=2&s=250" align="right">
+</a>
+
 # Tarantool NginX upstream module
 ---------------------------------
 Key features:
-* Both nginx and tarantool features accessible over HTTP(S).
+* Both nginx and Tarantool features accessible over HTTP(S).
 * Tarantool methods callable via JSON-RPC or REST.
 * Load balancing with elastic configuration.
 * Backup and fault tolerance.
 * Low overhead.
 
+See more about:
+* [Tarantool](http://tarantool.org)
+* [nginx upstream](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream)
+
 # Limitations
 -------------
-1) WebSockets are currently not supported until Tarantool supports out-of-band replies.
-2) This module does not support tarantool 1.6.x start from 2.4.0. Since it uses
-tarantool 1.7 protocol features.
-
-About Tarantool: http://tarantool.org
-
-About upstream: http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
+1. WebSockets are not supported until Tarantool supports out-of-band replies.
+2. This module does not support Tarantool 1.6.x starting with 2.4.0.
+   Since then it uses Tarantool 1.7 protocol features.
 
 ## Docker images
 ----------------
-Nginx upstream module - https://hub.docker.com/r/tarantool/tarantool-nginx
+Tarantool NginX upstream module:
+https://hub.docker.com/r/tarantool/tarantool-nginx
 
-Tarantool - https://hub.docker.com/r/tarantool/tarantool
+Tarantool:
+https://hub.docker.com/r/tarantool/tarantool
 
 ## Status
 ---------
@@ -37,9 +43,9 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * v2.5-rc{1,2} - Stable.
 * v2.5-stable - Stable.
 
-## Content
-----------
-* [Compilation and install](#compilation-and-install)
+## Contents
+-----------
+* [How to install](#how-to-install)
 * [REST](#rest)
 * [JSON](#json)
 * [HTTP headers and status](#http-headers-and-status)
@@ -73,11 +79,13 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
 * [Examples](#examples)
 * [Copyright & License](#copyright--license)
 * [See also](#see-also)
+* [Contacts](#contacts)
 
-## Compilation and install
---------------------------
+## How to install
+-----------------
 
 ### Build from source (Development version)
+
 ```bash
 git clone https://github.com/tarantool/nginx_upstream_module.git nginx_upstream_module
 cd nginx_upstream_module
@@ -89,9 +97,10 @@ apt-get install libpcre++0 gcc unzip libpcre3-dev zlib1g-dev libssl-dev libxslt-
 
 make build-all
 ```
+
 [Back to content](#content)
 
-### Build module via nginx 'configure'
+### Build via nginx 'configure'
 
   Requirements (for details, see REPO_ROOT/Makefile)
 
@@ -100,7 +109,7 @@ make build-all
 
     $ ./configure --add-module=REPO_ROOT && make
 
-## Configuration
+## Configure
 
 ```nginx
     ## Typical configuration, for more see http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
@@ -127,12 +136,14 @@ make build-all
 ## REST
 -------
 
-  NOTE: since v0.2.0
+**Note:** since v0.2.0
 
-  With this module, you can call Tarantool stored procedures via HTTP REST methods (GET, POST, PUT, PATCH, DELETE)
+With this module, you can call Tarantool stored procedures via HTTP
+REST methods (GET, POST, PUT, PATCH, DELETE).
 
-  Example
-  ```nginx
+Example:
+
+```nginx
     upstream backend {
       # Tarantool hosts
       server 127.0.0.1:9999;
@@ -151,7 +162,6 @@ make build-all
         tnt_pass backend;
       }
     }
-
 ```
 
 ```lua
@@ -161,7 +171,6 @@ function tnt_rest(req)
  req.uri -- uri
  return { 'ok' }
 end
-
 ```
 
 ```bash
@@ -173,158 +182,151 @@ end
 ## JSON
 -------
 
-  NOTE: since v0.1.4
+**Note:** since v0.1.4
 
-  The module expects JSON posted with HTTP POST, PUT (since v0.2.0), or PATCH (since v2.3.8) and carried in request body.
+The module expects JSON posted with HTTP POST, PUT (since v0.2.0),
+or PATCH (since v2.3.8) and carried in request body.
 
-  Server HTTP statuses
+Server HTTP statuses:
 
-    OK - response body contains a result or an error;
-         the error may appear only if something wrong happened within Tarantool,
-         for instance: 'method not found'.
+* **OK** - response body contains a result or an error;
+  the error may appear only if something wrong happened within Tarantool,
+  for instance: 'method not found'.
+* **INTERNAL SERVER ERROR** - may appear in many cases,
+  most of them being 'out of memory' error.
+* **NOT ALLOWED** - in response to anything but a POST request.
+* **BAD REQUEST** - JSON parse error, empty request body, etc.
+* **BAD GATEWAY** - lost connection to Tarantool server(s).
+  Since both (i.e. json -> tp and tp -> json) parsers work
+  asynchronously, this error may appear if 'params' or 'method'
+  does not exists in the structure of the incoming JSON, please
+  see the protocol description for more details.
 
-    INTERNAL SERVER ERROR - may appear in many cases,
-                            most of them being 'out of memory' error;
-
-    NOT ALLOWED - in response to anything but a POST request.
-
-    BAD REQUEST - JSON parse error, empty request body, etc.
-
-    BAD GATEWAY - lost connection to Tarantool server(s);
-                  Since both (i.e. json -> tp and tp -> json) parsers work asynchronously,
-                  this error may appear if 'params' or 'method' does not exists in the structure
-                  of the incoming JSON, please see the protocol description for more details.
-
-                  Note: this behavior will change in the future.
+  **Note:** this behavior will change in the future.
 
 ### Input JSON form
 
-    [ { "method": STR, "params":[arg0 ... argN], "id": UINT }, ...N ]
+```
+[ { "method": STR, "params":[arg0 ... argN], "id": UINT }, ...N ]
+```
 
-    "method"
+* **method** - a string containing the name of the Tarantool method to be
+  invoked (i.e. Tarantool "call")
+* **params** - a structured array. Each element is an argument of the Tarantool
+  "call".
+* **id** - an identifier established by the Client. MUST contain an unsigned
+  number not greater than unsigned int. May be 0.
 
-      A String containing the name of the Tarantool method to be invoked (i.e. Tarantool "call")
-
-    "params"
-
-      A Structured array. Each element is an argument of the Tarantool "call".
-
-
-    "id"
-
-      An identifier established by the Client. MUST contain an unsigned Number not
-      greater than unsigned int.
-
-      MAY be 0.
-
-    These are required fields.
+These all are required fields.
 
 ### Output JSON form
 
+```
+[ { "result": JSON_RESULT_OBJECT, "id":UINT, "error": { "message": STR, "code": INT } }, ...N ]
+```
 
-    [ { "result": JSON_RESULT_OBJECT, "id":UINT, "error": { "message": STR, "code": INT } }, ...N ]
+* **result** - Tarantool execution result (a json object/array, etc).
+  Version 2.4.0+ outputs a raw result, i.e. ``JSON_RESULT_OBJECT``.
+  May be null or undefined.
+* **id** - DEPRECATED in 2.4.0+ - request id.
+  May be null or undefined.
+* **error** - a structured object which contains an internal error message.
+  This field exists only if an internal error occurred, for instance:
+  "too large request", "input json parse error", etc.
 
+  If this field exists, the input message was _probably_ not passed to
+  the Tarantool backend.
 
-    "result"
-
-      Version 2.4.0+ output a raw result, i.e. "JSON_RESULT_OBJECT".
-
-      Tarantool execution result (a json object/array, etc).
-
-      MAY be null or undefined.
-
-
-    "id" - DEPRECATED in 2.4.0+
-
-      Request id is returned back.
-
-      MAY be null or undefined.
-
-
-    "error"
-
-      A Structured object which contains an internal error message.
-      This field exists only if an internal error occurred, for instance:
-      "too large request", "input json parse error", etc.
-
-      If this field exists, the input message was _probably_  not passed to the Tarantool backend.
-
-      See "message"/"code" fields for details.
+  See "message"/"code" fields for details.
 
 ### Example
 
-      For instance, tarantool has stored procedure
-      ```Lua
-        function echo(a, b, c, d)
-          return a, b, c, d
-        end
-      ```
+For instance, Tarantool has a stored procedure `echo`:
 
-      Syntax:
+```Lua
+function echo(a, b, c, d)
+  return a, b, c, d
+end
+```
 
-      --> data sent to Server
-      <-- data sent to Client
+Syntax:
 
-      rpc call 1:
-      --> { "method": "echo", "params": [42, 23], "id": 1 }
-      <-- { "id": 1, "result": [42, 23]
+```
+--> data sent to Server
+<-- data sent to Client
+```
 
-      rpc call 2:
-      --> { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
-      <-- { "id": 2, "result": [ {"hello": "world"} ], "!" ]}
+rpc call 1:
+```
+--> { "method": "echo", "params": [42, 23], "id": 1 }
+<-- { "id": 1, "result": [42, 23]
+```
 
-      rpc call of a non-existent method:
-      --> { "method": "echo_2", "id": 1 }
-      <-- { "error": {"code": -32601, "message": "Method not found"}, "id": 1 }
+rpc call 2:
+```
+--> { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
+<-- { "id": 2, "result": [ {"hello": "world"} ], "!" ]}
+```
 
-      rpc call with invalid JSON:
-      --> { "method": "echo", "params": [1, 2, 3, __wrong__ ] }
-      <-- { "error": { "code": -32700, "message": "Parse error" } }
+rpc call of a non-existent method:
+```
+--> { "method": "echo_2", "id": 1 }
+<-- { "error": {"code": -32601, "message": "Method not found"}, "id": 1 }
+```
 
-      rpc call Batch:
-      --> [
-            { "method": "echo", "params": [42, 23], "id": 1 },
-            { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
-      ]
-      <-- [
-            { "id": 1, "result": [42, 23]},
-            { "id": 2, "result" : [{"hello": "world"} ], "!" ]},
-      ]
+rpc call with invalid JSON:
+```
+--> { "method": "echo", "params": [1, 2, 3, __wrong__ ] }
+<-- { "error": { "code": -32700, "message": "Parse error" } }
+```
 
-      rpc call Batch of a non-existent method:
-       --> [
-            { "method": "echo_2", "params": [42, 23], "id": 1 },
-            { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
-      ]
-      <-- [
-            { "error": {"code": -32601, "message": "Method not found"}, "id": 1 },
-            {"id": 2, "result": [ {"hello": "world"} ], "!" ]}
-      ]
+rpc call Batch:
+```
+--> [
+      { "method": "echo", "params": [42, 23], "id": 1 },
+      { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
+]
+<-- [
+      { "id": 1, "result": [42, 23]},
+      { "id": 2, "result" : [{"hello": "world"} ], "!" ]},
+]
+```
 
-      rpc call Batch with invalid JSON:
-      --> [
-            { "method": "echo", "params": [42, 23, __wrong__], "id": 1 },
-            { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
-      ]
-      <-- { "error": { "code": -32700, "message": "Parse error" } }
-      
+rpc call Batch of a non-existent method:
+```
+--> [
+      { "method": "echo_2", "params": [42, 23], "id": 1 },
+      { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
+]
+<-- [
+      { "error": {"code": -32601, "message": "Method not found"}, "id": 1 },
+      {"id": 2, "result": [ {"hello": "world"} ], "!" ]}
+]
+```
+
+rpc call Batch with invalid JSON:
+```
+--> [
+      { "method": "echo", "params": [42, 23, __wrong__], "id": 1 },
+      { "method": "echo", "params": [ [ {"hello": "world"} ], "!" ], "id": 2 }
+]
+<-- { "error": { "code": -32700, "message": "Parse error" } }
+```
+
 [Back to content](#content)
-
 
 ## HTTP headers and status
 --------------------------
 
-Sometimes you have to set status or headers which came from the Tarantool.
-For this you have to use something like [ngx_lua](https://github.com/openresty/lua-nginx-module)
-or [ngx_perl](http://nginx.org/en/docs/http/ngx_http_perl_module.html) and so on.
+Sometimes you have to set status or headers which came from Tarantool.
+For this purpose, you have to use something like
+[ngx_lua](https://github.com/openresty/lua-nginx-module)
+or [ngx_perl](http://nginx.org/en/docs/http/ngx_http_perl_module.html), etc.
 
-Also using the methods you can transform result from the `Tarantool` into
-something else
+With the methods, you can also transform the result from `Tarantool` into
+something else.
 
 Here is an example with `ngx_lua`:
-
-
-Example
 
 ```Lua
   -- Tarantool, stored procedure
@@ -450,10 +452,13 @@ tnt_http_methods
 **context:** *location*
 
 Allow to accept one or many http methods.
-If method alloed, then module expects JSON carried in request body, for details see [JSON](#json)
-If `tnt_method` is not set, then the name of the Tarantool stored procedure is the protocol [JSON](#json).
+If a method is allowed, the module expects [JSON](#json) carried in the request
+body.
+If `tnt_method` is not set, then the name of the Tarantool stored procedure is
+the protocol [JSON](#json).
 
-Example
+Example:
+
 ```nginx
   location tnt {
     tnt_http_methods delete;
@@ -476,10 +481,12 @@ tnt_http_rest_methods
 
 **context:** *location*
 
-Allow to accept one or many REST methods.
-If `tnt_method` is not set, then the name of the Tarantool stored procedure is the first part of the URL path.
+Allow to accept one or more REST methods.
+If `tnt_method` is not set, then the name of the Tarantool stored procedure is
+the first part of the URL path.
 
-Example
+Example:
+
 ```nginx
   location tnt {
     tnt_http_rest_methods get;
@@ -504,7 +511,8 @@ tnt_pass_http_request
 
 Allow to pass HTTP headers and queries to Tarantool stored procedures.
 
-Examples #1
+Examples #1:
+
 ```nginx
   location tnt {
     # Also, tnt_pass_http_request can be used together with JSON communication
@@ -522,7 +530,7 @@ Examples #1
     return { 'OK' }
   end
 
-  -- With parse_args 
+  -- With parse_args
   function tarantool_stored_procedure_name_1(req, ...)
     req.headers -- lua table
     req.query -- string
@@ -536,7 +544,8 @@ Examples #1
   end
 ```
 
-Examples #2 (pass_headers_out)
+Examples #2 (pass_headers_out):
+
 ```nginx
   location @tnt {
     tnt_http_rest_methods get;
@@ -560,7 +569,8 @@ Examples #2 (pass_headers_out)
   end
 ```
 
-Examples #3 (parse_urlencoded)
+Examples #3 (parse_urlencoded):
+
 ```nginx
   location /tnt {
     tnt_http_rest_methods post;
@@ -609,7 +619,8 @@ tnt_method
 
 Specify the Tarantool call method. It can take a nginx's variable.
 
-Examples
+Examples:
+
 ```nginx
   location tnt {
     # Also tnt_pass_http_request can mix with JSON communication [[
@@ -670,9 +681,11 @@ tnt_set_header
 **context:** *location, location if*
 
 Allows redefining or appending fields to the request header passed to the
-tarantool proxied server. The value can contain text, variables, and their combinations.
+Tarantool proxied server.
+The value can contain text, variables, and their combinations.
 
-Examples
+Examples:
+
 ```nginx
   location tnt {
     # Also tnt_pass_http_request can mix with JSON communication [[
@@ -711,9 +724,13 @@ tnt_send_timeout
 
 **context:** *http, server, location*
 
-The timeout for sending TCP requests to the Tarantool server, in seconds by default.
+The timeout for sending TCP requests to the Tarantool server, in seconds by
+default.
+
 It's wise to always explicitly specify the time unit to avoid confusion.
-Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
+Time units supported are:
+`s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks),
+`d`(days), `h`(hours), and `m`(minutes).
 
 [Back to content](#content)
 
@@ -725,10 +742,12 @@ tnt_read_timeout
 
 **context:** *http, server, location*
 
-The timeout for reading TCP responses from the Tarantool server, in seconds by default.
+The timeout for reading TCP responses from the Tarantool server, in seconds by
+default.
 
 It's wise to always explicitly specify the time unit to avoid confusion.
-Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
+Time units supported are: `s`(seconds), `ms`(milliseconds), `y`(years),
+`M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 
 [Back to content](#content)
 
@@ -743,7 +762,8 @@ tnt_connect_timeout
 The timeout for connecting to the Tarantool server, in seconds by default.
 
 It's wise to always explicitly specify the time unit to avoid confusion.
-Time units supported are `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
+Time units supported are: `s`(seconds), `ms`(milliseconds), `y`(years),
+`M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 This time must be strictly less than 597 hours.
 
 [Back to content](#content)
@@ -769,9 +789,9 @@ tnt_next_upstream
 
 **context:** *http, server, location*
 
-Specify which failure conditions should cause the request to be forwarded to another
-upstream server. Applies only when the value in [tnt_pass](#tnt_pass) is an upstream with two or more
-servers.
+Specify which failure conditions should cause the request to be forwarded to
+another upstream server. Applies only when the value in [tnt_pass](#tnt_pass)
+is an upstream with two or more servers.
 
 [Back to content](#content)
 
@@ -794,7 +814,6 @@ tnt_next_upstream_timeout
 
 **context:** *http, server, location*
 
-
 Limit the time during which a request can be passed to the next server.
 The 0 value turns off this limitation.
 
@@ -808,7 +827,8 @@ tnt_pure_result
 
 **context:** *http, server, location*
 
-Whether to wrap tnt response or not.
+Whether to wrap Tarantool response or not.
+
 When this option is off:
 ```
 {"id":0, "result": [ 1 ]}
@@ -820,22 +840,24 @@ When this option is on:
 
 [Back to content](#content)
 
-tnt_multireturn_skip_count - DEPRECATED in 2.4.0+, RETURNED IN 2.5.0-rc2+
--------------------------------------------------------------------------
+tnt_multireturn_skip_count
+--------------------------
+
+**DEPRECATED in 2.4.0+, RETURNED IN 2.5.0-rc2+**
+
 **syntax:** *tnt_multireturn_skip_count [0|1|2]*
 
 **default:** *0*
 
 **context:** *http, server, location*
 
-Notice. Use this option wisely, it does not validate outcoming json!
+**Note:** Use this option wisely, it does not validate the outgoing JSON!
 For details you can check this issue:
 https://github.com/tarantool/nginx_upstream_module/issues/102
 
-Module will skip one or more multireturn parts when this option is > 0
-When it is set to 0:
+The module will skip one or more multireturn parts when this option is > 0.
 
-This information is actual for tarantool 1.6.+
+When it is set to 0:
 
 ```
 {"id":0, "result": [[1]]}
@@ -850,8 +872,6 @@ When it is set to 2:
 ```
 {"id": 0, "result": 1}
 ```
-
-This information is actual for tarantool 1.7.+
 
 ```
 {"id":0, "result": [1]}
@@ -868,21 +888,26 @@ Format
 ------
 
 **syntax:** *tnt_{OPT} [ARGS] [FMT]*
-Tarantool stores tuples, tuple is a list some elements. Each element is a value
-or an object, and each element should have a strong type. Actual it is a MsgPac,
-it's like a JSON in binary format.
 
-So we came to the main goal of Format ([FMT]), it exists to make possible
-convertation between query string and MsgPack w/o loosing any type
-information and its value.
+Tarantool stores data in [tuples](https://tarantool.org/en/doc/1.7/book/box/data_model.html#tuple).
+A tuple is a list of elements. Each element is a value or an object,
+and each element should have a strong type.
+The tuple format is called [MsgPack](https://en.wikipedia.org/wiki/MessagePack),
+it's like JSON in a binary format.
 
-It has a syntax: {QUERY_ARG_NAME}=%{FMT_TYPE}. A good example is:
+The main goal of Format (see [FMT] above) is to enable conversion between
+a query string and MsgPack without losing type information or value.
+
+The syntax is: `{QUERY_ARG_NAME}=%{FMT_TYPE}`
+
+A good example is:
 ```
 HTTP GET ... /url?space_id=512&value=some+string
 it could be matched by using the follwing format 'space_id=%%space_id,value=%s'
 ```
 
-Here is a full list withs {FMT_TYPE}
+Here is a full list of {FMT_TYPE} types:
+
 ```
 %n - int64
 %f - float
@@ -893,15 +918,17 @@ Here is a full list withs {FMT_TYPE}
 %%idx_id - index_id
 %%off - [select](#tnt_select) offset
 %%lim - [select](#tnt_select) limit
-%%it - [select](#tnt_select) iterator type, allowed values are: eq,req,all,lt,le,ge,gt,all_set,any_set,all_non_set,overlaps,neighbor
+%%it - [select](#tnt_select) iterator type, allowed values are:
+                             eq,req,all,lt,le,ge,gt,all_set,any_set,
+                             all_non_set,overlaps,neighbor
 ```
 
-Examples could be found at:
-./t/ngx_confs/tnt_server_test.conf:342 
-./t/v26_features.py
+Examples can be found at:
+
+* `./t/ngx_confs/tnt_server_test.conf:342`
+* `./t/v26_features.py`
 
 [Back to content](#content)
-
 
 tnt_insert
 ----------
@@ -909,18 +936,16 @@ tnt_insert
 
 **default:** *None*
 
-**context:** *location, location if
+**context:** *location, location if*
 
-This directive allows execute an insert query into the tarantool. It's directive
-uses [format](#format).
+This directive allows executing an insert query with Tarantool.
 
-The first argument is a space id.
-The second argument is a [format](#format).
+* The first argument is a space id.
+* The second argument is a [format](#format) string.
 
 [Back to content](#content)
 
-
-tnt_replace
+tnt_insert
 ----------
 **syntax:** *tnt_replace [SIZE or off] [FMT]*
 
@@ -928,14 +953,12 @@ tnt_replace
 
 **context:** *location, location if*
 
-This directive allows execute a replace query into the tarantool. It's directive
-uses [format](#format).
+This directive allows executing a replace query with Tarantool.
 
-The first argument is a space id.
-The second argument is a [format](#format).
+* The first argument is a space id.
+* The second argument is a [format](#format) string.
 
 [Back to content](#content)
-
 
 tnt_delete
 ----------
@@ -945,12 +968,11 @@ tnt_delete
 
 **context:** *location, location if*
 
-This directive allows execute a delete query into the tarantool. It's directive
-uses [format](#format).
+This directive allows executing a delete query with Tarantool.
 
-The first argument is a space id.
-The second argument is an index id.
-The third argument is a [format](#format).
+* The first argument is a space id.
+* The second argument is an index id.
+* The third argument is a [format](#format) string.
 
 [Back to content](#content)
 
@@ -962,16 +984,16 @@ tnt_select
 
 **context:** *location, location if*
 
-This directive allows execute a select query into the tarantool. It's directive
-uses [format](#format).
+This directive allows executing a select query with Tarantool.
 
-The first argument is a space id.
-The second argument is an index id.
-The third argument is an offset.
-The fourth argument is an limit.
-The fifth argument is an iterator type, allowed values are:
-eq,req,all,lt,le,ge,gt,all_set,any_set,all_non_set,overlaps,neighbor
-The six argument is a [format](#format).
+* The first argument is a space id.
+* The second argument is an index id.
+* The third argument is an offset.
+* The fourth argument is an limit.
+* The fifth argument is an iterator type, allowed values are:
+  `eq`, `req`, `all`, `lt` ,`le`,`ge`, `gt`, `all_set`, `any_set`,
+  `all_non_set`, `overlaps`, `neighbor`.
+* The six argument is a [format](#format) string.
 
 [Back to content](#content)
 
@@ -983,9 +1005,9 @@ tnt_select_limit_max
 
 **context:** *server, location, location if*
 
-This is constraint for avoiding *large selects*. So, It is a maximum of
-returning tuples per select operation. If the client reach this limit, then the
-client will have an error on its side.
+This is a constraint to avoid *large selects*. This is the maximum number
+of returned tuples per select operation. If the client reaches this limit, then
+the client gets an error on its side.
 
 [Back to content](#content)
 
@@ -997,11 +1019,12 @@ tnt_allowed_spaces
 
 **context:** *server, location, location if*
 
-This is constraint for prohibit an access to some spaces. Actually, directive
-takes array of number(which is representation of Tarantool's space), each
-space in list will be free to access from the client side.
+This is a constraint to prohibit access to some spaces. The directive takes an
+array of Tarantool space id-s (numbers), and each space in the list is allowed
+to access from the client side.
 
 Example:
+
 ```
 location {
   ...
@@ -1020,15 +1043,16 @@ tnt_allowed_indexes
 
 **context:** *server, location, location if*
 
-This directive has same idea than [tnt_allowed_spaces], but for indexes.
+This directive works like [tnt_allowed_spaces], but for indexes.
 
 [Back to content](#content)
 
-## Performance Tuning
+## Performance tuning
 ---------------------
+
 * Use [HttpUpstreamKeepaliveModule](http://wiki.nginx.org/HttpUpstreamKeepaliveModule).
   * Use [keepalive](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive).
-  * use [keepalive_requests](http://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests).
+  * Use [keepalive_requests](http://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests).
 * Use multiple instances of Tarantool servers on your multi-core machines.
 * Turn off unnecessary logging in Tarantool and NginX.
 * Tune Linux network.
@@ -1038,26 +1062,32 @@ This directive has same idea than [tnt_allowed_spaces], but for indexes.
 
 ## Examples
 -----------
-Python test: test/basic_features.py, test/v20_feautres.py, nginx.dev.conf.
 
-Client side javascript example: example/echo.html, example/echo.lua.
+Python test: `test/basic_features.py`, `test/v20_feautres.py`, `nginx.dev.conf`.
+
+Client-side javascript example: `example/echo.html`, `example/echo.lua`.
 
 [Back to content](#content)
 
-## Copyright & License
+## Copyright & license
 ----------------------
+
 [LICENSE](https://github.com/tarantool/nginx_upstream_module/blob/master/LICENSE)
 
 [Back to content](#content)
 
 ## See also
 -----------
+
 * [Tarantool](http://tarantool.org) homepage.
 * [lua-resty-tarantool](https://github.com/perusio/lua-resty-tarantool)
 * Tarantool [protocol](http://tarantool.org/doc/dev_guide/box-protocol.html?highlight=protocol)
 
 [Back to content](#content)
 
-================
-* Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues.
-* We also warmly welcome your feedback in the discussion mailing list, tarantool@googlegroups.com.
+## Contacts
+
+Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues.
+
+We also warmly welcome your feedback in the discussion mailing list,
+tarantool@googlegroups.com
