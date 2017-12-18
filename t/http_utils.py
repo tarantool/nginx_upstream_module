@@ -149,12 +149,23 @@ def put(url, data, headers):
         print(traceback.format_exc())
         return (False, e)
 
+
+def arr_of_dicts_to_string(arr_of_dicts):
+    res = ""
+    for k in arr_of_dicts:
+        res = res + k.keys()[0] + "=" + str(k.values()[0]) + "&"
+    return res
+
+
 def get(url, data, headers):
     out = '{}'
     try:
         full_url = url
-        if data:
+        if data and type(data) == type([]):
+            full_url = url + '?' + arr_of_dicts_to_string(data)
+        elif data:
             full_url = url + '?' + urllib.urlencode(data)
+
         req = urllib2.Request(full_url)
         if headers:
             for header in headers:
@@ -164,7 +175,6 @@ def get(url, data, headers):
         out = res.read()
         out = out + res.read()
         rc = res.getcode()
-
         if VERBOSE:
             print("code: ", rc, " recv: '", out, "'")
 

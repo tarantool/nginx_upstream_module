@@ -59,6 +59,16 @@ Tarantool - https://hub.docker.com/r/tarantool/tarantool
   * [tnt_next_upstream](#tnt_next_upstream)
   * [tnt_next_upstream_tries](#tnt_next_upstream_tries)
   * [tnt_next_upstream_timeout](#tnt_next_upstream_timeout)
+  * [tnt_pure_result](#tnt_pure_result)
+  * [tnt_multireturn_skip_count](#tnt_multireturn_skip_count)
+  * [Format](#format)
+  * [tnt_insert](#tnt_insert)
+  * [tnt_replace](#tnt_replace)
+  * [tnt_delete](#tnt_delete)
+  * [tnt_select](#tnt_select)
+  * [tnt_select_limit_max](#tnt_select_limit_max)
+  * [tnt_allowed_spaces](#tnt_allowed_spaces)
+  * [tnt_allowed_indexes](#tnt_allowed_indexes)
 * [Performance tuning](#performance-tuning)
 * [Examples](#examples)
 * [Copyright & License](#copyright--license)
@@ -854,6 +864,165 @@ When it is set to 1:
 
 [Back to content](#content)
 
+Format
+------
+
+**syntax:** *tnt_{OPT} [ARGS] [FMT]*
+Tarantool stores tuples, tuple is a list some elements. Each element is a value
+or an object, and each element should have a strong type. Actual it is a MsgPac,
+it's like a JSON in binary format.
+
+So we came to the main goal of Format ([FMT]), it exists to make possible
+convertation between query string and MsgPack w/o loosing any type
+information and its value.
+
+It has a syntax: {QUERY_ARG_NAME}=%{FMT_TYPE}. A good example is:
+```
+HTTP GET ... /url?space_id=512&value=some+string
+it could be matched by using the follwing format 'space_id=%%space_id,value=%s'
+```
+
+Here is a full list withs {FMT_TYPE}
+```
+%n - int64
+%f - float
+%d - double
+%s - string
+%b - boolean
+%%space_id - space_id
+%%idx_id - index_id
+%%off - [select](#tnt_select) offset
+%%lim - [select](#tnt_select) limit
+%%it - [select](#tnt_select) iterator type, allowed values are: eq,req,all,lt,le,ge,gt,all_set,any_set,all_non_set,overlaps,neighbor
+```
+
+Examples could be found at:
+./t/ngx_confs/tnt_server_test.conf:342 
+./t/v26_features.py
+
+[Back to content](#content)
+
+
+tnt_insert
+----------
+**syntax:** *tnt_insert [SIZE or off] [FMT]*
+
+**default:** *None*
+
+**context:** *location, location if
+
+This directive allows execute an insert query into the tarantool. It's directive
+uses [format](#format).
+
+The first argument is a space id.
+The second argument is a [format](#format).
+
+[Back to content](#content)
+
+
+tnt_insert
+----------
+**syntax:** *tnt_replace [SIZE or off] [FMT]*
+
+**default:** *None*
+
+**context:** *location, location if*
+
+This directive allows execute a replace query into the tarantool. It's directive
+uses [format](#format).
+
+The first argument is a space id.
+The second argument is a [format](#format).
+
+[Back to content](#content)
+
+
+tnt_delete
+----------
+**syntax:** *tnt_delete [SIZE or off] [SIZE or off] [FMT]*
+
+**default:** *None*
+
+**context:** *location, location if*
+
+This directive allows execute a delete query into the tarantool. It's directive
+uses [format](#format).
+
+The first argument is a space id.
+The second argument is an index id.
+The third argument is a [format](#format).
+
+[Back to content](#content)
+
+tnt_select
+----------
+**syntax:** *tnt_select [SIZE or off] [SIZE or off] [SIZE] [SIZE] [ENUM] [FMT]*
+
+**default:** *None*
+
+**context:** *location, location if*
+
+This directive allows execute a select query into the tarantool. It's directive
+uses [format](#format).
+
+The first argument is a space id.
+The second argument is an index id.
+The third argument is an offset.
+The fourth argument is an limit.
+The fifth argument is an iterator type, allowed values are:
+eq,req,all,lt,le,ge,gt,all_set,any_set,all_non_set,overlaps,neighbor
+The six argument is a [format](#format).
+
+[Back to content](#content)
+
+tnt_select_limit_max
+--------------------
+**syntax:** *tnt_select_limit_max [SIZE]*
+
+**default:** *100*
+
+**context:** *server, location, location if*
+
+This is constraint for avoiding *large selects*. So, It is a maximum of
+returning tuples per select operation. If the client reach this limit, then the
+client will have an error on its side.
+
+[Back to content](#content)
+
+tnt_allowed_spaces
+------------------
+**syntax:** *tnt_allowed_spaces [STR]*
+
+**default:** **
+
+**context:** *server, location, location if*
+
+This is constraint for prohibit an access to some spaces. Actually, directive
+takes array of number(which is representation of Tarantool's space), each
+space in list will be free to access from the client side.
+
+Example:
+```
+location {
+  ...
+  tnt_allowed_spaces 512,523;
+  tnt_insert off "s=%%space_id,i=%%idx_id";
+}
+```
+
+[Back to content](#content)
+
+tnt_allowed_indexes
+-------------------
+**syntax:** *tnt_allowed_indexes [STR]*
+
+**default:** **
+
+**context:** *server, location, location if*
+
+This directive has same idea than [tnt_allowed_spaces], but for indexes.
+
+[Back to content](#content)
 
 ## Performance Tuning
 ---------------------

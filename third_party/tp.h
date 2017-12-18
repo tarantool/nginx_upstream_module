@@ -1079,8 +1079,8 @@ tp_delete(struct tp *p, uint32_t space, uint32_t index)
 	int  sz = mp_sizeof_map(3) +
 		mp_sizeof_uint(TP_SPACE) +
 		mp_sizeof_uint(space) +
-    mp_sizeof_uint(TP_INDEX) +
-    mp_sizeof_uint(index) +
+		mp_sizeof_uint(TP_INDEX) +
+		mp_sizeof_uint(index) +
 		mp_sizeof_uint(TP_KEY);
 	if (tpunlikely(tp_ensure(p, hsz + sz) == -1))
 		return NULL;

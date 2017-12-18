@@ -195,13 +195,18 @@ box.cfg {
     wal_mode = 'none',
 }
 
+-- FOR TESTING ONLY!!!
+-- In real life you have to restrict an access
 box.once('gr', function()
     box.schema.user.grant('guest', 'read,write,execute', 'universe')
 end)
 
 local t = box.schema.space.create('t', {if_not_exists=true})
 t:create_index('pk', {if_not_exists=true})
---print (yaml.encode(box.space.t.index))
+
+t = box.schema.space.create('t2', {if_not_exists=true})
+t:create_index('pk', {if_not_exists=true})
+
 --fiber.create(function()
 --  while true do
 --    print (yaml.encode(box.space.t:select{}))
