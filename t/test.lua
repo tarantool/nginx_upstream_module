@@ -179,7 +179,6 @@ end
 
 -- Issue -- https://github.com/tarantool/nginx_upstream_module/issues/98
 function error_if_escaped(req)
-  print (yaml.encode(req))
   local get_arg = req.args.getArg
   if get_arg == 'a+b' then
     error (string.format('regression, it should have +, getArg = %s',
@@ -207,9 +206,3 @@ t:create_index('pk', {if_not_exists=true})
 t = box.schema.space.create('t2', {if_not_exists=true})
 t:create_index('pk', {if_not_exists=true})
 
---fiber.create(function()
---  while true do
---    print (yaml.encode(box.space.t:select{}))
---    fiber.sleep(1.5)
---  end
---end)

@@ -55,8 +55,10 @@ typedef enum ngx_tnt_conf_states {
 
 typedef struct ngx_http_tnt_header_val_s ngx_http_tnt_header_val_t;
 
+
 typedef ngx_int_t (*ngx_http_set_header_pt)(ngx_http_request_t *r,
     ngx_http_tnt_header_val_t *hv, ngx_str_t *value);
+
 
 struct ngx_http_tnt_header_val_s {
     ngx_http_complex_value_t   value;
@@ -65,30 +67,25 @@ struct ngx_http_tnt_header_val_s {
 };
 
 
-struct ngx_http_tnt_pre_run_result {
+typedef struct ngx_http_tnt_prepare_result {
     ngx_uint_t limit;
     ngx_uint_t offset;
     ngx_uint_t index_id;
     ngx_uint_t space_id;
     ngx_uint_t iter_type;
-};
-
-typedef struct ngx_http_tnt_pre_run_result ngx_http_tnt_pre_run_result_t;
+}  ngx_http_tnt_prepare_result_t;
 
 
-struct ngx_http_tnt_value {
+typedef struct ngx_http_tnt_format_value {
     ngx_str_t       name;
+    ngx_str_t       value;
     enum tp_type    type;
-};
-
-typedef struct ngx_http_tnt_value ngx_http_tnt_value_t;
+} ngx_http_tnt_format_value_t;
 
 
-struct ngx_http_tnt_next_arg {
+typedef struct ngx_http_tnt_next_arg {
   u_char *it, *value;
-};
-
-typedef struct ngx_http_tnt_next_arg ngx_http_tnt_next_arg_t;
+} ngx_http_tnt_next_arg_t;
 
 
 /** The structure hold the nginx location variables, e.g. loc_conf.
@@ -102,8 +99,8 @@ typedef struct {
 
     /** Preset method name
      *
-     * If this is set then tp_transcode use only this method name and
-     * tp_transcode will ignore the method name from the json or/and uri
+     *  If this is set then tp_transcode use only this method name and
+     *  tp_transcode will ignore the method name from the json or/and uri
      */
     ngx_http_complex_value_t *method_ccv;
     ngx_str_t method;
@@ -128,40 +125,54 @@ typedef struct {
 
     /** Http REST methods[default GET|PUT]
      *
-     * if incoming HTTP method is in this set, then
-     * the tp_transcode expect the tarantool method name in url,
-     * i.e. HOST/METHOD_NAME/TAIL?ARGS
+     *  if incoming HTTP method is in this set, then
+     *  the tp_transcode expect the tarantool method name in url,
+     *  i.e. HOST/METHOD_NAME/TAIL?ARGS
      *
-     * XXX Also see method
+     *  XXX Also see method
      */
     ngx_uint_t               http_rest_methods;
 
     /** Set of http methods[default POST|DELETE]
      *
-     * If incoming HTTP method is in this set,
-     * then the tp_transcode expect method name in JSON protocol,
-     * i.e. {"method":STR}
+     *  If incoming HTTP method is in this set,
+     *  then the tp_transcode expect method name in JSON protocol,
+     *  i.e. {"method":STR}
      *
-     * XXX Also see method
+     *  XXX Also see method
      */
     ngx_uint_t               http_methods;
 
     /** If it is set, then the client will recv. a pure result, e.g. {}
-     * otherwise {"result":[], "id": NUM}id
+     *  otherwise {"result":[], "id": NUM}id
      */
     ngx_uint_t               pure_result;
 
     /** Tarantool returns array of array as the result set,
-     * this option will help avoid "array of array" behavior.
-     * For instance.
-     * If this option is set to 2, then the result will: result:{}.
-     * If this option is set to 0, then the result will: result:[[{}]].
+     *  this option will help avoid "array of array" behavior.
+     *  For instance.
+     *  If this option is set to 2, then the result will: result:{}.
+     *  If this option is set to 0, then the result will: result:[[{}]].
      */
     ngx_uint_t                multireturn_skip_count;
 
     ngx_array_t               *headers;
 
-    /* enum tp_request_type */
+    /* Format is a feature which allows to convert a query data to MSGPack.
+     *
+     * Structure of configuration has two parts
+     *
+     * The first one is the 'values' -- an array for storing variables names
+     * and types of expected data.
+     *
+     * The second one is the *_name -- variables for stroring names of special
+     * variables[1].
+     *
+     * [1] Special variables are limit, offset, space id, index id, iterator
+     * type.
+     *
+     */
+    /** enum tp_request_type */
     ngx_uint_t  req_type;
 
     ngx_uint_t  space_id;
@@ -169,24 +180,14 @@ typedef struct {
 
     ngx_uint_t  select_offset;
     ngx_uint_t  select_limit;
+
+    /** Max allowed select per request */
     ngx_uint_t  select_limit_max;
-    /* enum tp_iterator_type */
+
+    /**  enum tp_iterator_type */
     ngx_uint_t  iter_type;
 
-    /* Format -- a feature which allows convert query data (does not have types)
-     * to MSGPack types.
-     *
-     * Parts of format which could be setted by tnt_{OP_NAME} directives.
-     *
-     * It has two parts. The first one is the 'values' -- an array for storing
-     * variables names and types of expected data. The second one is the *_name --
-     * variables for stroring names of special variables[1].
-     *
-     * [1] Special variables are limit, offset, space id, index id, iterator
-     * type.
-     */
-    ngx_http_tnt_value_t   values[12];
-    ngx_uint_t             values_count;
+    ngx_array_t            *format_values;
 
     ngx_str_t              limit_name;
     ngx_str_t              offset_name;
@@ -196,13 +197,9 @@ typedef struct {
 
     ngx_array_t            *allowed_spaces;
     ngx_array_t            *allowed_indexes;
+
 } ngx_http_tnt_loc_conf_t;
 
-
-/** Set of allowed REST methods
- */
-static const ngx_uint_t ngx_http_tnt_allowed_methods =
-    (NGX_HTTP_POST|NGX_HTTP_GET|NGX_HTTP_PUT|NGX_HTTP_PATCH|NGX_HTTP_DELETE);
 
 /** Upstream states
  */
@@ -219,6 +216,7 @@ enum ctx_state {
     SEND_REPLY
 };
 
+
 typedef struct ngx_http_tnt_ctx {
 
     /** This is a reference to Tarantool payload data,
@@ -230,6 +228,7 @@ typedef struct ngx_http_tnt_ctx {
     } payload;
 
     enum ctx_state     state;
+
     /** in_err - the error buffer
      *  tp_cache - the buffer for store parts of TP message
      */
@@ -251,6 +250,11 @@ typedef struct ngx_http_tnt_ctx {
      */
     u_char             preset_method[128];
     u_char             preset_method_len;
+
+    /** User defined format and its values
+     */
+    ngx_array_t *format_values;
+
 } ngx_http_tnt_ctx_t;
 
 /** Struct for stroring human-readable error message
@@ -263,7 +267,7 @@ typedef struct ngx_http_tnt_error {
 /** ngx_http_tnt_error index
  */
 enum ngx_http_tnt_error_idx {
-    REQUEST_TOO_LARGE   = 0,
+    REQUEST_TOO_LARGE = 0,
     UNKNOWN_PARSE_ERROR = 1,
     HTTP_REQUEST_TOO_LARGE = 2,
     DML_HANDLER_FMT_ERROR = 3,
@@ -277,12 +281,6 @@ static ngx_int_t ngx_http_tnt_send_reply(ngx_http_request_t *r,
 static ngx_int_t ngx_http_tnt_filter_reply(ngx_http_request_t *r,
         ngx_http_upstream_t *u, ngx_buf_t *b);
 static ngx_int_t ngx_http_tnt_filter(void *data, ssize_t bytes);
-
-/** Other functions  */
-static ngx_buf_t *ngx_http_tnt_create_mem_buf(ngx_http_request_t *r,
-        ngx_http_upstream_t *u, size_t size);
-static ngx_int_t ngx_http_tnt_output(ngx_http_request_t *r,
-        ngx_http_upstream_t *u, ngx_buf_t *b);
 
 /** Nginx handlers */
 static ngx_int_t ngx_http_tnt_preconfiguration(ngx_conf_t *cf);
@@ -333,15 +331,13 @@ static ngx_int_t ngx_http_tnt_process_header(ngx_http_request_t *r);
 static void ngx_http_tnt_abort_request(ngx_http_request_t *r);
 static void ngx_http_tnt_finalize_request(ngx_http_request_t *r, ngx_int_t rc);
 
+/** Some helpers */
 static ngx_int_t ngx_http_tnt_set_err(ngx_http_request_t *r, int errcode,
         const u_char *msg, size_t msglen);
 #define ngx_http_tnt_set_err_str(r, code, str) \
     ngx_http_tnt_set_err((r), (code), (str).data, (str).len)
 
 static const ngx_http_tnt_error_t *ngx_http_tnt_get_error_text(ngx_uint_t type);
-
-static ngx_int_t ngx_http_tnt_output_err(ngx_http_request_t *r,
-        ngx_http_tnt_ctx_t *ctx, ngx_int_t code);
 
 static ngx_str_t ngx_http_tnt_urldecode(ngx_http_request_t *r, ngx_str_t *src);
 static ngx_int_t ngx_http_tnt_unescape_uri(ngx_http_request_t *r,
@@ -352,27 +348,47 @@ static ngx_int_t ngx_http_tnt_encode_query_args(ngx_http_request_t *r,
 static ngx_http_tnt_next_arg_t ngx_http_tnt_get_next_arg(u_char *it,
         u_char *end);
 
-static char *ngx_http_tnt_format_compile(ngx_http_tnt_loc_conf_t *conf,
-        ngx_str_t *format);
-static ngx_int_t ngx_http_tnt_format_run_init(ngx_http_tnt_loc_conf_t *conf,
-        ngx_http_request_t *r, ngx_http_tnt_pre_run_result_t *pre_run_result);
-static ngx_int_t ngx_http_tnt_format_pre_run(ngx_http_tnt_loc_conf_t *conf,
-        ngx_http_request_t *r, ngx_http_tnt_pre_run_result_t *pre_run_result);
-static ngx_int_t ngx_http_tnt_format_run(ngx_http_tnt_loc_conf_t *conf,
-        ngx_http_request_t *r, struct tp *tp, ngx_str_t *key,
-        ngx_str_t *value);
-
 static ngx_int_t ngx_http_tnt_wakeup_dying_upstream(ngx_http_request_t *r,
         ngx_chain_t *out_chain);
-static ngx_int_t ngx_http_tnt_send_once(ngx_http_request_t *r,
-    ngx_http_tnt_ctx_t *ctx, ngx_chain_t *out_chain, const u_char *buf, size_t len);
 
+static ngx_int_t ngx_http_tnt_send_once(ngx_http_request_t *r,
+        ngx_http_tnt_ctx_t *ctx, ngx_chain_t *out_chain, const u_char *buf,
+        size_t len);
+
+static ngx_int_t ngx_http_tnt_output_err(ngx_http_request_t *r,
+        ngx_http_tnt_ctx_t *ctx, ngx_int_t code);
 
 static size_t ngx_http_tnt_overhead(void);
 
+static ngx_buf_t *ngx_http_tnt_create_mem_buf(ngx_http_request_t *r,
+        ngx_http_upstream_t *u, size_t size);
+
+static ngx_int_t ngx_http_tnt_output(ngx_http_request_t *r,
+        ngx_http_upstream_t *u, ngx_buf_t *b);
+
+/** Format functions.
+ *  Functions are existing for helping to conversation between HTTP
+ *  and MsgPack.
+ */
+static char *ngx_http_tnt_format_compile(ngx_conf_t *cf,
+        ngx_http_tnt_loc_conf_t *conf, ngx_str_t *format);
+static ngx_int_t ngx_http_tnt_format_init(ngx_http_tnt_loc_conf_t *conf,
+        ngx_http_request_t *r, ngx_http_tnt_prepare_result_t *prepare_result);
+static ngx_int_t ngx_http_tnt_format_prepare(ngx_http_tnt_loc_conf_t *conf,
+        ngx_http_request_t *r, ngx_http_tnt_prepare_result_t *prepare_result);
+static ngx_int_t ngx_http_tnt_format_prepare_values(ngx_http_request_t *r,
+        ngx_str_t *key, ngx_str_t *value);
+static ngx_int_t ngx_http_tnt_format_bind(ngx_http_request_t *r,
+        struct tp *tp);
 
 /** Module's objects {{{
  */
+
+/** A set of allowed REST methods */
+static const ngx_uint_t ngx_http_tnt_allowed_methods =
+    (NGX_HTTP_POST|NGX_HTTP_GET|NGX_HTTP_PUT|NGX_HTTP_PATCH|NGX_HTTP_DELETE);
+
+
 static ngx_conf_bitmask_t  ngx_http_tnt_next_upstream_masks[] = {
     { ngx_string("error"), NGX_HTTP_UPSTREAM_FT_ERROR },
     { ngx_string("timeout"), NGX_HTTP_UPSTREAM_FT_TIMEOUT },
@@ -977,7 +993,7 @@ ngx_http_tnt_insert_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     else {
         tlcf->space_id = (ngx_uint_t) atoi((const char *) value[1].data);
     }
-    return ngx_http_tnt_format_compile(tlcf, &value[2]);
+    return ngx_http_tnt_format_compile(cf, tlcf, &value[2]);
 }
 
 
@@ -1053,7 +1069,7 @@ ngx_http_tnt_select_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
                 "all_non_set,overlaps,neighbor";
     }
 
-    return ngx_http_tnt_format_compile(tlcf, &value[6]);
+    return ngx_http_tnt_format_compile(cf, tlcf, &value[6]);
 }
 
 
@@ -1077,7 +1093,7 @@ ngx_http_tnt_replace_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         tlcf->space_id = (ngx_uint_t) atoi((const char *) value[1].data);
     }
 
-    return ngx_http_tnt_format_compile(tlcf, &value[2]);
+    return ngx_http_tnt_format_compile(cf, tlcf, &value[2]);
 }
 
 
@@ -1108,7 +1124,7 @@ ngx_http_tnt_delete_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         tlcf->index_id = (ngx_uint_t) atoi((const char *) value[2].data);
     }
 
-    return ngx_http_tnt_format_compile(tlcf, &value[3]);
+    return ngx_http_tnt_format_compile(cf, tlcf, &value[3]);
 }
 
 
@@ -1191,7 +1207,8 @@ ngx_http_tnt_allowed_spaces_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
 
 static char *
-ngx_http_tnt_allowed_indexes_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ngx_http_tnt_allowed_indexes_add(ngx_conf_t *cf, ngx_command_t *cmd,
+        void *conf)
 {
     ngx_http_tnt_loc_conf_t *tlcf = conf;
 
@@ -1200,7 +1217,8 @@ ngx_http_tnt_allowed_indexes_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     value = cf->args->elts;
 
     if (tlcf->allowed_indexes == NULL) {
-        tlcf->allowed_indexes = ngx_array_create(cf->pool, 1, sizeof(ngx_uint_t));
+        tlcf->allowed_indexes = ngx_array_create(cf->pool, 1,
+                sizeof(ngx_uint_t));
         if (tlcf->allowed_indexes == NULL) {
             return NGX_CONF_ERROR;
         }
@@ -1212,21 +1230,25 @@ ngx_http_tnt_allowed_indexes_add(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
 
 static char *
-ngx_http_tnt_format_compile(ngx_http_tnt_loc_conf_t *conf, ngx_str_t *format)
+ngx_http_tnt_format_compile(ngx_conf_t *cf, ngx_http_tnt_loc_conf_t *conf,
+        ngx_str_t *format)
 {
-    u_char *name = NULL;
-    u_char *type = NULL;
+    u_char                      *name, *type;
+    ngx_uint_t                  i;
+    ngx_http_tnt_format_value_t fmt_val, *val;
 
-    ngx_http_tnt_value_t *values = conf->values;
-    size_t                values_max = sizeof(conf->values) / sizeof(conf->values[0]);
-    size_t                i;
+    if (conf->format_values == NULL) {
 
-    conf->values_count = 0;
+        conf->format_values = ngx_array_create(cf->pool, 1,
+                sizeof(ngx_http_tnt_format_value_t));
 
-    for (i = 0; i < values_max; ++i) {
-        memset(&values[i], 0, sizeof(ngx_http_tnt_value_t));
-        values[i].type = TP_NIL;
+        if (conf->format_values == NULL) {
+            return NGX_CONF_ERROR;
+        }
     }
+
+    name = NULL;
+    type = NULL;
 
     for (i = 0; i < format->len; ++i) {
 
@@ -1241,63 +1263,56 @@ ngx_http_tnt_format_compile(ngx_http_tnt_loc_conf_t *conf, ngx_str_t *format)
         if (format->data[i] == '&' || format->data[i] == ','
                 || i == format->len - 1)
         {
-            values[conf->values_count].name.data = name;
-            values[conf->values_count].name.len = (size_t) (type - name);
+            fmt_val.name.data = name;
+            fmt_val.name.len = (ngx_uint_t) (type - name);
             name = NULL;
 
+            /** Spec. values */
             if (ngx_strncmp(type, "%%lim", sizeof("%%lim") - 1) == 0) {
-
-                conf->limit_name = values[conf->values_count].name;
-                values[conf->values_count].name.data = NULL;
-                values[conf->values_count].name.len = 0;
+                conf->limit_name = fmt_val.name;
             } else if (
                     ngx_strncmp(type, "%%off", sizeof("%%off") - 1) == 0) {
 
-                conf->offset_name = values[conf->values_count].name;
-                values[conf->values_count].name.data = NULL;
-                values[conf->values_count].name.len = 0;
+                conf->offset_name = fmt_val.name;
             } else if (ngx_strncmp(type, "%%it", sizeof("%%it") - 1) == 0) {
 
-                conf->iter_type_name = values[conf->values_count].name;
-                values[conf->values_count].name.data = NULL;
-                values[conf->values_count].name.len = 0;
+                conf->iter_type_name = fmt_val.name;
             } else if (
                 ngx_strncmp(type, "%%space_id", sizeof("%%space_id") - 1) == 0) {
-                conf->space_id_name = values[conf->values_count].name;
-                values[conf->values_count].name.data = NULL;
-                values[conf->values_count].name.len = 0;
+                conf->space_id_name = fmt_val.name;
             } else if (
                 ngx_strncmp(type, "%%idx_id", sizeof("%%idx_id") - 1) == 0) {
 
-                conf->index_id_name = values[conf->values_count].name;
-                values[conf->values_count].name.data = NULL;
-                values[conf->values_count].name.len = 0;
-            } else if (ngx_strncmp(type, "%n", sizeof("%n") - 1) == 0) {
+                conf->index_id_name = fmt_val.name;
 
-                values[conf->values_count++].type = TP_INT;
-            } else if (ngx_strncmp(type, "%d", sizeof("%d") - 1) == 0) {
-
-                values[conf->values_count++].type = TP_DOUBLE;
-            } else if (ngx_strncmp(type, "%f", sizeof("%f") - 1) == 0) {
-
-                values[conf->values_count++].type = TP_FLOAT;
-            } else if (ngx_strncmp(type, "%s", sizeof("%s") - 1) == 0) {
-
-                values[conf->values_count++].type = TP_STR;
-            } else if (ngx_strncmp(type, "%b", sizeof("%b") - 1) == 0) {
-
-                values[conf->values_count++].type = TP_BOOL;
+            /** Scalar values */
             } else {
 
-                return "unknown format has been found, "
+                val = ngx_array_push(conf->format_values);
+                if (val == NULL) {
+                    return NGX_CONF_ERROR;
+                }
+                val->name = fmt_val.name;
+                val->value.len = 0;
+
+                if (ngx_strncmp(type, "%n", sizeof("%n") - 1) == 0) {
+                    val->type = TP_INT;
+                } else if (ngx_strncmp(type, "%d", sizeof("%d") - 1) == 0) {
+                    val->type = TP_DOUBLE;
+                } else if (ngx_strncmp(type, "%f", sizeof("%f") - 1) == 0) {
+                    val->type = TP_FLOAT;
+                } else if (ngx_strncmp(type, "%s", sizeof("%s") - 1) == 0) {
+                    val->type = TP_STR;
+                } else if (ngx_strncmp(type, "%b", sizeof("%b") - 1) == 0) {
+                    val->type = TP_BOOL;
+                } else {
+                    return "unknown format has been found, "
                         "allowed %n,%d,%f,%s,%b,%lim,%off,%it,"
                         "%space_id,%idx_id";
+                }
             }
-            type = NULL;
 
-            if (conf->values_count == values_max) {
-                return "Limit has been reached, allowed only 12 values";
-            }
+            type = NULL;
         }
     }
 
@@ -1392,24 +1407,54 @@ ngx_http_tnt_unescape_uri(ngx_http_request_t *r, ngx_str_t *dst,
 
 
 static ngx_int_t
-ngx_http_tnt_format_run_init(ngx_http_tnt_loc_conf_t *conf,
-        ngx_http_request_t *r, ngx_http_tnt_pre_run_result_t *pre_run_result)
+ngx_http_tnt_format_init(ngx_http_tnt_loc_conf_t *conf,
+        ngx_http_request_t *r, ngx_http_tnt_prepare_result_t *prepare_result)
 {
-    (void) r;
+    ngx_uint_t                  i;
+    ngx_http_tnt_ctx_t          *ctx;
+    ngx_http_tnt_format_value_t *fmt_val, *conf_fmt_val;
 
-    pre_run_result->space_id = conf->space_id;
-    pre_run_result->index_id = conf->index_id;
-    pre_run_result->limit = conf->select_limit;
-    pre_run_result->offset = conf->select_offset;
-    pre_run_result->iter_type = conf->iter_type;
+    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
+
+    prepare_result->space_id = conf->space_id;
+    prepare_result->index_id = conf->index_id;
+    prepare_result->limit = conf->select_limit;
+    prepare_result->offset = conf->select_offset;
+    prepare_result->iter_type = conf->iter_type;
+
+    if (conf->format_values == NULL) {
+        ctx->format_values = NULL;
+        return NGX_OK;
+    }
+
+    ctx->format_values = ngx_array_create(r->connection->pool, 1,
+                        sizeof(ngx_http_tnt_format_value_t));
+    if (ctx->format_values == NULL) {
+        return NGX_ERROR;
+    }
+
+    conf_fmt_val = conf->format_values->elts;
+
+    for (i = 0; i < conf->format_values->nelts; ++i) {
+
+        fmt_val = ngx_array_push(ctx->format_values);
+        if (fmt_val == NULL) {
+            return NGX_ERROR;
+        }
+
+        fmt_val->name = conf_fmt_val[i].name;
+        fmt_val->type = conf_fmt_val[i].type;
+        fmt_val->value.data = NULL;
+        fmt_val->value.len = 0;
+    }
 
     return NGX_OK;
 }
 
 
 static ngx_int_t
-ngx_http_tnt_format_pre_run(ngx_http_tnt_loc_conf_t *conf,
-        ngx_http_request_t *r, ngx_http_tnt_pre_run_result_t *pre_run_result)
+ngx_http_tnt_format_prepare(ngx_http_tnt_loc_conf_t *conf,
+        ngx_http_request_t *r, ngx_http_tnt_prepare_result_t *prepare_result)
 {
     enum {
         NOTHING = 0,
@@ -1452,13 +1497,10 @@ ngx_http_tnt_format_pre_run(ngx_http_tnt_loc_conf_t *conf,
         expects |= EXPECTS_INDEX_ID;
     }
 
-    if (expects == NOTHING) {
-        return NGX_OK;
-    }
-
     for (arg_begin = arg.it, end = arg.it + r->args.len; arg.it < end; ) {
 
         arg = ngx_http_tnt_get_next_arg(arg.it, end);
+
         if (arg.value != NULL) {
 
             key.data = arg_begin;
@@ -1467,60 +1509,73 @@ ngx_http_tnt_format_pre_run(ngx_http_tnt_loc_conf_t *conf,
             value.data = arg.value;
             value.len = arg.it - arg.value;
 
-            if (key.len == conf->limit_name.len &&
+            if (expects & EXPECTS_LIMIT &&
+                    key.len == conf->limit_name.len &&
                     ngx_strncmp(key.data, conf->limit_name.data,
-                            conf->limit_name.len) == 0)
+                                conf->limit_name.len) == 0)
             {
                 tmp = ngx_atoi(value.data, value.len);
+
                 if (tmp >= 0) {
 
                     if (tmp > conf->select_limit_max) {
-                        return NGX_HTTP_NOT_ALLOWED;
+                        goto not_allowed;
                     }
 
-                    pre_run_result->limit = (ngx_uint_t)
+                    prepare_result->limit = (ngx_uint_t)
                         (tmp > conf->select_limit_max ?
                             conf->select_limit_max : tmp);
                     expects &= ~EXPECTS_LIMIT;
                 }
             }
-            else if (key.len == conf->offset_name.len &&
+            else if (expects & EXPECTS_OFFSET &&
+                    key.len == conf->offset_name.len &&
                     ngx_strncmp(key.data, conf->offset_name.data,
-                            conf->offset_name.len) == 0)
+                                conf->offset_name.len) == 0)
             {
                 tmp = ngx_atoi(value.data, value.len);
                 if (tmp >= 0) {
-                    pre_run_result->offset = (ngx_uint_t) tmp;
+                    prepare_result->offset = (ngx_uint_t) tmp;
                     expects &= ~EXPECTS_OFFSET;
                 }
             }
-            else if (key.len == conf->iter_type_name.len &&
+            else if (expects & EXPECTS_ITER_TYPE &&
+                    key.len == conf->iter_type_name.len &&
                     ngx_strncmp(key.data, conf->iter_type_name.data,
-                            conf->iter_type_name.len) == 0)
+                                conf->iter_type_name.len) == 0)
             {
                 if (ngx_http_tnt_set_iter_type(&value, (ngx_uint_t *) &tmp) == NGX_OK) {
-                    pre_run_result->iter_type = (ngx_uint_t) tmp;
+                    prepare_result->iter_type = (ngx_uint_t) tmp;
                     expects &= ~EXPECTS_ITER_TYPE;
                 }
             }
-            else if (key.len == conf->space_id_name.len &&
+            else if (expects & EXPECTS_SPACE_ID &&
+                    key.len == conf->space_id_name.len &&
                     ngx_strncmp(key.data, conf->space_id_name.data,
-                            conf->space_id_name.len) == 0)
+                                conf->space_id_name.len) == 0)
             {
                 tmp = ngx_atoi(value.data, value.len);
                 if (tmp >= 0) {
-                    pre_run_result->space_id = (ngx_uint_t) tmp;
+                    prepare_result->space_id = (ngx_uint_t) tmp;
                     expects &= ~EXPECTS_SPACE_ID;
                 }
             }
-            else if (key.len == conf->index_id_name.len &&
+            else if (expects & EXPECTS_INDEX_ID &&
+                    key.len == conf->index_id_name.len &&
                     ngx_strncmp(key.data, conf->index_id_name.data,
-                            conf->index_id_name.len) == 0)
+                                conf->index_id_name.len) == 0)
             {
                 tmp = ngx_atoi(value.data, value.len);
                 if (tmp >= 0) {
-                    pre_run_result->index_id = (ngx_uint_t) tmp;
+                    prepare_result->index_id = (ngx_uint_t) tmp;
                     expects &= ~EXPECTS_INDEX_ID;
+                }
+            }
+            else {
+
+                rc = ngx_http_tnt_format_prepare_values(r, &key, &value);
+                if (rc != NGX_OK) {
+                    return rc;
                 }
             }
 
@@ -1532,115 +1587,191 @@ ngx_http_tnt_format_pre_run(ngx_http_tnt_loc_conf_t *conf,
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
     rc = ngx_http_tnt_test_allowed(tlcf->allowed_spaces,
-            pre_run_result->space_id);
+            prepare_result->space_id);
     if (rc != NGX_OK) {
-        return rc;
+        goto not_allowed;
     }
 
     rc = ngx_http_tnt_test_allowed(tlcf->allowed_indexes,
-            pre_run_result->index_id);
+            prepare_result->index_id);
     if (rc != NGX_OK) {
-        return rc;
+        goto not_allowed;
     }
 
     if (expects == NOTHING) {
         return NGX_OK;
     }
 
+    rc = ngx_http_tnt_set_err_str(r, NGX_HTTP_BAD_REQUEST,
+                ngx_http_tnt_get_error_text(DML_HANDLER_FMT_ERROR)->msg);
+    if (rc != NGX_OK) {
+        return rc;
+    }
+
     return NGX_HTTP_BAD_REQUEST;
+
+not_allowed:
+
+    rc = ngx_http_tnt_set_err_str(r, NGX_HTTP_NOT_ALLOWED,
+                ngx_http_tnt_get_error_text(
+                        DML_HANDLER_FMT_LIMIT_ERROR)->msg);
+    if (rc != NGX_OK) {
+        return rc;
+    }
+
+    return NGX_HTTP_NOT_ALLOWED;
 }
 
 
 static ngx_int_t
-ngx_http_tnt_format_run(ngx_http_tnt_loc_conf_t *conf, ngx_http_request_t *r,
-        struct tp *tp, ngx_str_t *key, ngx_str_t *value)
+ngx_http_tnt_format_prepare_values(ngx_http_request_t *r, ngx_str_t *key,
+        ngx_str_t *value)
 {
-    ngx_int_t  rc;
-    ngx_uint_t i;
-    ngx_str_t  unescaped_value;
+    ngx_uint_t                   i;
+    ngx_http_tnt_format_value_t  *fmt_val;
+    ngx_http_tnt_ctx_t           *ctx;
 
-    for (i = 0; i < conf->values_count; ++i) {
+    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
-        if (key->len == conf->values[i].name.len &&
-                ngx_strncmp(key->data, conf->values[i].name.data,
-                        conf->values[i].name.len) == 0)
-        {
-            switch (conf->values[i].type) {
-            case TP_BOOL:
-                if (value->len == sizeof("true") - 1 &&
-                        ngx_strncasecmp(value->data,
-                            (u_char *) "true", sizeof("true") - 1) == 0)
-                {
-                    if (tp_encode_bool(tp, true) == NULL) {
-                        goto oom;
-                    }
-                } else if (value->len == sizeof("false") - 1 &&
-                        ngx_strncasecmp(value->data,
-                            (u_char *) "false", sizeof("false") - 1) == 0)
-                {
-                    if (tp_encode_bool(tp, false) == NULL) {
-                        goto oom;
-                    }
-                }
-                else {
-                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                            "%V=%V should be true or false",
-                            key, value);
-                    return NGX_ERROR;
-                }
+    if (ctx->format_values == NULL) {
+        return NGX_OK;
+    }
 
-                break;
-            case TP_INT:
-                if (*value->data == '-') {
+    fmt_val = ctx->format_values->elts;
 
-                    if (tp_encode_int(tp,
-                        (int64_t) atoll((const char *) value->data)) == NULL)
-                    {
-                        goto oom;
-                    }
+    for (i = 0; i < ctx->format_values->nelts; i++) {
 
-                } else if (tp_encode_uint(tp,
-                        (int64_t) atoll((const char *) value->data)) ==
-                        NULL)
-                {
-                    goto oom;
-                }
-                break;
-            case TP_DOUBLE:
-                if (tp_encode_double(tp, atof((const char *) value->data)) ==
-                        NULL)
-                {
-                    goto oom;
-                }
-                break;
-            case TP_FLOAT:
-                if (tp_encode_double(tp,
-                            (float) atof((const char *) value->data)) ==
-                            NULL)
-                {
-                    goto oom;
-                }
-                break;
-            case TP_STR:
-                rc = ngx_http_tnt_unescape_uri(r, &unescaped_value, value);
-                if (rc != NGX_OK) {
-                    goto oom;
-                }
-                if (tp_encode_str(tp, (const char *) unescaped_value.data,
-                        unescaped_value.len) == NULL)
-                {
-                    goto oom;
-                }
-                break;
-            default:
-                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                    "Can't issue the query, error = 'unknown type %d'",
-                    (int) conf->values[i].type);
-                return NGX_ERROR;
+        if (fmt_val[i].value.len != 0 || key->len != fmt_val[i].name.len) {
+            continue;
+        }
+
+        if (ngx_strncmp(key->data, fmt_val[i].name.data,
+                    fmt_val[i].name.len) == 0) {
+            fmt_val[i].value = *value;
+            break;
+        }
+    }
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
+ngx_http_tnt_format_bind(ngx_http_request_t *r, struct tp *tp)
+{
+    ngx_int_t                    rc;
+    ngx_str_t                    unescaped_value;
+    ngx_str_t                    *value;
+    ngx_uint_t                   i;
+    ngx_http_tnt_format_value_t  *fmt_val;
+    ngx_http_tnt_ctx_t           *ctx;
+    u_char                       err_msg[32];
+
+    ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
+
+    if (ctx->format_values == NULL) {
+        return NGX_OK;
+    }
+
+    fmt_val = ctx->format_values->elts;
+
+    for (i = 0; i < ctx->format_values->nelts; i++) {
+
+        value = &fmt_val[i].value;
+
+        if (value->len == 0 && value->data == NULL) {
+
+            snprintf((char *) err_msg, sizeof(err_msg), "invalid '%.*s'",
+                    (int) fmt_val[i].name.len, (char *) fmt_val[i].name.data);
+
+            rc = ngx_http_tnt_set_err(r, NGX_HTTP_BAD_REQUEST, err_msg,
+                    ngx_strlen(err_msg));
+            if (rc != NGX_OK) {
+                return rc;
             }
 
-            /** Exit */
+            return NGX_HTTP_BAD_REQUEST;
+        }
+
+        switch (fmt_val[i].type) {
+        case TP_BOOL:
+            if (value->len == sizeof("true") - 1 &&
+                    ngx_strncasecmp(value->data,
+                        (u_char *) "true", sizeof("true") - 1) == 0)
+            {
+                if (tp_encode_bool(tp, true) == NULL) {
+                    goto oom;
+                }
+            } else if (value->len == sizeof("false") - 1 &&
+                ngx_strncasecmp(value->data,
+                            (u_char *) "false", sizeof("false") - 1) == 0)
+            {
+                if (tp_encode_bool(tp, false) == NULL) {
+                    goto oom;
+                }
+            }
+            else {
+
+                snprintf((char *)err_msg, sizeof(err_msg), "invalid '%.*s'",
+                        (int) fmt_val[i].name.len, (char *) fmt_val[i].name.data);
+
+                rc = ngx_http_tnt_set_err(r, NGX_HTTP_BAD_REQUEST, err_msg,
+                        ngx_strlen(err_msg));
+                if (rc != NGX_OK) {
+                    return rc;
+                }
+
+                return NGX_HTTP_BAD_REQUEST;
+            }
+
             break;
+        case TP_INT:
+            if (*value->data == '-') {
+
+                if (tp_encode_int(tp,
+                    (int64_t) atoll((const char *) value->data)) == NULL)
+                {
+                    goto oom;
+                }
+
+            } else if (tp_encode_uint(tp,
+                    (int64_t) atoll((const char *) value->data)) ==
+                    NULL)
+            {
+                goto oom;
+            }
+            break;
+        case TP_DOUBLE:
+            if (tp_encode_double(tp, atof((const char *) value->data)) ==
+                    NULL)
+            {
+                goto oom;
+            }
+            break;
+        case TP_FLOAT:
+            if (tp_encode_double(tp,
+                        (float) atof((const char *) value->data)) ==
+                        NULL)
+            {
+                goto oom;
+            }
+            break;
+        case TP_STR:
+            rc = ngx_http_tnt_unescape_uri(r, &unescaped_value, value);
+            if (rc != NGX_OK) {
+                goto oom;
+            }
+            if (tp_encode_str(tp, (const char *) unescaped_value.data,
+                    unescaped_value.len) == NULL)
+            {
+                goto oom;
+            }
+            break;
+        default:
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                "Can't issue the query, error = 'unknown type %d'",
+                (int) fmt_val[i].type);
+            return NGX_ERROR;
         }
     }
 
@@ -1650,6 +1781,7 @@ oom:
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
             "Can't issue the query, error = '%V'",
             &ngx_http_tnt_get_error_text(HTTP_REQUEST_TOO_LARGE)->msg);
+
     return NGX_ERROR;
 }
 
@@ -3142,16 +3274,13 @@ ngx_http_tnt_dml_handler(ngx_http_request_t *r)
     ngx_chain_t                     *out_chain;
     ngx_http_tnt_loc_conf_t         *tlcf;
     struct tp                       tp;
-    u_char                          *arg_begin, *end;
-    ngx_http_tnt_next_arg_t         arg;
-    ngx_str_t                       key, value;
-    ngx_http_tnt_pre_run_result_t   pre_run_result;
+    ngx_http_tnt_prepare_result_t   prepare_result;
 
     ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
 
     tlcf = ngx_http_get_module_loc_conf(r, ngx_http_tnt_module);
 
-    rc = ngx_http_tnt_format_run_init(tlcf, r, &pre_run_result);
+    rc = ngx_http_tnt_format_init(tlcf, r, &prepare_result);
     if (rc != NGX_OK) {
         return rc;
     }
@@ -3161,30 +3290,12 @@ ngx_http_tnt_dml_handler(ngx_http_request_t *r)
         return NGX_ERROR;
     }
 
-    rc = ngx_http_tnt_format_pre_run(tlcf, r, &pre_run_result);
+    /** Preapre */
+    rc = ngx_http_tnt_format_prepare(tlcf, r, &prepare_result);
 
     if (rc != NGX_OK) {
 
         if (rc == NGX_HTTP_BAD_REQUEST || rc == NGX_HTTP_NOT_ALLOWED) {
-
-            switch (rc) {
-            case NGX_HTTP_NOT_ALLOWED:
-
-                rc = ngx_http_tnt_set_err_str(r, NGX_HTTP_NOT_ALLOWED,
-                        ngx_http_tnt_get_error_text(
-                            DML_HANDLER_FMT_LIMIT_ERROR)->msg);
-                break;
-            case NGX_HTTP_BAD_REQUEST:
-            default:
-                rc = ngx_http_tnt_set_err_str(r, NGX_HTTP_BAD_REQUEST,
-                        ngx_http_tnt_get_error_text(
-                            DML_HANDLER_FMT_ERROR)->msg);
-                break;
-            }
-
-            if (rc != NGX_OK) {
-                return rc;
-            }
 
             rc = ngx_http_tnt_wakeup_dying_upstream(r, out_chain);
             if (rc != NGX_OK) {
@@ -3202,6 +3313,7 @@ ngx_http_tnt_dml_handler(ngx_http_request_t *r)
         return rc;
     }
 
+    /** Init output chain */
     out_chain->buf = ngx_create_temp_buf(r->pool,
                                          tlcf->pass_http_request_buffer_size);
     if (out_chain->buf == NULL) {
@@ -3223,37 +3335,37 @@ ngx_http_tnt_dml_handler(ngx_http_request_t *r)
      */
     tp_init(&tp, (char *) buf->start, buf->end - buf->start, NULL, NULL);
 
-    /* Handle request type {{{ */
+    /** Handle request type */
     switch (tlcf->req_type) {
     case TP_INSERT:
-        if (tp_insert(&tp, (uint32_t) pre_run_result.space_id) == NULL ||
-            tp_tuple(&tp, tlcf->values_count) == NULL)
+        if (tp_insert(&tp, (uint32_t) prepare_result.space_id) == NULL ||
+            tp_tuple(&tp, ctx->format_values->nelts) == NULL)
         {
             goto cant_issue_request;
         }
         break;
     case TP_DELETE:
-        if (tp_delete(&tp, (uint32_t) pre_run_result.space_id,
-                    (uint32_t) pre_run_result.index_id) == NULL ||
-            tp_key(&tp, tlcf->values_count) == NULL)
+        if (tp_delete(&tp, (uint32_t) prepare_result.space_id,
+                    (uint32_t) prepare_result.index_id) == NULL ||
+            tp_key(&tp, ctx->format_values->nelts) == NULL)
         {
             goto cant_issue_request;
         }
         break;
     case TP_REPLACE:
-        if (tp_replace(&tp, (uint32_t) pre_run_result.space_id) == NULL ||
-                tp_tuple(&tp, tlcf->values_count) == NULL)
+        if (tp_replace(&tp, (uint32_t) prepare_result.space_id) == NULL ||
+                tp_tuple(&tp, ctx->format_values->nelts) == NULL)
         {
             goto cant_issue_request;
         }
         break;
     case TP_SELECT:
 
-        if (tp_select(&tp, (uint32_t) pre_run_result.space_id,
-                    (uint32_t) pre_run_result.index_id,
-                    pre_run_result.offset, pre_run_result.iter_type,
-                    pre_run_result.limit) == NULL ||
-                tp_key(&tp, tlcf->values_count) == NULL)
+        if (tp_select(&tp, (uint32_t) prepare_result.space_id,
+                    (uint32_t) prepare_result.index_id,
+                    prepare_result.offset, prepare_result.iter_type,
+                    prepare_result.limit) == NULL ||
+                tp_key(&tp, ctx->format_values->nelts) == NULL)
         {
             goto cant_issue_request;
         }
@@ -3261,33 +3373,29 @@ ngx_http_tnt_dml_handler(ngx_http_request_t *r)
     default:
         goto cant_issue_request;
     }
-    /** }}} */
 
-    /** Run compiled format {{{ */
-    arg.it = r->args.data;
-    arg.value = NULL;
+    /** Bind values to the request */
+    rc = ngx_http_tnt_format_bind(r, &tp);
 
-    for (arg_begin = arg.it, end = arg.it + r->args.len; arg.it < end; ) {
+    if (rc != NGX_OK) {
 
-        arg = ngx_http_tnt_get_next_arg(arg.it, end);
+        if (rc == NGX_HTTP_BAD_REQUEST) {
 
-        if (arg.value != NULL) {
-
-            key.data = arg_begin;
-            key.len = arg.value - arg_begin;
-
-            value.data = arg.value;
-            value.len = arg.it - arg.value;
-
-            rc = ngx_http_tnt_format_run(tlcf, r, &tp, &key, &value);
+            rc = ngx_http_tnt_wakeup_dying_upstream(r, out_chain);
             if (rc != NGX_OK) {
                 return rc;
             }
+
+            ctx->state = INPUT_FMT_CANT_READ_INPUT;
+
+            /** Hooking output chain */
+            r->upstream->request_bufs = out_chain;
+
+            return NGX_OK;
         }
 
-        arg_begin = ++arg.it;
+        return rc;
     }
-    /** }}} */
 
     out_chain->buf->last = (u_char *) tp.p;
 

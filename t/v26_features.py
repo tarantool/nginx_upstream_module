@@ -22,55 +22,53 @@ assert 'result' in result and 'id' in result, 'expected: result and id'
 
 # Format - "index=%u&string=%s&float=%f&double=%d&bool=%b&int=%i";
 
-insert_1 = {
-    'index': 1,
-    'string': 'some big string',
-    'float': 2.1,
-    'double': 3.1,
-    'bool': True,
-    'int': -1000
-}
+insert_1 = [
+    {'index': 1},
+    {'string': 'some big string'},
+    {'float': 2.1},
+    {'double': 3.1},
+    {'bool': True},
+    {'int': -1000}
+]
 result = get_success(BASE_URL + '/insert', insert_1, None)
-assert [ v for v in insert_1.values() ] == result, "Expected != result"
+assert result == arr_of_dicts_to_arr(insert_1), "Expected != result"
 
-insert_2 = {
-    'index': 2,
-    'string': 'the new big and random string',
-    'float': 20.1,
-    'double': 30.1,
-    'bool': False,
-    'int': -2
-}
+insert_2 = [
+    {'index': 2},
+    {'string': 'the new big and random string'},
+    {'float': 20.1},
+    {'double': 30.1},
+    {'bool': False},
+    {'int': -2}
+]
 result = get_success(BASE_URL + '/insert', insert_2, None)
-assert [ v for v in insert_2.values() ] == result, "Expected != result"
+assert result == arr_of_dicts_to_arr(insert_2), "Expected != result"
 print ('[+] OK')
 
 
 print ('[+] basic select')
-result = get_success(BASE_URL + '/select', {
-    'index': 0
-}, None, False)
-assert [ v for v in insert_1.values() ] == result['result'][0], \
+result = get_success(BASE_URL + '/select', {'index': 0}, None, False)
+assert arr_of_dicts_to_arr(insert_1) == result['result'][0], \
         "Expected != result"
-assert [ v for v in insert_2.values() ] == result['result'][1], \
+assert arr_of_dicts_to_arr(insert_2) == result['result'][1], \
         "Expected != result"
 print ('[+] OK')
 
 
 print ('[+] basic replace')
-insert_1['int'] = 1000000
+insert_1[5]['int'] = 1000000
 result = get_success(BASE_URL + '/replace', insert_1, None)
-assert [ v for v in insert_1.values() ] == result, \
+assert arr_of_dicts_to_arr(insert_1) == result, \
         "Expected != result"
 print ('[+] OK')
 
 
 print ('[+] basic delete')
 result = get_success(BASE_URL + '/delete', {'index': 1}, None)
-assert [ v for v in insert_1.values() ] == result, \
+assert arr_of_dicts_to_arr(insert_1) == result, \
         "Expected != result"
 result = get_success(BASE_URL + '/delete', {'index': 2}, None)
-assert [ v for v in insert_2.values() ] == result, \
+assert arr_of_dicts_to_arr(insert_2) == result, \
         "Expected != result"
 print ('[+] OK')
 
@@ -94,12 +92,11 @@ data = [
     {'int': -1000}
 ]
 
-## tnt_insert off "space_id=%space_id&index_id=%index_id&value=%n&string=%s&float=%f&double=%d&bool=%b&int=%n";
 expected = arr_of_dicts_to_arr(data)
 for i in range(1, 100):
     data[2]['value'] = i
     result = get_success(BASE_URL + '/delete_ext_fmt', data, None, False)
-    assert 'result' in result and 'id' in result, 'expected: result and id'
+    assert 'result' in result and 'id' in result, 'expected result and id'
     result = get_success(BASE_URL + '/insert_ext_fmt', data, None)
     assert arr_of_dicts_to_arr(data, 2) == result, 'Expected != result'
 print ('[+] OK')
@@ -250,5 +247,45 @@ rc, result = get(BASE_URL + '/dml_allowed_sp', [
     {'s': 512},{'i': 0},{'v': 8000}], None)
 assert rc == 200, 'Expected 400'
 
+print ('[+] OK')
+
+
+print ('[+] Wrong order')
+
+data = [
+    {'float': 2.1},
+    {'value': 100000},
+    {'space_id': 513},
+    {'index_id': 0},
+    {'string': 'some big string'},
+    {'double': 3.1},
+    {'bool': True},
+    {'int': -1000}
+]
+
+expected = [
+    {'value': 100000},
+    {'string': 'some big string'},
+    {'float': 2.1},
+    {'double': 3.1},
+    {'bool': True},
+    {'int': -1000}
+]
+
+result = get_success(BASE_URL + '/delete_ext_fmt', data, None, False)
+assert 'result' in result and 'id' in result, 'expected result and id'
+result = get_success(BASE_URL + '/insert_ext_fmt', data, None)
+assert arr_of_dicts_to_arr(expected) == result, 'Expected != result'
+
+print ('[+] OK')
+
+
+print ('[+] Format validation')
+data = [
+    {'space_id': 513},
+    {'index_id': 0},
+]
+rc, result = get(BASE_URL + '/insert_ext_fmt', data, None)
+assert rc == 400, 'Expected 400'
 print ('[+] OK')
 
