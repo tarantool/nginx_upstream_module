@@ -920,7 +920,7 @@ The second argument is a [format](#format).
 [Back to content](#content)
 
 
-tnt_insert
+tnt_replace
 ----------
 **syntax:** *tnt_replace [SIZE or off] [FMT]*
 
