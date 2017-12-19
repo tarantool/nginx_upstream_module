@@ -886,6 +886,10 @@ ngx_http_tnt_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
         conf->allowed_indexes = prev->allowed_indexes;
     }
 
+    if (conf->format_values == NULL) {
+        conf->format_values = prev->format_values;
+    }
+
     return NGX_CONF_OK;
 }
 
