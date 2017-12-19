@@ -903,7 +903,7 @@ The syntax is: `{QUERY_ARG_NAME}=%{FMT_TYPE}`
 A good example is:
 ```
 HTTP GET ... /url?space_id=512&value=some+string
-it could be matched by using the follwing format 'space_id=%%space_id,value=%s'
+it could be matched by using the following format 'space_id=%%space_id,value=%s'
 ```
 
 Here is a full list of {FMT_TYPE} types:
@@ -945,8 +945,8 @@ This directive allows executing an insert query with Tarantool.
 
 [Back to content](#content)
 
-tnt_insert
-----------
+tnt_replace
+-----------
 **syntax:** *tnt_replace [SIZE or off] [FMT]*
 
 **default:** *None*
