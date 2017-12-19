@@ -77,7 +77,7 @@ https://hub.docker.com/r/tarantool/tarantool
   * [tnt_allowed_indexes](#tnt_allowed_indexes)
 * [Performance tuning](#performance-tuning)
 * [Examples](#examples)
-* [Copyright & License](#copyright--license)
+* [Copyright & license](#copyright--license)
 * [See also](#see-also)
 * [Contacts](#contacts)
 
@@ -98,7 +98,7 @@ apt-get install libpcre++0 gcc unzip libpcre3-dev zlib1g-dev libssl-dev libxslt-
 make build-all
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ### Build via nginx 'configure'
 
@@ -131,7 +131,7 @@ make build-all
 
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ## REST
 -------
@@ -177,7 +177,7 @@ end
  $> wget NGX_HOST/tnt_rest?arg1=1&argN=N
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ## JSON
 -------
@@ -313,7 +313,7 @@ rpc call Batch with invalid JSON:
 <-- { "error": { "code": -32700, "message": "Parse error" } }
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ## HTTP headers and status
 --------------------------
@@ -410,11 +410,10 @@ Here is an example with `ngx_lua`:
 
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ## Directives
 -------------
-[Back to content](#content)
 
 tnt_pass
 --------
@@ -441,7 +440,7 @@ Specify the Tarantool server backend.
   }
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_http_methods
 ----------------
@@ -471,7 +470,7 @@ Example:
   $> wget --method=delete --body-data='{"method":"lua_function", "params": [], "id": 0}' NGINX_HOST/tnt
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_http_rest_methods
 ---------------------
@@ -499,7 +498,7 @@ Example:
   $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_pass_http_request
 ---------------------
@@ -595,7 +594,7 @@ Examples #3 (parse_urlencoded):
   $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1&q=2&q=3
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_pass_http_request_buffer_size
 ---------------------------------
@@ -607,7 +606,7 @@ tnt_pass_http_request_buffer_size
 
 Specify the size of the buffer used for `tnt_pass_http_request`.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_method
 ----------
@@ -670,7 +669,7 @@ Examples:
 
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_set_header
 --------------
@@ -714,7 +713,7 @@ Examples:
   $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_send_timeout
 ----------------
@@ -732,7 +731,7 @@ Time units supported are:
 `s`(seconds), `ms`(milliseconds), `y`(years), `M`(months), `w`(weeks),
 `d`(days), `h`(hours), and `m`(minutes).
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_read_timeout
 -------------------
@@ -749,7 +748,7 @@ It's wise to always explicitly specify the time unit to avoid confusion.
 Time units supported are: `s`(seconds), `ms`(milliseconds), `y`(years),
 `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_connect_timeout
 -------------------
@@ -766,7 +765,7 @@ Time units supported are: `s`(seconds), `ms`(milliseconds), `y`(years),
 `M`(months), `w`(weeks), `d`(days), `h`(hours), and `m`(minutes).
 This time must be strictly less than 597 hours.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_buffer_size
 ---------------
@@ -779,7 +778,7 @@ tnt_buffer_size
 This buffer size is used for reading Tarantool replies,
 but it's not required to be as big as the largest possible Tarantool reply.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_next_upstream
 --------------------
@@ -793,7 +792,7 @@ Specify which failure conditions should cause the request to be forwarded to
 another upstream server. Applies only when the value in [tnt_pass](#tnt_pass)
 is an upstream with two or more servers.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_next_upstream_tries
 -----------------------
@@ -806,6 +805,8 @@ tnt_next_upstream_tries
 Limit the number of possible tries for passing a request to the next server.
 The 0 value turns off this limitation.
 
+[Back to contents](#contents)
+
 tnt_next_upstream_timeout
 -------------------------
 **syntax:** *tnt_next_upstream_timeout TIME*
@@ -817,7 +818,7 @@ tnt_next_upstream_timeout
 Limit the time during which a request can be passed to the next server.
 The 0 value turns off this limitation.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_pure_result
 ---------------
@@ -838,7 +839,7 @@ When this option is on:
 [[1]]
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_multireturn_skip_count
 --------------------------
@@ -873,16 +874,7 @@ When it is set to 2:
 {"id": 0, "result": 1}
 ```
 
-```
-{"id":0, "result": [1]}
-```
-
-When it is set to 1:
-```
-{"id":0, "result": 1}
-```
-
-[Back to content](#content)
+[Back to contents](#contents)
 
 Format
 ------
@@ -928,7 +920,7 @@ Examples can be found at:
 * `./t/ngx_confs/tnt_server_test.conf:342`
 * `./t/v26_features.py`
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_insert
 ----------
@@ -943,7 +935,7 @@ This directive allows executing an insert query with Tarantool.
 * The first argument is a space id.
 * The second argument is a [format](#format) string.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_replace
 -----------
@@ -958,7 +950,7 @@ This directive allows executing a replace query with Tarantool.
 * The first argument is a space id.
 * The second argument is a [format](#format) string.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_delete
 ----------
@@ -974,7 +966,7 @@ This directive allows executing a delete query with Tarantool.
 * The second argument is an index id.
 * The third argument is a [format](#format) string.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_select
 ----------
@@ -995,7 +987,7 @@ This directive allows executing a select query with Tarantool.
   `all_non_set`, `overlaps`, `neighbor`.
 * The six argument is a [format](#format) string.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_select_limit_max
 --------------------
@@ -1009,7 +1001,7 @@ This is a constraint to avoid *large selects*. This is the maximum number
 of returned tuples per select operation. If the client reaches this limit, then
 the client gets an error on its side.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_allowed_spaces
 ------------------
@@ -1033,7 +1025,7 @@ location {
 }
 ```
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 tnt_allowed_indexes
 -------------------
@@ -1045,7 +1037,7 @@ tnt_allowed_indexes
 
 This directive works like [tnt_allowed_spaces], but for indexes.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ## Performance tuning
 ---------------------
@@ -1058,7 +1050,7 @@ This directive works like [tnt_allowed_spaces], but for indexes.
 * Tune Linux network.
 * Tune nginx buffers.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ## Examples
 -----------
@@ -1067,14 +1059,14 @@ Python test: `test/basic_features.py`, `test/v20_feautres.py`, `nginx.dev.conf`.
 
 Client-side javascript example: `example/echo.html`, `example/echo.lua`.
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ## Copyright & license
 ----------------------
 
 [LICENSE](https://github.com/tarantool/nginx_upstream_module/blob/master/LICENSE)
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ## See also
 -----------
@@ -1083,7 +1075,7 @@ Client-side javascript example: `example/echo.html`, `example/echo.lua`.
 * [lua-resty-tarantool](https://github.com/perusio/lua-resty-tarantool)
 * Tarantool [protocol](http://tarantool.org/doc/dev_guide/box-protocol.html?highlight=protocol)
 
-[Back to content](#content)
+[Back to contents](#contents)
 
 ## Contacts
 
@@ -1091,3 +1083,5 @@ Please report bugs at https://github.com/tarantool/nginx_upstream_module/issues.
 
 We also warmly welcome your feedback in the discussion mailing list,
 tarantool@googlegroups.com
+
+[Back to contents](#contents)
