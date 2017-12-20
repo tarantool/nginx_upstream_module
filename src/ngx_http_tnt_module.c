@@ -3566,7 +3566,7 @@ ngx_http_tnt_get_error_text(ngx_uint_t type)
         },
 
         {   ngx_string(
-                "Request is too largs, consider increasing your "
+                "Request is too large, consider increasing your "
                 "server's setting 'tnt_pass_http_request_buffer_size'"),
             -32001
         },
