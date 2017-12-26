@@ -1337,9 +1337,9 @@ ngx_http_tnt_tolower(int c)
 static ngx_str_t /* dst */
 ngx_http_tnt_urldecode(ngx_http_request_t *r, ngx_str_t *src)
 {
-    ngx_int_t s;
-    u_char    c;
-    ngx_str_t dst;
+    ngx_uint_t s;
+    u_char     c;
+    ngx_str_t  dst;
 
     dst.len = 0;
     dst.data = ngx_pnalloc(r->pool, src->len);
@@ -1522,12 +1522,12 @@ ngx_http_tnt_format_prepare(ngx_http_tnt_loc_conf_t *conf,
 
                 if (tmp >= 0) {
 
-                    if (tmp > conf->select_limit_max) {
+                    if ((ngx_uint_t) tmp > conf->select_limit_max) {
                         goto not_allowed;
                     }
 
                     prepare_result->limit = (ngx_uint_t)
-                        (tmp > conf->select_limit_max ?
+                        ((ngx_uint_t) tmp > conf->select_limit_max ?
                             conf->select_limit_max : tmp);
                     expects &= ~EXPECTS_LIMIT;
                 }
