@@ -1352,7 +1352,7 @@ ngx_http_tnt_urldecode(ngx_http_request_t *r, ngx_str_t *src)
 
         c = src->data[s++];
 
-        if (c == '%' && s + 2 < src->len) {
+        if (c == '%' && (ngx_uint_t) (s + 2) < src->len) {
 
             u_char c2 = src->data[s++];
             u_char c3 = src->data[s++];
