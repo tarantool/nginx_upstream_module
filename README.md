@@ -109,6 +109,13 @@ make build-all
 
     $ ./configure --add-module=REPO_ROOT && make
 
+### Install on Mac OS X
+
+```bash
+brew tap denji/nginx
+brew install nginx-full --with-tarantool-module
+```
+
 ## Configure
 
 ```nginx
