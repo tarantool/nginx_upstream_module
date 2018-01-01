@@ -1518,6 +1518,7 @@ ngx_http_tnt_format_prepare(ngx_http_tnt_loc_conf_t *conf,
                     ngx_strncmp(key.data, conf->limit_name.data,
                                 conf->limit_name.len) == 0)
             {
+                prepare_result->limit = conf->select_limit_max;
                 tmp = ngx_atoi(value.data, value.len);
 
                 if (tmp >= 0) {
@@ -1526,9 +1527,8 @@ ngx_http_tnt_format_prepare(ngx_http_tnt_loc_conf_t *conf,
                         goto not_allowed;
                     }
 
-                    prepare_result->limit = (ngx_uint_t)
-                        ((ngx_uint_t) tmp > conf->select_limit_max ?
-                            conf->select_limit_max : tmp);
+                    prepare_result->limit = (ngx_uint_t) tmp;
+
                     expects &= ~EXPECTS_LIMIT;
                 }
             }
