@@ -283,7 +283,7 @@ print ('[+] OK')
 print ('[+] Format validation')
 data = [
     {'space_id': 513},
-    {'index_id': 0},
+    {'index_id': 'str'},
 ]
 rc, result = get(BASE_URL + '/insert_ext_fmt', data, None)
 assert rc == 400, 'Expected 400'
@@ -419,7 +419,7 @@ assert 'headers' in result, "Expected != result"
 print ('[+] OK')
 
 
-print ('[+] Post form')
+print ('[+] Post urlencoded')
 
 post_form_success(BASE_URL + '/delete_post', {'id': 11}, None)
 post_form_success(BASE_URL + '/delete_post', {'id': 12}, None)

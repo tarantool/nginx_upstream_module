@@ -901,7 +901,7 @@ a query string and MsgPack without losing type information or value.
 
 The syntax is: `{QUERY_ARG_NAME}=%{FMT_TYPE}`
 
-A good example is:
+A good example is (also see examples [tnt_update](#tnt_update) and [tnt_upsert](#tnt_upsert)):
 ```
 HTTP GET ... /url?space_id=512&value=some+string
 it could be matched by using the following format 'space_id=%%space_id,value=%s'
@@ -929,7 +929,7 @@ Special types
                              eq,req,all,lt,le,ge,gt,all_set,any_set,
                              all_non_set,overlaps,neighbor
 
-KEYS (for UPDATE)
+KEYS (for [tnt_update](#tnt_update))
 
 %kn - int64
 %kf - float
@@ -937,7 +937,7 @@ KEYS (for UPDATE)
 %ks - string
 %kb - boolean
 
-Operations (for UPSERT)
+Operations (for [tnt_upsert](#tnt_upsert))
 
 %on - int64
 %of - float
@@ -1208,7 +1208,97 @@ This directive allows executing an update query with Tarantool.
 
 * The first argument is a space id.
 * The second argument is a [KEYS (for UPDATE)](#format) string.
+it has special request form: [OPERATION_TYPE],[FIELDNO],[VALUE]
+```
+Possible OPERATION_TYPE (char) are:
+ + for addition (values must be numeric)
+ - for subtraction (values must be numeric)
+ & for bitwise AND (values must be unsigned numeric)
+ | for bitwise OR (values must be unsigned numeric)
+ ^ for bitwise XOR (values must be unsigned numeric)
+ : for string splice
+ ! for insertion
+ # for deletion
+ = for assignment
+
+FIELDNO (number) -  what field the operation will apply to. The field number can
+be negative, meaning the position from the end of tuple. (#tuple + negative field number + 1)
+
+VALUE (int64, float, double, string, boolean) – what value will be applied
+
+More details could be found here [tarantool.org] (https://tarantool.org/en/doc/1.7/book/box/box_space.html?highlight=update#lua-function.space_object.update)
+```
+Before go further and start use this feature please read an example for this
+section [1].
+
 * The third argument is a [format](#format) string.
+
+[1] Example
+
+it is just an example, it does not contain any tuning settings and
+additinitional validation!
+
+* nginx.conf
+```nginx.conf
+# ...
+upstrean backend {
+  server 127.0.0.1:3113;
+}
+
+# ...
+location /delete {
+  tnt_delete 512 0 "id=%n";
+  tnt_pass tnt;
+}
+location /select {
+  tnt_select 512 0 0 100 ge "id=%n";
+  tnt_pass tnt;
+}
+location /update {
+  tnt_update 512 "id=%kn" "value=%s,value1=%f";
+  tnt_pass tnt;
+}
+location /insert {
+  tnt_insert 512 "id=%kn" "value=%s,value1=%f";
+  tnt_pass backend;
+}
+
+```
+
+* Tarantool
+```lua
+-- ...
+
+box.cfg{listen=3113}
+
+-- ...
+t = box.schema.space.create('t1', {if_not_exists=true})
+t:create_index('pk', {if_not_exists=true})
+```
+
+* Client request
+```bash
+$ curl -X POST -d id=3113 http://127.0.0.1:8081/insert
+{"id":0,"result":[[3113]]}
+
+$ curl 'http://127.0.0.1:8081/select?id=3113'
+{"id":0,"result":[[3113]]}
+
+$ curl -X POST -d id=3113 -d 'value==,1,Delta compression using up to 4 threads.' -d value1==,2,3.14 http://127.0.0.1:8081/update_post
+{"id":0,"result":[[3113,"Delta compression using up to 4 threads.",3.140000]]}+
+
+### NOTICE! %2B is urlescaped('+')
+$ curl -X POST -d id=3113 -d value1=%2B,2,5.14 http://127.0.0.1:8081/update {"id":0,"result":[[3113,"Delta compression using up to 4 threads.",8.280000]]}
+
+$ curl 'http://127.0.0.1:8081/select?id=3113'
+{"id":0,"result":[[3113,"Delta compression using up to 4 threads.",8.280000]]}
+
+curl -X POST -d id=3113 http://127.0.0.1:8081/delete
+{"id":0,"result":[[3113,"Delta compression using up to 4 threads.",8.280000]]}
+
+curl 'http://127.0.0.1:8081/select?id=3113'
+{"id":0,"result":[]}
+```
 
 Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
 this error raised if some of values missed or has wrong type.
@@ -1247,6 +1337,65 @@ This directive allows executing an upsert query with Tarantool.
 * The first argument is a space id.
 * The second argument is a [format](#format) string.
 * The third argument is a [OPERATIONS (for UPSERT)](#format) string.
+it has special request form: [OPERATION_TYPE],[FIELDNO],[VALUE]
+```
+Possible OPERATION_TYPE (char) are:
+ + for addition (values must be numeric)
+ - for subtraction (values must be numeric)
+ & for bitwise AND (values must be unsigned numeric)
+ | for bitwise OR (values must be unsigned numeric)
+ ^ for bitwise XOR (values must be unsigned numeric)
+ : for string splice
+ ! for insertion
+ # for deletion
+ = for assignment
+
+FIELDNO (number) -  what field the operation will apply to. The field number can
+be negative, meaning the position from the end of tuple. (#tuple + negative field number + 1)
+
+VALUE (int64, float, double, string, boolean) – what value will be applied
+
+More details could be found here [tarantool.org] (https://tarantool.org/en/doc/1.7/book/box/box_space.html?highlight=update#box-space-upsert)
+```
+
+Before go further and start use this feature please read an example for this
+section [1].
+
+[1] Example
+
+it is just an example, it does not contain any tuning settings and
+additinitional validation!
+
+* nginx.conf
+```nginx.conf
+# ...
+upstrean backend {
+  server 127.0.0.1:3113;
+}
+
+# ...
+location /upsert {
+  tnt_delete 512 0 "new_id=%n,new_value=%s" "updated_value=%os";
+  tnt_pass tnt;
+}
+```
+
+* Tarantool
+```lua
+-- ...
+
+box.cfg{listen=3113}
+
+-- ...
+local t = box.schema.space.create('t1', {if_not_exists=true})
+t:create_index('pk', {if_not_exists=true})
+```
+
+* Client request
+```bash
+$ curl -X POST -d new_id=3113 -d new_value=str -d updated_value==,2,ustr http://127.0.0.1:8081/upsert
+{"id":0,"result":[[3113, "ustr"]]}
+```
 
 Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
 this error raised if some of values missed or has wrong type.
