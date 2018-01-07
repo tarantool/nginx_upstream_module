@@ -5,9 +5,8 @@ set -e #-x
 WORK_DIR=$PWD/t
 NGINX_PREFIX=$PWD/test-root
 
-## Tests
-echo "[+] Testing ..."
 
+echo "[+] Basic test"
 for i in {1..10}; do
   echo "[+] try: $i"
   $WORK_DIR/basic_features.py 1> /dev/null || (
@@ -32,7 +31,10 @@ for i in {1..10}; do
       echo "[-] $WORK_DIR/v26_features.py failed" && exit 1
     )
 done
+echo '[+] OK'
 
+
+echo '[+] Parallel clients'
 clients_pids=
 for i in {1..3}; do
   `$WORK_DIR/basic_features.py 1> /dev/null || (
@@ -59,13 +61,14 @@ for i in {1..3}; do
     ) &
 
   # XXX It couldn't be work in parallel
-  $WORK_DIR/v26_features.py 1> /dev/null || (
-      echo "[-] $WORK_DIR/v26_features.py failed" && exit 1
-    )
+  #$WORK_DIR/v26_features.py 1> /dev/null || (
+  #    echo "[-] $WORK_DIR/v26_features.py failed" && exit 1
+  #  )
 
   clients_pids="$clients_pids $!"
 done
 for job in $clients_pids; do
   wait $job
 done
+echo '[+] OK'
 

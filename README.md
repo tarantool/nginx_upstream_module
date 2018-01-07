@@ -75,6 +75,8 @@ https://hub.docker.com/r/tarantool/tarantool
   * [tnt_select_limit_max](#tnt_select_limit_max)
   * [tnt_allowed_spaces](#tnt_allowed_spaces)
   * [tnt_allowed_indexes](#tnt_allowed_indexes)
+  * [tnt_update](#tnt_update)
+  * [tnt_upsert](#tnt_upsert)
 * [Performance tuning](#performance-tuning)
 * [Examples](#examples)
 * [Copyright & license](#copyright--license)
@@ -904,15 +906,21 @@ A good example is:
 HTTP GET ... /url?space_id=512&value=some+string
 it could be matched by using the following format 'space_id=%%space_id,value=%s'
 ```
+Also this works with HTTP forms, i.e. HTTP POST, HTTP PUT and so on.
 
 Here is a full list of {FMT_TYPE} types:
 
 ```
+TUPLES
+
 %n - int64
 %f - float
 %d - double
 %s - string
 %b - boolean
+
+Special types
+
 %%space_id - space_id
 %%idx_id - index_id
 %%off - [select](#tnt_select) offset
@@ -920,6 +928,23 @@ Here is a full list of {FMT_TYPE} types:
 %%it - [select](#tnt_select) iterator type, allowed values are:
                              eq,req,all,lt,le,ge,gt,all_set,any_set,
                              all_non_set,overlaps,neighbor
+
+KEYS (for UPDATE)
+
+%kn - int64
+%kf - float
+%kd - double
+%ks - string
+%kb - boolean
+
+Operations (for UPSERT)
+
+%on - int64
+%of - float
+%od - double
+%os - string
+%ob - boolean
+
 ```
 
 Examples can be found at:
@@ -1056,6 +1081,38 @@ This directive works like [tnt_allowed_spaces], but for indexes.
 * Turn off unnecessary logging in Tarantool and NginX.
 * Tune Linux network.
 * Tune nginx buffers.
+
+[Back to contents](#contents)
+
+tnt_update
+----------
+**syntax:** *tnt_update [SIZE or off] [KEYS] [FMT]*
+
+**default:** *None*
+
+**context:** *location, location if*
+
+This directive allows executing an update query with Tarantool.
+
+* The first argument is a space id.
+* The second argument is a [KEYS (for UPDATE)](#format) string.
+* The third argument is a [format](#format) string.
+
+[Back to contents](#contents)
+
+tnt_upsert
+----------
+**syntax:** *tnt_upsert [SIZE or off] [FMT] [OPERATIONS]*
+
+**default:** *None*
+
+**context:** *location, location if*
+
+This directive allows executing an upsert query with Tarantool.
+
+* The first argument is a space id.
+* The second argument is a [format](#format) string.
+* The third argument is a [OPERATIONS (for UPSERT)](#format) string.
 
 [Back to contents](#contents)
 

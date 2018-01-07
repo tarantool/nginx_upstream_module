@@ -13,8 +13,8 @@ def arr_of_dicts_to_arr(arr_of_dicts, start_from = 0):
         res.append(k.values()[0])
     return res[start_from:]
 
-print ('[+] basic insert')
 
+print ('[+] basic insert')
 result = get_success(BASE_URL + '/delete', {'index': 1}, None, False)
 assert 'result' in result and 'id' in result, 'expected: result and id'
 result = get_success(BASE_URL + '/delete', {'index': 2}, None, False)
@@ -289,3 +289,167 @@ rc, result = get(BASE_URL + '/insert_ext_fmt', data, None)
 assert rc == 400, 'Expected 400'
 print ('[+] OK')
 
+print ('[+] basic update')
+
+result = get_success(BASE_URL + '/delete', {'index': 1}, None, False)
+assert 'result' in result and 'id' in result, 'expected: result and id'
+
+insert_1 = [
+    {'index': 1},
+    {'string': 'some big string'},
+    {'float': 2.1},
+    {'double': 3.1},
+    {'bool': True},
+    {'int': -1000}
+]
+result = get_success(BASE_URL + '/insert', insert_1, None)
+assert result == arr_of_dicts_to_arr(insert_1), "Expected != result"
+
+update = [
+    {'space_id': 512},
+    {'value': 1},
+    {'string': '=,1,some XXXX big string'},
+    {'float': '-,2,2.1'},
+    {'double': '=,3,4.1'},
+    {'bool': '=,4,false'},
+    {'int': '%2B,5,1001'}
+]
+
+expected = [
+    {'value': 1},
+    {'string': 'some XXXX big string'},
+    {'float': 0},
+    {'double': 4.1},
+    {'bool': False},
+    {'int': 1}
+]
+
+result = get_success(BASE_URL + '/update_fmt', update, None)
+assert result == arr_of_dicts_to_arr(expected), "Expected != result"
+
+print ('[+] OK')
+
+
+print ('[+] Update multipart index')
+
+result = get_success(BASE_URL + '/delete_mt_fmt', {
+    'space_id': 514,
+    'index_id': 1,
+    'key': 1,
+    'key1': 'str',
+    }, None, False)
+assert 'result' in result and 'id' in result, 'expected: result and id'
+
+insert_1 = [
+    {'space_id': 514},
+    {'index_id': 1},
+    {'key': 1},
+    {'key1': 'str'},
+    {'string': 'some big string'}
+]
+result = get_success(BASE_URL + '/insert_mt_fmt', insert_1, None)
+assert result == arr_of_dicts_to_arr([{'key': 1}, {'key1': 'str'}, \
+    {'string': 'some big string'} ]),\
+    "Expected != result"
+
+update = [
+    {'space_id': 514},
+    {'index_id': 1},
+    {'key': 1},
+    {'key1': 'str'},
+    {'string': '=,2,updated string'}
+]
+
+expected = [
+    {'key': 1},
+    {'key1': 'str'},
+    {'string': 'updated string'}
+]
+
+result = get_success(BASE_URL + '/update_mt_fmt', update, None)
+assert result == arr_of_dicts_to_arr(expected), "Expected != result"
+
+print ('[+] OK')
+
+
+print ('[+] Upsert')
+
+upsert = [
+    {'space_id': 514},
+    {'key': 2},
+    {'key1': 'str2'},
+    {'string': '=,2,Text'}
+]
+
+result = get_success(BASE_URL + '/upsert_fmt', upsert, None, False)
+assert 'result' in result and 'id' in result, 'expected: result and id'
+
+upsert = [
+    {'space_id': 514},
+    {'key': 2},
+    {'key1': 'str2'},
+    {'string': '=,2,'}
+]
+
+result = get_success(BASE_URL + '/upsert_fmt', upsert, None, False)
+assert 'result' in result and 'id' in result, 'expected: result and id'
+
+expected = [
+    {'key': 2},
+    {'key1': 'str2'},
+    {'string': ''}
+]
+
+result = get_success(BASE_URL + '/select_514', {'key':2, 'key1': 'str2'}, None)
+assert result == arr_of_dicts_to_arr(expected), "Expected != result"
+
+print ('[+] OK')
+
+
+print ('[+] Issue - https://github.com/tarantool/nginx_upstream_module/issues/108')
+
+data = []
+for i in range(1, 300):
+    e = {}
+    e['key' + str(i)] = i
+    data.append(e)
+result = get_success(BASE_URL + '/issue_108', data, None, False)
+assert 'headers' in result, "Expected != result"
+
+print ('[+] OK')
+
+
+print ('[+] Post form')
+
+post_form_success(BASE_URL + '/delete_post', {'id': 11}, None)
+post_form_success(BASE_URL + '/delete_post', {'id': 12}, None)
+post_form_success(BASE_URL + '/insert_post', {'id': 11}, None)
+post_form_success(BASE_URL + '/insert_post', {'id': 12}, None)
+result = post_form_success(BASE_URL + '/select_post', {'id': 11}, None)
+assert result['result'][0][0] == 11 and result['result'][1][0] == 12, \
+        'Expected != result'
+result = post_form_success(BASE_URL + '/update_post', {'id': 12, 'value': '=,1,TEXT',
+    'value1': '=,2,3.14'}, None)
+assert result['result'][0][0] == 12 and result['result'][0][1] == 'TEXT' \
+    and result['result'][0][2] == 3.14, 'Expected != result'
+
+print ('[+] OK')
+
+
+print ('[+] Update format validation')
+
+_, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': '=,TEXT',
+    'value1': '=,2,3.14'}, None)
+assert _ == 400 and 'error' in result, 'Expected != result'
+
+_, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': 'TEXT',
+    'value1': '=,2,3.14'}, None)
+assert _ == 400 and 'error' in result, 'Expected != result'
+_, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': '=,,TEXT',
+    'value1': '=,2,3.14'}, None)
+assert _ == 400 and 'error' in result, 'Expected != result'
+_, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': '=,TEXT',
+    'value1': '=,2,3.14'}, None)
+assert _ == 400 and 'error' in result, 'Expected != result'
+
+print ('[+] OK')

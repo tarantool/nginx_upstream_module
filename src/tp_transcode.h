@@ -1,3 +1,4 @@
+
 /*
  * Redistribution and use in source and binary forms, with or
  * without modification, are permitted provided that the following
@@ -26,7 +27,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2016 Tarantool AUTHORS:
+ * Copyright (C) 2015-2018 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
@@ -36,6 +37,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+
+#include <json_encoders.h>
 
 #ifdef __cplusplus
 extern "C" {

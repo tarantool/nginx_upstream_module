@@ -27,7 +27,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2016 Tarantool AUTHORS:
+ * Copyright (C) 2015-2018 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
@@ -734,12 +734,13 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
 
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    /* Some yajl versions does not properly handle(SAX) [] and {}
-     * So! PWN this via bool flag and some checks
+    /* Some versions of YAJL does not handle properly [] and {}.
+     * So, for fixing this I use a bool flag and some extra checks.
      *
      * NOTE
-     *    Check len(buffer) is wrong.
-     *    We may have a very large buffer which passed to this function by 1-byte.
+     *    Check the 'len(buffer)' is wrong.
+     *    We may have a very large buffer which passed to this function by
+     *    1-byte.
      */
     if (unlikely(!s_ctx->transcode_first_enter)) {
         s_ctx->transcode_first_enter = true;
@@ -761,11 +762,11 @@ yajl_json2tp_transcode(void *ctx, const char *input, size_t input_size)
             stat = yajl_complete_parse(s_ctx->hand);
             unsigned char *err = yajl_get_error(s_ctx->hand, 0,
                                                 input_, input_size);
-            const int l = strlen((char *)err) - 1 /* skip \n */;
+            const int l = strlen((char *) err) - 1 /* skip \n */;
             if (l > 0) {
                 s_ctx->tc->errmsg = ALLOC(s_ctx, l);
                 if (likely(s_ctx->tc->errmsg != NULL))
-                    say_error_(s_ctx->tc, 0, (char *)err, l);
+                    say_error_(s_ctx->tc, 0, (char *) err, l);
             }
             yajl_free_error(s_ctx->hand, err);
             s_ctx->tc->errcode = -32700;

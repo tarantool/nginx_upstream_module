@@ -187,6 +187,11 @@ function error_if_escaped(req)
   return true
 end
 
+-- Issue - https://github.com/tarantool/nginx_upstream_module/issues/108
+function issue_108(req)
+  return req
+end
+
 -- CFG
 box.cfg {
     log_level = 5,
@@ -206,3 +211,9 @@ t:create_index('pk', {if_not_exists=true})
 t = box.schema.space.create('t2', {if_not_exists=true})
 t:create_index('pk', {if_not_exists=true})
 
+t = box.schema.space.create('t3', {if_not_exists=true})
+t:create_index('pk', {if_not_exists=true})
+i = t:create_index('sk', {parts={1,'unsigned', 2, 'str'}, if_not_exists=true})
+
+t = box.schema.space.create('t4', {if_not_exists=true})
+t:create_index('pk', {if_not_exists=true})

@@ -174,6 +174,7 @@ def get(url, data, headers):
         res = urllib2.urlopen(req)
         out = res.read()
         out = out + res.read()
+
         rc = res.getcode()
         if VERBOSE:
             print("code: ", rc, " recv: '", out, "'")

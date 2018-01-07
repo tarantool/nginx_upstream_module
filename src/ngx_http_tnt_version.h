@@ -1,3 +1,4 @@
+
 /*
  * Redistribution and use in source and binary forms, with or
  * without modification, are permitted provided that the following
@@ -26,13 +27,13 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2016 Tarantool AUTHORS:
+ * Copyright (C) 2015-2018 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
 #ifndef NGX_HTTP_TNT_VERSION_H
 #define NGX_HTTP_TNT_VERSION_H 1
 
-#define NGX_HTTP_TNT_MODULE_VERSION_STRING "v2.6-rc1"
+#define NGX_HTTP_TNT_MODULE_VERSION_STRING "v2.6-rc2"
 
 #endif

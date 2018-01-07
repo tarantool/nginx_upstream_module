@@ -100,6 +100,7 @@ enum tp_request_type {
 	TP_REPLACE = 3,
 	TP_UPDATE = 4,
 	TP_DELETE = 5,
+  TP_UPSERT = 9,
 	TP_CALL = 10,
 	TP_AUTH = 7,
 	TP_EVAL = 8,
@@ -383,7 +384,7 @@ tp_delete(struct tp *p, uint32_t space, uint32_t index);
  * tp_sz(&req, "value"); // .. a value "value"
  */
 static inline char *
-tp_update(struct tp *p, uint32_t space);
+tp_update(struct tp *p, uint32_t space, uint32_t index);
 
 /**
  * Begin update operations.
@@ -391,6 +392,18 @@ tp_update(struct tp *p, uint32_t space);
  */
 static inline char *
 tp_updatebegin(struct tp *p, uint32_t op_count);
+
+/**
+ * Create an upsert request.
+ */
+static inline char *
+tp_upsert(struct tp *p, uint32_t space);
+
+/**
+ * Upsert. Begin add operations.
+ */
+static inline char *
+tp_upsertbegin_add_ops(struct tp *p, uint32_t op_count);
 
 /**
  * Add an update operation.
@@ -1172,21 +1185,62 @@ tp_eval(struct tp *p, const char *expr, int len)
  * tp_sz(&req, "value"); // .. a value "value"
  */
 static inline char *
-tp_update(struct tp *p, uint32_t space)
+tp_update(struct tp *p, uint32_t space, uint32_t index)
 {
 	int hsz = tpi_sizeof_header(TP_UPDATE);
-	int  sz = mp_sizeof_map(3) +
+	int  sz = mp_sizeof_map(4) +
 		mp_sizeof_uint(TP_SPACE) +
 		mp_sizeof_uint(space) +
+    mp_sizeof_uint(TP_INDEX) +
+    mp_sizeof_uint(index) +
 		mp_sizeof_uint(TP_KEY);
 	if (tpunlikely(tp_ensure(p, sz) == -1))
 		return NULL;
 	char *h = tpi_encode_header(p, TP_UPDATE);
+	h = mp_encode_map(h, 4);
+	h = mp_encode_uint(h, TP_SPACE);
+	h = mp_encode_uint(h, space);
+	h = mp_encode_uint(h, TP_INDEX);
+	h = mp_encode_uint(h, index);
+	h = mp_encode_uint(h, TP_KEY);
+	return tp_add(p, sz + hsz);
+}
+
+
+/**
+ * Create an upsert request.
+ */
+static inline char *
+tp_upsert(struct tp *p, uint32_t space)
+{
+	int hsz = tpi_sizeof_header(TP_UPSERT);
+	int  sz = mp_sizeof_map(3) +
+		mp_sizeof_uint(TP_SPACE) +
+		mp_sizeof_uint(space) +
+		mp_sizeof_uint(TP_TUPLE);
+	if (tpunlikely(tp_ensure(p, sz) == -1))
+		return NULL;
+	char *h = tpi_encode_header(p, TP_UPSERT);
 	h = mp_encode_map(h, 3);
 	h = mp_encode_uint(h, TP_SPACE);
 	h = mp_encode_uint(h, space);
-	h = mp_encode_uint(h, TP_KEY);
+	h = mp_encode_uint(h, TP_TUPLE);
 	return tp_add(p, sz + hsz);
+
+}
+
+/**
+ * Upsert. Begin add operations.
+ */
+static inline char *
+tp_upsertbegin_add_ops(struct tp *p, uint32_t op_count)
+{
+	int sz = mp_sizeof_uint(TP_OPS) + mp_sizeof_array(op_count);
+	if (tpunlikely(tp_ensure(p, sz) == -1))
+		return NULL;
+	char *h = mp_encode_uint(p->p, TP_OPS);
+	mp_encode_array(h, op_count);
+	return tp_add(p, sz);
 }
 
 /**
