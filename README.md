@@ -967,6 +967,29 @@ This directive allows executing an insert query with Tarantool.
 * The first argument is a space id.
 * The second argument is a [format](#format) string.
 
+Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
+this error raised if some of values missed or has wrong type.
+
+Returns HTTP code 5XX if upstream is dead (no ping).
+
+Also it can return an HTTP code 200 with an error formatted in JSON.
+It happens when Tarantool can't issue a query.
+
+Here is a description:
+```
+ {"error": { "message": STR, "code": INT } }
+```
+
+* **error** - a structured object which contains an internal error message.
+  This field exists only if an internal error occurred, for instance:
+  "too large request", "input json parse error", etc.
+
+  If this field exists, the input message was _probably_ not passed to
+  the Tarantool backend.
+
+  See "message"/"code" fields for details.
+
+
 [Back to contents](#contents)
 
 tnt_replace
@@ -981,6 +1004,28 @@ This directive allows executing a replace query with Tarantool.
 
 * The first argument is a space id.
 * The second argument is a [format](#format) string.
+
+Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
+this error raised if some of values missed or has wrong type.
+
+Returns HTTP code 5XX if upstream is dead (no ping).
+
+Also it can return an HTTP code 200 with an error formatted in JSON.
+It happens when Tarantool can't issue a query.
+
+Here is a description:
+```
+ {"error": { "message": STR, "code": INT } }
+```
+
+* **error** - a structured object which contains an internal error message.
+  This field exists only if an internal error occurred, for instance:
+  "too large request", "input json parse error", etc.
+
+  If this field exists, the input message was _probably_ not passed to
+  the Tarantool backend.
+
+  See "message"/"code" fields for details.
 
 [Back to contents](#contents)
 
@@ -997,6 +1042,29 @@ This directive allows executing a delete query with Tarantool.
 * The first argument is a space id.
 * The second argument is an index id.
 * The third argument is a [format](#format) string.
+
+Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
+this error raised if some of values missed or has wrong type.
+
+Returns HTTP code 5XX if upstream is dead (no ping).
+
+Also it can return an HTTP code 200 with an error formatted in JSON.
+It happens when Tarantool can't issue a query.
+
+Here is a description:
+```
+ {"error": { "message": STR, "code": INT } }
+```
+
+* **error** - a structured object which contains an internal error message.
+  This field exists only if an internal error occurred, for instance:
+  "too large request", "input json parse error", etc.
+
+  If this field exists, the input message was _probably_ not passed to
+  the Tarantool backend.
+
+  See "message"/"code" fields for details.
+
 
 [Back to contents](#contents)
 
@@ -1019,6 +1087,28 @@ This directive allows executing a select query with Tarantool.
   `all_non_set`, `overlaps`, `neighbor`.
 * The six argument is a [format](#format) string.
 
+Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
+this error raised if some of values missed or has wrong type.
+
+Returns HTTP code 5XX if upstream is dead (no ping).
+
+Also it can return an HTTP code 200 with an error formatted in JSON.
+It happens when Tarantool can't issue a query.
+
+Here is a description:
+```
+ {"error": { "message": STR, "code": INT } }
+```
+
+* **error** - a structured object which contains an internal error message.
+  This field exists only if an internal error occurred, for instance:
+  "too large request", "input json parse error", etc.
+
+  If this field exists, the input message was _probably_ not passed to
+  the Tarantool backend.
+
+  See "message"/"code" fields for details.
+
 [Back to contents](#contents)
 
 tnt_select_limit_max
@@ -1032,6 +1122,28 @@ tnt_select_limit_max
 This is a constraint to avoid *large selects*. This is the maximum number
 of returned tuples per select operation. If the client reaches this limit, then
 the client gets an error on its side.
+
+Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
+this error raised if some of values missed or has wrong type.
+
+Returns HTTP code 5XX if upstream is dead (no ping).
+
+Also it can return an HTTP code 200 with an error formatted in JSON.
+It happens when Tarantool can't issue a query.
+
+Here is a description:
+```
+ {"error": { "message": STR, "code": INT } }
+```
+
+* **error** - a structured object which contains an internal error message.
+  This field exists only if an internal error occurred, for instance:
+  "too large request", "input json parse error", etc.
+
+  If this field exists, the input message was _probably_ not passed to
+  the Tarantool backend.
+
+  See "message"/"code" fields for details.
 
 [Back to contents](#contents)
 
@@ -1098,6 +1210,28 @@ This directive allows executing an update query with Tarantool.
 * The second argument is a [KEYS (for UPDATE)](#format) string.
 * The third argument is a [format](#format) string.
 
+Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
+this error raised if some of values missed or has wrong type.
+
+Returns HTTP code 5XX if upstream is dead (no ping).
+
+Also it can return an HTTP code 200 with an error formatted in JSON.
+It happens when Tarantool can't issue a query.
+
+Here is a description:
+```
+ {"error": { "message": STR, "code": INT } }
+```
+
+* **error** - a structured object which contains an internal error message.
+  This field exists only if an internal error occurred, for instance:
+  "too large request", "input json parse error", etc.
+
+  If this field exists, the input message was _probably_ not passed to
+  the Tarantool backend.
+
+  See "message"/"code" fields for details.
+
 [Back to contents](#contents)
 
 tnt_upsert
@@ -1113,6 +1247,29 @@ This directive allows executing an upsert query with Tarantool.
 * The first argument is a space id.
 * The second argument is a [format](#format) string.
 * The third argument is a [OPERATIONS (for UPSERT)](#format) string.
+
+Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
+this error raised if some of values missed or has wrong type.
+
+Returns HTTP code 5XX if upstream is dead (no ping).
+
+Also it can return an HTTP code 200 with an error formatted in JSON.
+It happens when Tarantool can't issue a query.
+
+Here is a description:
+```
+ {"error": { "message": STR, "code": INT } }
+```
+
+* **error** - a structured object which contains an internal error message.
+  This field exists only if an internal error occurred, for instance:
+  "too large request", "input json parse error", etc.
+
+  If this field exists, the input message was _probably_ not passed to
+  the Tarantool backend.
+
+  See "message"/"code" fields for details.
+
 
 [Back to contents](#contents)
 
