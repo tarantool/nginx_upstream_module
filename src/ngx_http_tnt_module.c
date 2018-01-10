@@ -2002,7 +2002,7 @@ ngx_http_tnt_format_bind_operation(ngx_http_request_t *r, struct tp *tp,
         ngx_str_t *name, ngx_str_t *val)
 {
     u_char      *update_operation, *filedno_pt, *filedno_pt_end;
-    char        filedno_s[sizeof("1867996680")];
+    ngx_int_t   filedno;
 
     update_operation = ngx_http_tnt_read_next(val, ',');
 
@@ -2031,10 +2031,13 @@ ngx_http_tnt_format_bind_operation(ngx_http_request_t *r, struct tp *tp,
         goto no_fieldno;
     }
 
-    snprintf(filedno_s, sizeof(filedno_s), "%.*s",
-            (int) (filedno_pt_end - filedno_pt), (char *) filedno_pt);
+    filedno = ngx_atoi(filedno_pt, (size_t) (filedno_pt_end - filedno_pt));
+    if (filedno < 0 || filedno - 1 < 0) {
+        goto no_fieldno;
+    }
+    filedno -= 1;
 
-    if (tp_op(tp, *update_operation, (uint32_t) atoi(filedno_s)) == NULL) {
+    if (tp_op(tp, *update_operation, (uint32_t) filedno) == NULL) {
         return NGX_ERROR;
     }
 

@@ -50,12 +50,12 @@ echo inserted = `curl -s -X POST $req_url?"key=my_key_6&value=2"`
 # Update values into the tester
 
 # %23 is urencode('#'). Delete field from the tuple
-echo Updated = `curl -s -X PUT $req_url?"key=my_key_5&value=%23,1,10"`
+echo Updated = `curl -s -X PUT $req_url?"key=my_key_5&value=%23,2,10"`
 # %2B is urencode('+')
-echo Updated = `curl -s -X PUT -d 'key=my_key_6' -d "value=%2B,1,999" $req_url`
+echo Updated = `curl -s -X PUT -d 'key=my_key_6' -d "value=%2B,2,999" $req_url`
 
 # %3D is urencode('=').
-echo Upserted = `curl -s -X PATCH $req_url?"key=my_key_5&new_value=10&updated_value=%3D,1,10"`
+echo Upserted = `curl -s -X PATCH $req_url?"key=my_key_5&new_value=10&updated_value=%3D,2,10"`
 
 # Select values from the tester
 echo Selected = `curl -s $req_url?key=my_key_5`

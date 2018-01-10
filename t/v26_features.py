@@ -321,11 +321,11 @@ assert result == arr_of_dicts_to_arr(insert_1), "Expected != result"
 update = [
     {'space_id': 512},
     {'value': 1},
-    {'string': '=,1,some XXXX big string'},
-    {'float': '-,2,2.1'},
-    {'double': '=,3,4.1'},
-    {'bool': '=,4,false'},
-    {'int': '%2B,5,1001'}
+    {'string': '=,2,some XXXX big string'},
+    {'float': '-,3,2.1'},
+    {'double': '=,4,4.1'},
+    {'bool': '=,5,false'},
+    {'int': '%2B,6,1001'}
 ]
 
 expected = [
@@ -371,7 +371,7 @@ update = [
     {'index_id': 1},
     {'key': 1},
     {'key1': 'str'},
-    {'string': '=,2,updated string'}
+    {'string': '=,3,updated string'}
 ]
 
 expected = [
@@ -393,7 +393,7 @@ upsert = [
     {'space_id': 514},
     {'key': 2},
     {'key1': 'str2'},
-    {'string': '=,2,Text'}
+    {'string': '=,3,Text'}
 ]
 
 result = get_success(BASE_URL + '/upsert_fmt', upsert, None, False)
@@ -403,7 +403,7 @@ upsert = [
     {'space_id': 514},
     {'key': 2},
     {'key1': 'str2'},
-    {'string': '=,2,'}
+    {'string': '=,3,'}
 ]
 
 result = get_success(BASE_URL + '/upsert_fmt', upsert, None, False)
@@ -445,8 +445,8 @@ post_form_success(BASE_URL + '/insert_post', {'id': 12}, None)
 result = post_form_success(BASE_URL + '/select_post', {'id': 11}, None)
 assert result['result'][0][0] == 11 and result['result'][1][0] == 12, \
         'Expected != result'
-result = post_form_success(BASE_URL + '/update_post', {'id': 12, 'value': '=,1,TEXT',
-    'value1': '=,2,3.14'}, None)
+result = post_form_success(BASE_URL + '/update_post', {'id': 12, 'value': '=,2,TEXT',
+    'value1': '=,3,3.14'}, None)
 assert result['result'][0][0] == 12 and result['result'][0][1] == 'TEXT' \
     and result['result'][0][2] == 3.14, 'Expected != result'
 
@@ -457,27 +457,25 @@ print ('[+] OK')
 print ('[+] Update format validation')
 
 _, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': '=,TEXT',
-    'value1': '=,2,3.14'}, None)
+    'value1': '=,3,3.14'}, None)
 assert _ == 400 and 'error' in result, 'Expected != result'
 
 _, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': 'TEXT',
-    'value1': '=,2,3.14'}, None)
+    'value1': '=,3,3.14'}, None)
 assert _ == 400 and 'error' in result, 'Expected != result'
 _, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': '=,,TEXT',
-    'value1': '=,2,3.14'}, None)
+    'value1': '=,4,3.14'}, None)
 assert _ == 400 and 'error' in result, 'Expected != result'
 _, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': '=,TEXT',
-    'value1': '=,2,3.14'}, None)
+    'value1': '=,3,3.14'}, None)
 assert _ == 400 and 'error' in result, 'Expected != result'
 
 print ('[+] OK')
 
 # ============
 #
-print (''' [+] Issues
- https://github.com/tarantool/nginx_upstream_module/issues/110 and
- https://github.com/tarantool/nginx_upstream_module/issues/111
- ''')
+print ('''[+] Issues https://github.com/tarantool/nginx_upstream_module/issues/110 and
+https://github.com/tarantool/nginx_upstream_module/issues/111''')
 
 ## Issue 111
 _, result = delete(BASE_URL + '/issue_110_and_111', \
@@ -489,7 +487,7 @@ post_form_success(BASE_URL + '/issue_110_and_111', \
         None)
 
 result = put_success(BASE_URL + '/issue_110_and_111', \
-        {'key': 'test_inc', 'value': '#,1,10'}, None, True)
+        {'key': 'test_inc', 'value': '#,2,10'}, None, True)
 assert result[0] == 'test_inc', "Expected != Result"
 
 result = get_success(BASE_URL + '/issue_110_and_111', \
@@ -508,7 +506,7 @@ post_form_success(BASE_URL + '/issue_110_and_111', \
         None)
 
 _, result = patch(BASE_URL + '/issue_110_and_111', \
-        {'key': 'test_inc_2', 'new_value' : 1, 'updated_value': '+,1,5'})
+        {'key': 'test_inc_2', 'new_value' : 1, 'updated_value': '+,2,5'})
 assert _ == 200 and 'result' in result and 'id' in result, \
         'expected: result and id'
 
@@ -517,7 +515,7 @@ result = get_success(BASE_URL + '/issue_110_and_111', \
 assert result[1] == 6, "Expected != Result"
 
 _, result = patch(BASE_URL + '/issue_110_and_111', \
-        {'key': 'test_inc_2', 'new_value' : 1, 'updated_value': '=,1,5'})
+        {'key': 'test_inc_2', 'new_value' : 1, 'updated_value': '=,2,5'})
 assert _ == 200 and 'result' in result and 'id' in result, \
         'expected: result and id'
 result = get_success(BASE_URL + '/issue_110_and_111', \

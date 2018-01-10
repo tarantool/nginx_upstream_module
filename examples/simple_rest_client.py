@@ -93,7 +93,7 @@ print ('inserted = ', inserted)
 # ===
 # upsert (insert in this case) into the 'tester'
 upserted = upsert(req_url, { 'key': 'my_key_1', 'new_value': 100,
-    "updated_value": "+,1,10"})
+    "updated_value": "+,2,10"})
 
 # should be {"result": []}, if okay
 print ('upserted = ', upserted)
@@ -101,13 +101,13 @@ print ('upserted = ', upserted)
 # ===
 # add 10 to the value into the 'tester'
 upserted = upsert(req_url, { 'key': 'my_key_1', 'new_value': 1000,
-    "updated_value": "+,1,10"})
+    "updated_value": "+,2,10"})
 # should be {"result": []}, if okay
 print ('upserted = ', upserted)
 
 # ===
 # - 10 to the value into the 'tester'
-updated = update(req_url, { 'key': 'my_key', 'value': "-,1,10"})
+updated = update(req_url, { 'key': 'my_key', 'value': "-,2,10"})
 # should be {"result": [[{list of updated values}]]}, if okay
 print ('updated = ', updated)
 
