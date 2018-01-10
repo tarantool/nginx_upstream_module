@@ -901,6 +901,8 @@ a query string and MsgPack without losing type information or value.
 
 The syntax is: `{QUERY_ARG_NAME}=%{FMT_TYPE}`
 
+Please look carefully for yours url encoding!
+
 A good example is (also see examples [tnt_update](#tnt_update) and [tnt_upsert](#tnt_upsert)):
 ```
 HTTP GET ... /url?space_id=512&value=some+string
@@ -949,8 +951,8 @@ Operations (for [tnt_upsert](#tnt_upsert))
 
 Examples can be found at:
 
-* `./t/ngx_confs/tnt_server_test.conf:342`
-* `./t/v26_features.py`
+* `examples/simple_rest_client.py`
+* `examples/simple_rest_client.sh`
 
 [Back to contents](#contents)
 
@@ -961,6 +963,10 @@ tnt_insert
 **default:** *None*
 
 **context:** *location, location if*
+
+**HTTP methods** *GET, POST, PUT, PATCH, DELETE*
+
+**Content-Typer** *default, application/x-www-form-urlencoded*
 
 This directive allows executing an insert query with Tarantool.
 
@@ -989,6 +995,11 @@ Here is a description:
 
   See "message"/"code" fields for details.
 
+Examples can be found at:
+
+* `simple_rest_client.py`
+* `simple_rest_client.sh`
+
 
 [Back to contents](#contents)
 
@@ -999,6 +1010,10 @@ tnt_replace
 **default:** *None*
 
 **context:** *location, location if*
+
+**HTTP methods** *GET, POST, PUT, PATCH, DELETE*
+
+**Content-Typer** *default, application/x-www-form-urlencoded*
 
 This directive allows executing a replace query with Tarantool.
 
@@ -1027,6 +1042,11 @@ Here is a description:
 
   See "message"/"code" fields for details.
 
+Examples can be found at:
+
+* `examples/simple_rest_client.py`
+* `examples/simple_rest_client.sh`
+
 [Back to contents](#contents)
 
 tnt_delete
@@ -1036,6 +1056,10 @@ tnt_delete
 **default:** *None*
 
 **context:** *location, location if*
+
+**HTTP methods** *GET, POST, PUT, PATCH, DELETE*
+
+**Content-Typer** *default, application/x-www-form-urlencoded*
 
 This directive allows executing a delete query with Tarantool.
 
@@ -1065,6 +1089,11 @@ Here is a description:
 
   See "message"/"code" fields for details.
 
+Examples can be found at:
+
+* `examples/simple_rest_client.py`
+* `examples/simple_rest_client.sh`
+
 
 [Back to contents](#contents)
 
@@ -1075,6 +1104,10 @@ tnt_select
 **default:** *None*
 
 **context:** *location, location if*
+
+**HTTP methods** *GET, POST, PUT, PATCH, DELETE*
+
+**Content-Typer** *default, application/x-www-form-urlencoded*
 
 This directive allows executing a select query with Tarantool.
 
@@ -1109,6 +1142,11 @@ Here is a description:
 
   See "message"/"code" fields for details.
 
+Examples can be found at:
+
+* `examples/simple_rest_client.py`
+* `examples/simple_rest_client.sh`
+
 [Back to contents](#contents)
 
 tnt_select_limit_max
@@ -1118,6 +1156,10 @@ tnt_select_limit_max
 **default:** *100*
 
 **context:** *server, location, location if*
+
+**HTTP methods** *GET, POST, PUT, PATCH, DELETE*
+
+**Content-Typer** *default, application/x-www-form-urlencoded*
 
 This is a constraint to avoid *large selects*. This is the maximum number
 of returned tuples per select operation. If the client reaches this limit, then
@@ -1144,6 +1186,11 @@ Here is a description:
   the Tarantool backend.
 
   See "message"/"code" fields for details.
+
+Examples can be found at:
+
+* `examples/simple_rest_client.py`
+* `examples/simple_rest_client.sh`
 
 [Back to contents](#contents)
 
@@ -1204,6 +1251,10 @@ tnt_update
 
 **context:** *location, location if*
 
+**HTTP methods** *GET, POST, PUT, PATCH, DELETE*
+
+**Content-Typer** *default, application/x-www-form-urlencoded*
+
 This directive allows executing an update query with Tarantool.
 
 * The first argument is a space id.
@@ -1233,72 +1284,10 @@ section [1].
 
 * The third argument is a [format](#format) string.
 
-[1] Example
+Examples can be found at:
 
-it is just an example, it does not contain any tuning settings and
-additinitional validation!
-
-* nginx.conf
-```nginx.conf
-# ...
-upstrean backend {
-  server 127.0.0.1:3113;
-}
-
-# ...
-location /delete {
-  tnt_delete 512 0 "id=%n";
-  tnt_pass tnt;
-}
-location /select {
-  tnt_select 512 0 0 100 ge "id=%n";
-  tnt_pass tnt;
-}
-location /update {
-  tnt_update 512 "id=%kn" "value=%s,value1=%f";
-  tnt_pass tnt;
-}
-location /insert {
-  tnt_insert 512 "id=%kn" "value=%s,value1=%f";
-  tnt_pass backend;
-}
-
-```
-
-* Tarantool
-```lua
--- ...
-
-box.cfg{listen=3113}
-
--- ...
-t = box.schema.space.create('t1', {if_not_exists=true})
-t:create_index('pk', {if_not_exists=true})
-```
-
-* Client request
-```bash
-$ curl -X POST -d id=3113 http://127.0.0.1:8081/insert
-{"id":0,"result":[[3113]]}
-
-$ curl 'http://127.0.0.1:8081/select?id=3113'
-{"id":0,"result":[[3113]]}
-
-$ curl -X POST -d id=3113 -d 'value==,1,Delta compression using up to 4 threads.' -d value1==,2,3.14 http://127.0.0.1:8081/update_post
-{"id":0,"result":[[3113,"Delta compression using up to 4 threads.",3.140000]]}+
-
-### NOTICE! %2B is urlescaped('+')
-$ curl -X POST -d id=3113 -d value1=%2B,2,5.14 http://127.0.0.1:8081/update {"id":0,"result":[[3113,"Delta compression using up to 4 threads.",8.280000]]}
-
-$ curl 'http://127.0.0.1:8081/select?id=3113'
-{"id":0,"result":[[3113,"Delta compression using up to 4 threads.",8.280000]]}
-
-curl -X POST -d id=3113 http://127.0.0.1:8081/delete
-{"id":0,"result":[[3113,"Delta compression using up to 4 threads.",8.280000]]}
-
-curl 'http://127.0.0.1:8081/select?id=3113'
-{"id":0,"result":[]}
-```
+* `examples/simple_rest_client.py`
+* `examples/simple_rest_client.sh`
 
 Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
 this error raised if some of values missed or has wrong type.
@@ -1332,6 +1321,10 @@ tnt_upsert
 
 **context:** *location, location if*
 
+**HTTP methods** *GET, POST, PUT, PATCH, DELETE*
+
+**Content-Typer** *default, application/x-www-form-urlencoded*
+
 This directive allows executing an upsert query with Tarantool.
 
 * The first argument is a space id.
@@ -1363,39 +1356,10 @@ section [1].
 
 [1] Example
 
-it is just an example, it does not contain any tuning settings and
-additinitional validation!
+Examples can be found at:
 
-* nginx.conf
-```nginx.conf
-# ...
-upstrean backend {
-  server 127.0.0.1:3113;
-}
-
-# ...
-location /upsert {
-  tnt_delete 512 0 "new_id=%n,new_value=%s" "updated_value=%os";
-  tnt_pass tnt;
-}
-```
-
-* Tarantool
-```lua
--- ...
-
-box.cfg{listen=3113}
-
--- ...
-local t = box.schema.space.create('t1', {if_not_exists=true})
-t:create_index('pk', {if_not_exists=true})
-```
-
-* Client request
-```bash
-$ curl -X POST -d new_id=3113 -d new_value=str -d updated_value==,2,ustr http://127.0.0.1:8081/upsert
-{"id":0,"result":[[3113, "ustr"]]}
-```
+* `examples/simple_rest_client.py`
+* `examples/simple_rest_client.sh`
 
 Returns HTTP code 4XX if client's request doesn't well formatted. It means, that
 this error raised if some of values missed or has wrong type.

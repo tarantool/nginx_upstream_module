@@ -217,3 +217,6 @@ i = t:create_index('sk', {parts={1,'unsigned', 2, 'str'}, if_not_exists=true})
 
 t = box.schema.space.create('t4', {if_not_exists=true})
 t:create_index('pk', {if_not_exists=true})
+
+t = box.schema.space.create('t5', {if_not_exists=true})
+t:create_index('pk', {if_not_exists=true, parts={1, 'str'}})

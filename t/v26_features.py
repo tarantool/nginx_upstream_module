@@ -13,7 +13,8 @@ def arr_of_dicts_to_arr(arr_of_dicts, start_from = 0):
         res.append(k.values()[0])
     return res[start_from:]
 
-
+# ============
+#
 print ('[+] basic insert')
 result = get_success(BASE_URL + '/delete', {'index': 1}, None, False)
 assert 'result' in result and 'id' in result, 'expected: result and id'
@@ -45,7 +46,8 @@ result = get_success(BASE_URL + '/insert', insert_2, None)
 assert result == arr_of_dicts_to_arr(insert_2), "Expected != result"
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] basic select')
 result = get_success(BASE_URL + '/select', {'index': 0}, None, False)
 assert arr_of_dicts_to_arr(insert_1) == result['result'][0], \
@@ -54,7 +56,8 @@ assert arr_of_dicts_to_arr(insert_2) == result['result'][1], \
         "Expected != result"
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] basic replace')
 insert_1[5]['int'] = 1000000
 result = get_success(BASE_URL + '/replace', insert_1, None)
@@ -62,7 +65,8 @@ assert arr_of_dicts_to_arr(insert_1) == result, \
         "Expected != result"
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] basic delete')
 result = get_success(BASE_URL + '/delete', {'index': 1}, None)
 assert arr_of_dicts_to_arr(insert_1) == result, \
@@ -72,13 +76,15 @@ assert arr_of_dicts_to_arr(insert_2) == result, \
         "Expected != result"
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] https://github.com/tarantool/nginx_upstream_module/issues/98')
 result = get_success(BASE_URL + '/error_if_escaped', {'getArg': 'a b'}, None)
 assert result == True, 'Expected True'
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] insert + extented format')
 
 data = [
@@ -101,7 +107,8 @@ for i in range(1, 100):
     assert arr_of_dicts_to_arr(data, 2) == result, 'Expected != result'
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] select + extented format')
 
 data = [
@@ -147,7 +154,8 @@ result = get_success(BASE_URL + '/replace_ext_fmt', data, None)
 assert result == arr_of_dicts_to_arr(data, 2), "Expected != result"
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] select + extented format w/o FMT args')
 
 rc, result = get(BASE_URL + '/select_ext_fmt',[
@@ -172,7 +180,8 @@ assert rc == 400, 'Expected 400'
 
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] select will reach a limit')
 rc, result = get(BASE_URL + '/select_ext_fmt',[
     {'space_id': 10}, {'index_id': 10}, {'iter': 'ge'}, {'limit': 1000 },
@@ -180,7 +189,8 @@ rc, result = get(BASE_URL + '/select_ext_fmt',[
 assert rc == 400, 'Expected 400'
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] insert + extented format w/o space_id')
 
 data = [
@@ -232,7 +242,8 @@ assert rc == 400, 'Expected 400'
 
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] Allowed spaces and indexes')
 
 rc, result = get(BASE_URL + '/dml_allowed_sp', [
@@ -249,7 +260,8 @@ assert rc == 200, 'Expected 400'
 
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] Wrong order')
 
 data = [
@@ -279,7 +291,8 @@ assert arr_of_dicts_to_arr(expected) == result, 'Expected != result'
 
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] Format validation')
 data = [
     {'space_id': 513},
@@ -329,7 +342,8 @@ assert result == arr_of_dicts_to_arr(expected), "Expected != result"
 
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] Update multipart index')
 
 result = get_success(BASE_URL + '/delete_mt_fmt', {
@@ -371,7 +385,8 @@ assert result == arr_of_dicts_to_arr(expected), "Expected != result"
 
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] Upsert')
 
 upsert = [
@@ -405,7 +420,8 @@ assert result == arr_of_dicts_to_arr(expected), "Expected != result"
 
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] Issue - https://github.com/tarantool/nginx_upstream_module/issues/108')
 
 data = []
@@ -418,7 +434,8 @@ assert 'headers' in result, "Expected != result"
 
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] Post urlencoded')
 
 post_form_success(BASE_URL + '/delete_post', {'id': 11}, None)
@@ -435,7 +452,8 @@ assert result['result'][0][0] == 12 and result['result'][0][1] == 'TEXT' \
 
 print ('[+] OK')
 
-
+# ============
+#
 print ('[+] Update format validation')
 
 _, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': '=,TEXT',
@@ -451,5 +469,59 @@ assert _ == 400 and 'error' in result, 'Expected != result'
 _, result = post_form(BASE_URL + '/update_post', {'id': 12, 'value': '=,TEXT',
     'value1': '=,2,3.14'}, None)
 assert _ == 400 and 'error' in result, 'Expected != result'
+
+print ('[+] OK')
+
+# ============
+#
+print (''' [+] Issues
+ https://github.com/tarantool/nginx_upstream_module/issues/110 and
+ https://github.com/tarantool/nginx_upstream_module/issues/111
+ ''')
+
+## Issue 111
+_, result = delete(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc'}, None, True)
+assert _ == 200 and 'result' in result and 'id' in result, 'expected: result and id'
+
+post_form_success(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc', 'value': '10'},
+        None)
+
+result = put_success(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc', 'value': '#,1,10'}, None, True)
+assert result[0] == 'test_inc', "Expected != Result"
+
+result = get_success(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc'}, None)
+assert result[0] == 'test_inc', "Expected != Result"
+
+
+## Issue 110
+_, result = delete(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc_2'}, None, True)
+assert _ == 200 and 'result' in result and 'id' in result, \
+        'expected: result and id'
+
+post_form_success(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc_2', 'value': '1'},
+        None)
+
+_, result = patch(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc_2', 'new_value' : 1, 'updated_value': '+,1,5'})
+assert _ == 200 and 'result' in result and 'id' in result, \
+        'expected: result and id'
+
+result = get_success(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc_2'}, None)
+assert result[1] == 6, "Expected != Result"
+
+_, result = patch(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc_2', 'new_value' : 1, 'updated_value': '=,1,5'})
+assert _ == 200 and 'result' in result and 'id' in result, \
+        'expected: result and id'
+result = get_success(BASE_URL + '/issue_110_and_111', \
+        {'key': 'test_inc_2'}, None)
+assert result[1] == 5, "Expected != Result"
 
 print ('[+] OK')

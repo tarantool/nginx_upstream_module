@@ -30,10 +30,10 @@ assert(result['method'] == 'GET'), 'expected GET, got'
 # ============
 #
 print('[+] Parse query args overflow test')
-for i in range(1, 100):
+for i in range(1, 1000):
     args['arg' + str(i)] = 'some_string_plus_' + str(i)
 (code, msg) = get_fail(preset_method_location, args, {})
-assert(code == 414), 'expected http code 414'
+assert(code == 500), 'expected http code 500'
 
 
 # ============

@@ -342,6 +342,8 @@ static void ngx_http_tnt_abort_request(ngx_http_request_t *r);
 static void ngx_http_tnt_finalize_request(ngx_http_request_t *r, ngx_int_t rc);
 
 /** Some helpers */
+static ngx_int_t ngx_http_tnt_str_match(ngx_str_t *a, const char *b,
+        size_t len);
 static ngx_int_t ngx_http_tnt_set_err(ngx_http_request_t *r, int errcode,
         const u_char *msg, size_t msglen);
 #define ngx_http_tnt_set_err_str(r, code, str) \
@@ -1775,6 +1777,7 @@ ngx_http_tnt_format_prepare(ngx_http_tnt_loc_conf_t *conf,
 
     for (; arg.it < end; ) {
 
+
         arg = ngx_http_tnt_get_next_arg(arg.it, end);
 
         if (arg.value != NULL) {
@@ -1851,6 +1854,7 @@ ngx_http_tnt_format_prepare(ngx_http_tnt_loc_conf_t *conf,
 
                 rc = ngx_http_tnt_format_prepare_kv(r, prepared_result, &key,
                         &value);
+
                 if (rc != NGX_OK) {
                     return rc;
                 }
@@ -2008,15 +2012,16 @@ ngx_http_tnt_format_bind_operation(ngx_http_request_t *r, struct tp *tp,
 
     switch (*update_operation) {
     case '=':
-        case '!':
-        case '+':
-        case '-':
-        case '&':
-        case '^':
-        case '|':
-            break;
-        default:
-            goto no_operation_type;
+    case '!':
+    case '+':
+    case '-':
+    case '&':
+    case '^':
+    case '|':
+    case '#':
+        break;
+    default:
+        goto no_operation_type;
     }
 
     filedno_pt = ngx_http_tnt_read_next(val, ',');
@@ -3450,6 +3455,22 @@ ngx_http_tnt_init_handlers(ngx_http_request_t *r, ngx_http_upstream_t *u,
     u->create_request = ngx_http_tnt_query_handler;
 
     if (tlcf->req_type > 0) {
+
+        if (r->headers_in.content_type != NULL &&
+            r->headers_in.content_type->value.len > 0)
+        {
+
+            if (!ngx_http_tnt_str_match(&r->headers_in.content_type->value,
+                        "application/x-www-form-urlencoded",
+                        sizeof("application/x-www-form-urlencoded") - 1) ||
+                !ngx_http_tnt_str_match(&r->headers_in.content_type->value,
+                        "application/x-www-form-urlencoded",
+                        sizeof("application/x-www-form-urlencoded") - 1))
+            {
+                return NGX_HTTP_NOT_ALLOWED;
+            }
+        }
+
         u->create_request = ngx_http_tnt_dml_handler;
         return NGX_OK;
     }
@@ -3788,6 +3809,7 @@ ngx_http_tnt_dml_handler(ngx_http_request_t *r)
         }
         break;
     case TP_DELETE:
+
         if (tp_delete(&tp, (uint32_t) prepared_result.space_id,
                     (uint32_t) prepared_result.index_id) == NULL ||
             tp_key(&tp, prepared_result.tuples_count) == NULL)
@@ -3961,6 +3983,20 @@ ngx_http_tnt_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
     dd("finalize request");
     ngx_http_tnt_ctx_t *ctx = ngx_http_get_module_ctx(r, ngx_http_tnt_module);
     ngx_http_tnt_cleanup(r, ctx);
+}
+
+
+static ngx_int_t
+ngx_http_tnt_str_match(ngx_str_t *a, const char *b,
+        size_t len)
+{
+    if (a->len != len) {
+        return 0;
+    }
+    if (ngx_strncmp(a->data, (const u_char *) b, len) == 0) {
+        return 1;
+    }
+    return 0;
 }
 
 

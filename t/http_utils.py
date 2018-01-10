@@ -112,19 +112,68 @@ def request_raw(url, data, headers):
 def request(url, data, headers = None):
     return request_raw(url, json.dumps(data), headers)
 
-def put(url, data, headers):
+def put(url, data, headers, dont_use_json = False):
     out = '{}'
+    res = None
     try:
-        req = urllib2.Request(url)
-        req.get_method = lambda: 'PUT'
-        if headers:
-            for header in headers:
-                req.add_header(header, headers[header])
-        if data:
-            req.add_header('Content-Type', 'application/json')
-            res = urllib2.urlopen(req, json.dumps(data))
+        if not dont_use_json:
+            req = urllib2.Request(url)
+            req.get_method = lambda: 'PUT'
+            if headers:
+                for header in headers:
+                    req.add_header(header, headers[header])
+            if data:
+                req.add_header('Content-Type', 'application/json')
+                res = urllib2.urlopen(req, json.dumps(data))
+            else:
+                res = urllib2.urlopen(req)
         else:
+            full_url = url
+            if data and type(data) == type([]):
+                full_url = url + '?' + arr_of_dicts_to_string(data)
+            elif data:
+                full_url = url + '?' + urllib.urlencode(data)
+
+            req = urllib2.Request(full_url)
+            req.get_method = lambda: 'PUT'
             res = urllib2.urlopen(req)
+
+        out = res.read()
+        out = out + res.read()
+        rc = res.getcode()
+
+        if VERBOSE:
+            print("code: ", rc, " recv: '", out, "'")
+
+        if rc != 500:
+            return (rc, json.loads(out))
+
+        return (rc, False)
+    except urllib2.HTTPError as e:
+        if e.code == 400:
+            out = e.read();
+
+        if VERBOSE:
+            print("code: ", e.code, " recv: '", out, "'")
+
+        return (e.code, json.loads(out))
+    except Exception as e:
+        print(traceback.format_exc())
+        return (False, e)
+
+def patch(url, data):
+    out = '{}'
+    res = None
+    try:
+        full_url = url
+        if data and type(data) == type([]):
+            full_url = url + '?' + arr_of_dicts_to_string(data)
+        elif data:
+            full_url = url + '?' + urllib.urlencode(data)
+
+        req = urllib2.Request(full_url)
+        req.get_method = lambda: 'PATCH'
+        res = urllib2.urlopen(req)
 
         out = res.read()
         out = out + res.read()
@@ -245,31 +294,48 @@ def post_success_pure(url, data, headers=None):
     assert(code == 200), 'expected 200'
     return msg
 
-def put_success(url, data, headers):
-    (code, msg) = put(url, data, headers)
+def put_success(url, data, headers, dont_use_json = False):
+    (code, msg) = put(url, data, headers, dont_use_json)
     assert(code == 200), 'expected 200'
     result = get_result(msg)
     return result
 
 def put_fail(url, data, headers):
-    return put(url, data, headers)
+    return put(url, data, headers, False)
+
+def patch_success(url, data):
+    (code, msg) = patch(url, data)
+    assert(code == 200), 'expected 200'
+    result = get_result(msg)
+    return result
 
 def get_fail(url, data, headers):
     (code, msg) = get(url, data, headers)
     return (code, msg)
 
-def delete(url, data, headers):
+def delete(url, data, headers, dont_use_json = False):
     out = '{}'
     try:
-        req = urllib2.Request(url)
-        req.get_method = lambda: 'DELETE'
-        if headers:
-            for header in headers:
-                req.add_header(header, headers[header])
-        if data:
-            req.add_header('Content-Type', 'application/json')
-            res = urllib2.urlopen(req, json.dumps(data))
+        if not dont_use_json:
+            req = urllib2.Request(url)
+            req.get_method = lambda: 'DELETE'
+            if headers:
+                for header in headers:
+                    req.add_header(header, headers[header])
+            if data:
+                req.add_header('Content-Type', 'application/json')
+                res = urllib2.urlopen(req, json.dumps(data))
+            else:
+                res = urllib2.urlopen(req)
         else:
+            full_url = url
+            if data and type(data) == type([]):
+                full_url = url + '?' + arr_of_dicts_to_string(data)
+            elif data:
+                full_url = url + '?' + urllib.urlencode(data)
+
+            req = urllib2.Request(full_url)
+            req.get_method = lambda: 'DELETE'
             res = urllib2.urlopen(req)
 
         out = res.read()
@@ -295,8 +361,8 @@ def delete(url, data, headers):
         print(traceback.format_exc())
         return (False, e)
 
-def delete_success(url, data, headers):
-    (code, msg) = delete(url, data, headers)
+def delete_success(url, data, headers, dont_use_json = False):
+    (code, msg) = delete(url, data, headers, dont_use_json)
     assert(code == 200), 'expected 200'
     result = get_result(msg)
     return result
