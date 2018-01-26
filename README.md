@@ -1230,19 +1230,6 @@ This directive works like [tnt_allowed_spaces], but for indexes.
 
 [Back to contents](#contents)
 
-## Performance tuning
----------------------
-
-* Use [HttpUpstreamKeepaliveModule](http://wiki.nginx.org/HttpUpstreamKeepaliveModule).
-  * Use [keepalive](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive).
-  * Use [keepalive_requests](http://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests).
-* Use multiple instances of Tarantool servers on your multi-core machines.
-* Turn off unnecessary logging in Tarantool and NginX.
-* Tune Linux network.
-* Tune nginx buffers.
-
-[Back to contents](#contents)
-
 tnt_update
 ----------
 **syntax:** *tnt_update [SIZE or off] [KEYS] [FMT]*
@@ -1392,6 +1379,19 @@ Here is a description:
 Python test: `test/basic_features.py`, `test/v20_feautres.py`, `nginx.dev.conf`.
 
 Client-side javascript example: `example/echo.html`, `example/echo.lua`.
+
+[Back to contents](#contents)
+
+## Performance tuning
+---------------------
+
+* Use [HttpUpstreamKeepaliveModule](http://wiki.nginx.org/HttpUpstreamKeepaliveModule).
+  * Use [keepalive](http://nginx.org/en/docs/http/ngx_http_upstream_module.html#keepalive).
+  * Use [keepalive_requests](http://nginx.org/en/docs/http/ngx_http_core_module.html#keepalive_requests).
+* Use multiple instances of Tarantool servers on your multi-core machines.
+* Turn off unnecessary logging in Tarantool and NginX.
+* Tune Linux network.
+* Tune nginx buffers.
 
 [Back to contents](#contents)
 
