@@ -42,6 +42,7 @@ https://hub.docker.com/r/tarantool/tarantool
 * v2.4.6-rc1 - Stable.
 * v2.5-rc{1,2} - Stable.
 * v2.5-stable - Stable.
+* v2.6-rc3 - Stable.
 
 ## Contents
 -----------
