@@ -43,13 +43,14 @@
 
 
 typedef enum ngx_tnt_conf_states {
-    NGX_TNT_CONF_ON               = 1,
-    NGX_TNT_CONF_OFF              = 2,
-    NGX_TNT_CONF_PARSE_ARGS       = 4,
-    NGX_TNT_CONF_UNESCAPE         = 8,
-    NGX_TNT_CONF_PASS_BODY        = 16,
-    NGX_TNT_CONF_PASS_HEADERS_OUT = 32,
-    NGX_TNT_CONF_PARSE_URLENCODED = 64,
+    NGX_TNT_CONF_ON                  = 1,
+    NGX_TNT_CONF_OFF                 = 2,
+    NGX_TNT_CONF_PARSE_ARGS          = 4,
+    NGX_TNT_CONF_UNESCAPE            = 8,
+    NGX_TNT_CONF_PASS_BODY           = 16,
+    NGX_TNT_CONF_PASS_HEADERS_OUT    = 32,
+    NGX_TNT_CONF_PARSE_URLENCODED    = 64,
+    NGX_TNT_CONF_PASS_SUBREQUEST_URI = 128,
 } ngx_tnt_conf_states_e;
 
 
@@ -427,6 +428,7 @@ static ngx_conf_bitmask_t  ngx_http_tnt_pass_http_request_masks[] = {
     { ngx_string("pass_body"), NGX_TNT_CONF_PASS_BODY },
     { ngx_string("pass_headers_out"), NGX_TNT_CONF_PASS_HEADERS_OUT },
     { ngx_string("parse_urlencoded"), NGX_TNT_CONF_PARSE_URLENCODED },
+    { ngx_string("pass_subrequest_uri"), NGX_TNT_CONF_PASS_SUBREQUEST_URI },
     { ngx_null_string, 0 }
 };
 
@@ -3166,13 +3168,18 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
         goto oom_cant_encode;
     }
 
-    /** Encode raw uri */
+    /** Encode uri:
+     *      whether NGX_TNT_CONF_PASS_SUBREQUEST_URI is not set then raw uri
+     *      will be chosen, otherwise preprocessed value will be used
+     */
     ++root_items;
+
+    ngx_str_t uri = tlcf->pass_http_request & NGX_TNT_CONF_PASS_SUBREQUEST_URI
+        ? r->uri : r->unparsed_uri;
 
     if (ngx_http_tnt_encode_str_map_item(r, tlcf, tp,
                                          (u_char *) "uri", sizeof("uri") - 1,
-                                         r->unparsed_uri.data,
-                                         r->unparsed_uri.len) == NGX_ERROR)
+                                         uri.data, uri.len) == NGX_ERROR)
     {
         goto oom_cant_encode;
     }

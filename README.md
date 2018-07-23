@@ -512,7 +512,7 @@ Example:
 
 tnt_pass_http_request
 ---------------------
-**syntax:** *tnt_pass_http_request [on|off|parse_args|unescape|pass_body|pass_headers_out|parse_urlencoded]*
+**syntax:** *tnt_pass_http_request [on|off|parse_args|unescape|pass_body|pass_headers_out|parse_urlencoded|pass_subrequest_uri]*
 
 **default:** *off*
 
@@ -595,6 +595,49 @@ Examples #3 (parse_urlencoded):
     req.body[0]['q'] -- 1
     req.body[1]['q'] -- 2
     req.body[2]['q'] -- 3
+    return true
+  end
+```
+
+Examples #4 (pass_subrequest_uri):
+
+* Origin (unparsed) uri
+```nginx
+  location /web {
+    # Backend processing /web/foo and replying with X-Accel-Redirect to
+    # internal /tnt/bar
+    proxy_pass http://x-accel-redirect-backend;
+  }
+  location /tnt {
+    internal;
+    tnt_pass_http_request on;
+    tnt_method tarantool_xar_handler;
+    tnt_pass 127.0.0.1:9999;
+  }
+```
+```lua
+  function tarantool_xar_handler(req, ...)
+    print(req.uri) -- /web/foo
+    return true
+  end
+```
+* Subrequest uri
+```nginx
+  location /web {
+    # Backend processing /web/foo and replying with X-Accel-Redirect to
+    # internal /tnt/bar
+    proxy_pass http://x-accel-redirect-backend;
+  }
+  location /tnt {
+    internal;
+    tnt_pass_http_request on pass_subrequest_uri;
+    tnt_method tarantool_xar_handler;
+    tnt_pass 127.0.0.1:9999;
+  }
+```
+```lua
+  function tarantool_xar_handler(req, ...)
+    print(req.uri) -- /tnt/bar
     return true
   end
 ```
