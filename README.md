@@ -599,6 +599,11 @@ Examples #3 (parse_urlencoded):
   end
 ```
 
+```bash
+  # Call tarantool_stored_procedure_name()
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1&q=2&q=3
+```
+
 Examples #4 (pass_subrequest_uri):
 
 * Origin (unparsed) uri
@@ -640,11 +645,6 @@ Examples #4 (pass_subrequest_uri):
     print(req.uri) -- /tnt/bar
     return true
   end
-```
-
-```bash
-  # Call tarantool_stored_procedure_name()
-  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1&q=2&q=3
 ```
 
 [Back to contents](#contents)
