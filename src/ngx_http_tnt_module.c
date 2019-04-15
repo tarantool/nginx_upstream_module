@@ -27,10 +27,9 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2018 Tarantool AUTHORS:
+ * Copyright (C) 2015-2019 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
-
 
 #include <ngx_core.h>
 #include <ngx_http.h>
@@ -1616,7 +1615,7 @@ ngx_http_tnt_urldecode(ngx_http_request_t *r, ngx_str_t *src)
 
         c = src->data[s++];
 
-        if (c == '%' && (ngx_uint_t) (s + 2) < src->len) {
+        if (c == '%' && (ngx_uint_t) (s + 2) <= src->len) {
 
             u_char c2 = src->data[s++];
             u_char c3 = src->data[s++];

@@ -192,6 +192,10 @@ function issue_108(req)
   return req
 end
 
+function issue_120(request)
+  return request
+end
+
 -- CFG
 box.cfg {
     log_level = 5,

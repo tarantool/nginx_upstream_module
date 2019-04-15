@@ -27,7 +27,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (C) 2015-2018 Tarantool AUTHORS:
+ * Copyright (C) 2015-2019 Tarantool AUTHORS:
  * please see AUTHORS file.
  */
 
