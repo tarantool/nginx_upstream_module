@@ -490,6 +490,20 @@ tnt_http_rest_methods
 
 **context:** *location*
 
+**NOTICE:**
+This does not restrict anything. The option just says to NGINX:
+use this methods for allowing REST requests.
+
+If you have a wish to set some methods as not allowed methods, then
+please use "if" inside locations.
+
+For example:
+```nginx
+if ($request_method !~ ^(GET|POST|HEAD)$) {
+    return 405 "Please use HEAD, PATCH and so on";
+}
+```
+
 Allow to accept one or more REST methods.
 If `tnt_method` is not set, then the name of the Tarantool stored procedure is
 the first part of the URL path.
