@@ -354,7 +354,7 @@ Here is an example with `ngx_lua`:
   # Nginx, configuration
 
   upstream tnt_upstream {
-     127.0.0.1:9999;
+     server 127.0.0.1:9999;
      keepalive 10000;
   }
 
