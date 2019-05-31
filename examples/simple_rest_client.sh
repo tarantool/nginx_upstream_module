@@ -5,8 +5,8 @@
 #
 # 1. Tarantool conf {{{
 # box.cfg {listen = 3113}
-# tester = box.schema.space.create('tester', {if_not_exist=true})
-# index = tester:create_index('pk', {parts{1, 'str'}})
+# tester = box.schema.space.create('tester', {if_not_exists=true})
+# index = tester:create_index('pk', {parts={1, 'str'}})
 # print ('SPACE_ID = ', tester.id)
 # print ('INDEX_ID = ', index.id)
 # }}}
