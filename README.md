@@ -354,7 +354,7 @@ Here is an example with `ngx_lua`:
   # Nginx, configuration
 
   upstream tnt_upstream {
-     127.0.0.1:9999;
+     server 127.0.0.1:9999;
      keepalive 10000;
   }
 
@@ -367,7 +367,7 @@ Here is an example with `ngx_lua`:
   }
 
   location /api {
-
+    default_type application/json;
     rewrite_by_lua '
 
        local cjson = require("cjson")
@@ -402,8 +402,17 @@ Here is an example with `ngx_lua`:
              ngx.header[k] = v
            end
 
-           table.remove(result, 1)
-           ngx.say(cjson.encode(result))
+           local body = result[3]
+           if type(body) == "string" then
+             ngx.header["content_type"] = "text/plain"
+             ngx.print(body)
+           elseif type(body) == "table" then
+             local body = cjson.encode(body)
+             ngx.say(body)
+           else
+             ngx.status = 502
+             ngx.say("Unexpected response from Tarantool")
+           end
          else
            ngx.status = 502
            ngx.say("Tarantool does not work")
