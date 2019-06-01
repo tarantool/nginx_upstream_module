@@ -397,13 +397,23 @@ Here is an example with `ngx_lua`:
          local result = answ["result"]
 
          if result ~= nil then
-           ngx.status = result[1]
-           for k, v in pairs(result[2]) do
-             ngx.header[k] = v
-           end
+                ngx.status = result[1]
+                for k, v in pairs(result[2]) do
+                    ngx.header[k] = v 
+                end 
 
-           table.remove(result, 1)
-           ngx.say(cjson.encode(result))
+                local body = result[3]
+                if type(body) == "string" then
+                    ngx.header["content_type"] = "text/plain"
+                    ngx.print(body)
+                elseif type(body) == "table" then
+                    -- we have not empty objects in our APIs
+                    local body = cjson.encode(body):gsub("{}", "[]")
+                    ngx.say(body)
+                else
+                    ngx.status = 502
+                    ngx.say("Unexpected response from Tarantool")
+                end
          else
            ngx.status = 502
            ngx.say("Tarantool does not work")
