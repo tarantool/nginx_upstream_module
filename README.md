@@ -353,6 +353,18 @@ Here is an example with `ngx_lua`:
 ```nginx
   # Nginx, configuration
 
+  # If you're experience an problem with lua-resty-core like
+  # https://github.com/openresty/lua-nginx-module/issues/1509
+  # it can be disabled by the following directive.
+  #
+  # lua_load_resty_core off;
+
+  # If you're not using lua-resty-core you may need to manually specify a path
+  # to cjson module. See the documentation:
+  # https://github.com/openresty/lua-nginx-module#lua_package_cpath
+  #
+  # lua_package_cpath "/path/in/lua/cpath/format/?.so";
+
   upstream tnt_upstream {
      server 127.0.0.1:9999;
      keepalive 10000;
