@@ -21,8 +21,9 @@ ENV NGINX_VERSION=1.11.1 \
     NGINX_GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8
 
 ENV NGINX_LUA_MODULE_URL=https://github.com/openresty/lua-nginx-module \
-    NGINX_LUA_MODULE_PATH=/usr/src/lua-nginx-module
-
+    NGINX_LUA_MODULE_PATH=/usr/src/lua-nginx-module \
+    NGINX_LUA_MODULE_VERSION=0.10.15rc1
+    
 ENV NGINX_DEVEL_KIT_URL=https://github.com/simpl/ngx_devel_kit \
     NGINX_DEVEL_KIT_PATH=/usr/src/nginx-devel-kit
 
@@ -74,6 +75,7 @@ RUN set -x \
   && git clone "$NGINX_DEVEL_KIT_URL" $NGINX_DEVEL_KIT_PATH \
   && : "---------- download nginx-lua-module ----------" \
   && git clone "$NGINX_LUA_MODULE_URL" $NGINX_LUA_MODULE_PATH \
+  && git -C $NGINX_LUA_MODULE_PATH checkout tags/v$NGINX_LUA_MODULE_VERSION \
   && : "---------- download luajit ----------" \
   && git clone "$LUAJIT_URL" $LUAJIT_PATH \
   && git -C $LUAJIT_PATH checkout tags/v$LUAJIT_VERSION \
