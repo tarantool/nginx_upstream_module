@@ -627,16 +627,15 @@ Examples #3 (parse_urlencoded):
   function tarantool_stored_procedure_name(req, ...)
     req.headers -- a lua table
     req.query -- a string
-    req.body[0]['q'] -- 1
-    req.body[1]['q'] -- 2
-    req.body[2]['q'] -- 3
+    req.args.q -- 1
+    req.args_urlencoded.p -- 2
     return true
   end
 ```
 
 ```bash
   # Call tarantool_stored_procedure_name()
-  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1&q=2&q=3
+  $> wget NGINX_HOST/tarantool_stored_procedure_name/some/mega/path?q=1 --post-data='p=2'
 ```
 
 Examples #4 (pass_subrequest_uri):
