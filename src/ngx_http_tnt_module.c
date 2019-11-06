@@ -31,6 +31,7 @@
  * please see AUTHORS file.
  */
 
+
 #include <ngx_core.h>
 #include <ngx_http.h>
 #include <ngx_config.h>
@@ -1615,7 +1616,7 @@ ngx_http_tnt_urldecode(ngx_http_request_t *r, ngx_str_t *src)
 
         c = src->data[s++];
 
-        if (c == '%' && (ngx_uint_t) (s + 2) <= src->len) {
+        if (c == '%' && (ngx_uint_t) (s + 2) < src->len) {
 
             u_char c2 = src->data[s++];
             u_char c3 = src->data[s++];
@@ -3239,8 +3240,69 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
     *(uint32_t *) map_place = mp_bswap_u32(map_items);
 
     /** Encode body */
-    if ((tlcf->pass_http_request & NGX_TNT_CONF_PASS_BODY ||
-                tlcf->pass_http_request & NGX_TNT_CONF_PARSE_URLENCODED) &&
+    if ((tlcf->pass_http_request & NGX_TNT_CONF_PARSE_URLENCODED) &&
+            r->headers_in.content_length_n > 0 &&
+            r->upstream->request_bufs)
+    {
+        ++root_items;
+
+        if (tp_encode_str(tp, "args_urlencoded", sizeof("args_urlencoded") - 1) == NULL) {
+            goto oom_cant_encode_body;
+        }
+
+        /** Encode urlencoded body as map - body = { K = V, .. } */
+        map_place = tp->p;
+
+        if (tp_add(tp, 1 + sizeof(uint32_t)) == NULL) {
+            goto oom_cant_encode_body;
+        }
+
+        ngx_memset(&unparsed_body, 0, sizeof(ngx_buf_t));
+
+        unparsed_body.pos = ngx_pnalloc(r->pool,
+                        sizeof(u_char) * r->headers_in.content_length_n + 1);
+        if (unparsed_body.pos == NULL) {
+            return NGX_ERROR;
+        }
+        unparsed_body.last = unparsed_body.pos;
+        unparsed_body.start = unparsed_body.pos;
+        unparsed_body.end = unparsed_body.pos +
+                r->headers_in.content_length_n + 1;
+
+        for (body = r->upstream->request_bufs; body; body = body->next) {
+
+            b = body->buf;
+
+            if (b->in_file) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                    "in-file buffer found. aborted. "
+                    "consider increasing your 'client_body_buffer_size' "
+                    "setting");
+                return NGX_ERROR;
+            }
+
+            unparsed_body.last = ngx_copy(unparsed_body.last,
+                        b->pos, b->last - b->pos);
+        }
+
+        /** Actually this is an array not a map, I used this variable
+         * since it's avaliable in this scope
+         */
+        map_items = 0;
+
+        if (ngx_http_tnt_encode_urlencoded_body(r, tlcf, tp,
+                    &unparsed_body, &map_items) != NGX_OK)
+        {
+            goto oom_cant_encode_body;
+        }
+
+        *(map_place++) = 0xdd;
+        *(uint32_t *) map_place = mp_bswap_u32(map_items);
+    }
+    
+    /** Unknown body type - encode as mp string
+     */
+    if ((tlcf->pass_http_request & NGX_TNT_CONF_PASS_BODY) &&
             r->headers_in.content_length_n > 0 &&
             r->upstream->request_bufs)
     {
@@ -3250,87 +3312,31 @@ ngx_http_tnt_get_request_data(ngx_http_request_t *r,
             goto oom_cant_encode_body;
         }
 
-        /** Encode urlencoded body as map - body = { K = V, .. } */
-        if (tlcf->pass_http_request & NGX_TNT_CONF_PARSE_URLENCODED) {
 
-            map_place = tp->p;
+        int sz = mp_sizeof_str(r->headers_in.content_length_n);
+        if (tp_ensure(tp, sz) == -1) {
+            goto oom_cant_encode_body;
+        }
 
-            if (tp_add(tp, 1 + sizeof(uint32_t)) == NULL) {
-                goto oom_cant_encode_body;
-            }
+        p = mp_encode_strl(tp->p, r->headers_in.content_length_n);
 
-            ngx_memset(&unparsed_body, 0, sizeof(ngx_buf_t));
+        for (body = r->upstream->request_bufs; body; body = body->next) {
 
-            unparsed_body.pos = ngx_pnalloc(r->pool,
-                            sizeof(u_char) * r->headers_in.content_length_n + 1);
-            if (unparsed_body.pos == NULL) {
+            b = body->buf;
+
+            if (b->in_file) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                    "in-file buffer found. aborted. "
+                    "consider increasing your 'client_body_buffer_size' "
+                    "setting");
                 return NGX_ERROR;
             }
-            unparsed_body.last = unparsed_body.pos;
-            unparsed_body.start = unparsed_body.pos;
-            unparsed_body.end = unparsed_body.pos +
-                    r->headers_in.content_length_n + 1;
 
-            for (body = r->upstream->request_bufs; body; body = body->next) {
-
-                b = body->buf;
-
-                if (b->in_file) {
-                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                        "in-file buffer found. aborted. "
-                        "consider increasing your 'client_body_buffer_size' "
-                        "setting");
-                    return NGX_ERROR;
-                }
-
-                unparsed_body.last = ngx_copy(unparsed_body.last,
-                            b->pos, b->last - b->pos);
-            }
-
-            /** Actually this is an array not a map, I used this variable
-             * since it's avaliable in this scope
-             */
-            map_items = 0;
-
-            if (ngx_http_tnt_encode_urlencoded_body(r, tlcf, tp,
-                        &unparsed_body, &map_items) != NGX_OK)
-            {
-                goto oom_cant_encode_body;
-            }
-
-            *(map_place++) = 0xdd;
-            *(uint32_t *) map_place = mp_bswap_u32(map_items);
-
+            p = (char *) ngx_copy(p, b->pos, b->last - b->pos);
         }
-        /** Unknown body type - encode as mp string
-         */
-        else {
 
-            int sz = mp_sizeof_str(r->headers_in.content_length_n);
-            if (tp_ensure(tp, sz) == -1) {
-                goto oom_cant_encode_body;
-            }
-
-            p = mp_encode_strl(tp->p, r->headers_in.content_length_n);
-
-            for (body = r->upstream->request_bufs; body; body = body->next) {
-
-                b = body->buf;
-
-                if (b->in_file) {
-                    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                        "in-file buffer found. aborted. "
-                        "consider increasing your 'client_body_buffer_size' "
-                        "setting");
-                    return NGX_ERROR;
-                }
-
-                p = (char *) ngx_copy(p, b->pos, b->last - b->pos);
-            }
-
-            if (tp_add(tp, sz) == NULL) {
-                goto oom_cant_encode_body;
-            }
+        if (tp_add(tp, sz) == NULL) {
+            goto oom_cant_encode_body;
         }
     }
 
