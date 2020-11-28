@@ -467,22 +467,16 @@ yajl_start_map(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    if (unlikely(s_ctx->stage != PARAMS))
-        return 1;
-
     stack_grow_array(s_ctx);
 
-    bool r = false;
-    if (unlikely(s_ctx->size == 0))
-        /**/
-        r = stack_push(s_ctx, s_ctx->tp.p, TYPE_MAP | PARAMS);
-    else
-        r = stack_push(s_ctx, s_ctx->tp.p, TYPE_MAP);
-
+    bool r = stack_push(s_ctx, s_ctx->tp.p, TYPE_MAP);
     if (unlikely(!r)) {
         say_error(s_ctx, -32603, "[BUG?] 'stack' overflow");
         return 0;
     }
+
+    if (unlikely(s_ctx->stage != PARAMS))
+        return 1;
 
     if (unlikely(s_ctx->tp.e < s_ctx->tp.p + 1 + sizeof(uint32_t)))
         say_overflow_r_2(s_ctx);
@@ -498,8 +492,8 @@ yajl_end_map(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
-    if (s_ctx->size == 0) {
-
+    stack_item_t *item = stack_pop(s_ctx);
+    if (item != NULL && s_ctx->size == 0) {
         if (!(s_ctx->been_stages & PARAMS)) {
             dd("ADDING EMPTY PARAMS\n");
 
@@ -523,19 +517,21 @@ yajl_end_map(void *ctx)
     if (unlikely(s_ctx->stage != PARAMS))
         return 1;
 
-    stack_item_t *item = stack_pop(s_ctx);
     if (likely(item != NULL)) {
-
         dd("map close, count %d '}'\n", (int)item->count);
 
-        if (unlikely(item->type & PARAMS)) {
-            say_wrong_params(s_ctx);
-            return 0;
-        }
+	/*
+	 * A map instead of an array as "params" value.
+	 *
+	 * {<...>, "params": {<...>}}
+	 */
+	if (unlikely(s_ctx->size == 1)) {
+	        say_wrong_params(s_ctx);
+		return 0;
+	}
 
         *(item->ptr++) = 0xdf;
         *(uint32_t *) item->ptr = mp_bswap_u32(item->count);
-
     } else {
         say_wrong_params(s_ctx);
         return 0;
@@ -550,29 +546,35 @@ yajl_start_array(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
+    /*
+     * Don't store a stack item for 'batching' array. This way we
+     * unify processing of both cases: when this array is present
+     * and when it does not.
+     *
+     * 1. {"method": <...>, "params": <...>, "id": <...>, <...>}
+     * 2. [
+     *        {"method": <...>, "params": <...>, "id": <...>, <...>},
+     *        {<...>}
+     *    ]
+     *
+     * All other arrays and maps are tracked in the stack.
+     */
     if (s_ctx->stage == INIT) {
         s_ctx->batch_mode_on = true;
         return 1;
     }
 
-    if (unlikely(s_ctx->stage != PARAMS))
-        return 1;
-
     dd("array open '['\n");
-
     stack_grow_array(s_ctx);
 
-    bool push_ok = false, bind_first_argument = false;
-    if (unlikely(s_ctx->size == 0)) {
-        push_ok = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY | PARAMS);
-        bind_first_argument = true;
-    } else
-        push_ok = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY);
-
+    bool push_ok = stack_push(s_ctx, s_ctx->tp.p, TYPE_ARRAY);
     if (unlikely(!push_ok)) {
         say_error(s_ctx, -32603, "[BUG?] 'stack' overflow");
         return 0;
     }
+
+    if (unlikely(s_ctx->stage != PARAMS))
+        return 1;
 
     if (unlikely(s_ctx->tp.e < (s_ctx->tp.p + 1 + sizeof(uint32_t))))
         say_overflow_r_2(s_ctx);
@@ -582,7 +584,7 @@ yajl_start_array(void *ctx)
     // Here is bind data
     // e.g. http request
     // [
-    if (bind_first_argument) {
+    if (s_ctx->size == 2) {
         if (unlikely(!bind_data(s_ctx)))
             say_overflow_r_2(s_ctx);
     }
@@ -596,16 +598,22 @@ yajl_end_array(void *ctx)
 {
     yajl_ctx_t *s_ctx = (yajl_ctx_t *)ctx;
 
+    stack_item_t *item = stack_pop(s_ctx);
+
     if (unlikely(s_ctx->stage != PARAMS))
         return 1;
 
-    stack_item_t *item = stack_pop(s_ctx);
     if (likely(item != NULL)) {
-
         dd("array close, count %d ']'\n", item->count);
 
         size_t item_count = item->count;
-        if (unlikely(item->type & PARAMS)) {
+
+	/*
+	 * An end of "params" array.
+	 *
+	 * {<...>, "params": [<...>]}.
+	 */
+        if (unlikely(s_ctx->size == 1)) {
             dd("PARAMS END\n");
             s_ctx->stage = WAIT_NEXT;
             s_ctx->been_stages |= PARAMS;

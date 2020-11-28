@@ -196,6 +196,10 @@ function issue_120(request)
   return request
 end
 
+function skipping_test(request)
+    return request
+end
+
 -- CFG
 box.cfg {
     log_level = 5,
