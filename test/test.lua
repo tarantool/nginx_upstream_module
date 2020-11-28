@@ -5,6 +5,10 @@ yaml = require('yaml')
 os   = require('os')
 fiber = require('fiber')
 
+function echo(...)
+  return ...
+end
+
 function echo_1(a)
   return {a}
 end
