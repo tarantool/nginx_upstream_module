@@ -28,7 +28,7 @@ assert rc == 200, "rc != 200"
 assert len(out['result']) == 1, "len(result) != 1"
 assert out['result'][0]["headers"]["Content-Type"] == \
         default_headers["Content-Type"], "Content-Type not equals"
-assert out['result'][0]['body'][0] == {"a": "b"}, "not expected result"
+assert out['result'][0]['args_urlencoded'][0] == {"a": "b"}, "not expected result"
 print ('[+] OK')
 
 # ============
@@ -47,9 +47,9 @@ assert rc == 200, "rc != 200"
 assert len(out['result']) == 1, "len(result) != 1"
 assert out['result'][0]["headers"]["Content-Type"] == \
         default_headers["Content-Type"], "Content-Type not equals"
-assert len(out['result'][0]['body']) == len(expected), 'Expected more/less data'
+assert len(out['result'][0]['args_urlencoded']) == len(expected), 'Expected more/less data'
 count = 0
-from_tt = sorted(out['result'][0]['body'], key=lambda k: k.keys())
+from_tt = sorted(out['result'][0]['args_urlencoded'], key=lambda k: k.keys())
 expected = sorted(expected, key=lambda k: k.keys())
 for k in from_tt:
     if expected[count] != k:
@@ -91,8 +91,8 @@ preset_method_location = BASE_URL + '/url_encoded'
 rc, out = post_form(preset_method_location, "a=b&a=b&a=b&a=b",
         default_headers)
 assert rc == 200, "rc != 200"
-assert len(out['result'][0]['body']) == 4, 'expected 4'
-for k in out['result'][0]['body']:
+assert len(out['result'][0]['args_urlencoded']) == 4, 'expected 4'
+for k in out['result'][0]['args_urlencoded']:
     assert k['a'] == 'b', 'not expected'
 print ('[+] OK')
 
