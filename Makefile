@@ -15,6 +15,7 @@ endif
 
 MODULE_PATH = $(CUR_PATH)
 PREFIX_PATH = $(CUR_PATH)/test-root
+TEST_PATH   = $(CUR_PATH)/test
 INC_FLAGS   = -I$(CUR_PATH)/third_party
 INC_FLAGS  += -I$(YAJL_PATH)/build/yajl-2.1.0/include
 INC_FLAGS  += -I$(CUR_PATH)/third_party/msgpuck
@@ -69,8 +70,8 @@ configure-debug:
 configure-for-testing: configure-debug
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs
 	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
-	cp -f $(CUR_PATH)/test/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
-	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
+	cp -f $(TEST_PATH)/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
+	cp -f $(TEST_PATH)/ngx_confs/nginx.dev.conf $(PREFIX_PATH)/conf/nginx.conf
 
 configure-as-dynamic-debug:
 	cd $(NGX_PATH) && \
@@ -80,8 +81,8 @@ configure-as-dynamic-debug:
 						--with-debug
 	mkdir -p $(PREFIX_PATH)/conf $(PREFIX_PATH)/logs $(PREFIX_PATH)/modules
 	cp -Rf $(NGX_PATH)/conf/* $(PREFIX_PATH)/conf
-	cp -f $(CUR_PATH)/test/ngx_confs/nginx.dev.dyn.conf $(PREFIX_PATH)/conf/nginx.conf
-	cp -f $(CUR_PATH)/test/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
+	cp -f $(TEST_PATH)/ngx_confs/nginx.dev.dyn.conf $(PREFIX_PATH)/conf/nginx.conf
+	cp -f $(TEST_PATH)/ngx_confs/tnt_server_test.conf $(PREFIX_PATH)/conf/tnt_server_test.conf
 
 json2tp:
 	$(CC) $(CFLAGS) $(DEV_CFLAGS) $(INC_FLAGS) $(LDFLAGS)\
@@ -102,14 +103,14 @@ tp_dump:
 				-lmsgpuck
 
 test-dev-man: utils build
-	$(CUR_PATH)/test/transcode.sh
-	$(CUR_PATH)/test/run_all.sh
+	$(TEST_PATH)/transcode.sh
+	$(TEST_PATH)/run_all.sh
 
 test-man: utils build
-	$(CUR_PATH)/test/transcode.sh
-	$(CUR_PATH)/test/basic_features.py
-	$(CUR_PATH)/test/v20_features.py
-	$(CUR_PATH)/test/v23_features.py
+	$(TEST_PATH)/transcode.sh
+	$(TEST_PATH)/basic_features.py
+	$(TEST_PATH)/v20_features.py
+	$(TEST_PATH)/v23_features.py
 
 #test-auto: utils build
 #	$(shell $(MODULE_PATH)/test/auto.sh)
