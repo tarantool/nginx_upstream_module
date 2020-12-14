@@ -47,6 +47,11 @@ https://hub.docker.com/r/tarantool/tarantool
 ## Contents
 -----------
 * [How to install](#how-to-install)
+  * [Build from source](#build-from-source)
+  * [Build via nginx 'configure'](#build-via-nginx-configure)
+  * [Install on Mac OS X](#install-on-mac-os-x)
+  * [Configure](#configure)
+* [Test run and notes for contributors](#test-run-and-notes-for-contributors)
 * [REST](#rest)
 * [JSON](#json)
 * [HTTP headers and status](#http-headers-and-status)
@@ -87,7 +92,7 @@ https://hub.docker.com/r/tarantool/tarantool
 ## How to install
 -----------------
 
-### Build from source (Development version)
+### Build from source
 
 ```bash
 git clone https://github.com/tarantool/nginx_upstream_module.git nginx_upstream_module
@@ -100,8 +105,6 @@ apt-get install libpcre++0 gcc unzip libpcre3-dev zlib1g-dev libssl-dev libxslt-
 
 make build-all
 ```
-
-[Back to contents](#contents)
 
 ### Build via nginx 'configure'
 
@@ -119,7 +122,7 @@ brew tap denji/nginx
 brew install nginx-full --with-tarantool-module
 ```
 
-## Configure
+### Configure
 
 ```nginx
     ## Typical configuration, for more see http://nginx.org/en/docs/http/ngx_http_upstream_module.html#upstream
@@ -140,6 +143,29 @@ brew install nginx-full --with-tarantool-module
     }
 
 ```
+
+
+[Back to contents](#contents)
+
+## Test run and notes for contributors
+
+This paragraph is actual only if you choose [build from source](#build-from-source)
+installation. So that, nginx git repository should be placed into
+`nginx` directory within the module repository. But now, you should use
+`make configure-for-testing`. It points the path to the necessary for testing
+configs, so it is needed to run tests.
+
+To run all tests with different nginx versions use `./test/auto.sh`. It
+will checkout several nginx versions, rebuild nginx with the module and
+run tests on each of those nginx versions.
+
+For selective running, start:
+  1) nginx in other terminal with `./nginx/objs/nginx -c conf/nginx.conf`,
+  2) Tarantool in another terminal with `tarantool test/test.lua`,
+  3) run separate test file, e.g. `./test/basic_features.py`.
+
+If you want to add new test, see examples: `*_features.py` files.
+Don't forget to include it to `test/run_all.sh`.
 
 [Back to contents](#contents)
 
