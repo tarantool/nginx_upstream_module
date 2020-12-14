@@ -2,7 +2,7 @@
 
 set -e #-x
 
-WORK_DIR=$PWD/t
+WORK_DIR=test
 NGINX_PREFIX=$PWD/test-root
 
 

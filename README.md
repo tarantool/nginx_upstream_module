@@ -143,6 +143,23 @@ brew install nginx-full --with-tarantool-module
 
 [Back to contents](#contents)
 
+## Test run and notes for contributors
+
+Firstly, run all tests with `./test/auto.sh`. Before test running
+itself it creates necessary environment for testing.
+
+For selective running, start:
+  1) nginx in other terminal with `./nginx/objs/nginx -c conf/nginx.dev.conf`,
+  2) Tarantool in another terminal with `tarantool < test/test.lua`,
+  3) run separate test file, e.g. `./test/basic_features.py`.
+
+If you want to add new test, see examples: `*_features.py` files.
+Don't forget to include it to `test/run_all.sh`.
+
+You can use `VERBOSE` flag in `test/http_utils.py` for debugging.
+
+[Back to contents](#contents)
+
 ## REST
 -------
 

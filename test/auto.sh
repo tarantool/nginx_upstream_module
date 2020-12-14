@@ -1,8 +1,9 @@
 #!/bin/bash
 
 set -x -e
+WORK_DIR=test
 
-for ver_tag in `cat t/ngx_versions_list`; do
+for ver_tag in `cat $WORK_DIR/ngx_versions_list`; do
 
   # Checkout nginx version via tag
   cd nginx
@@ -21,9 +22,9 @@ for ver_tag in `cat t/ngx_versions_list`; do
       echo "[+] Start testing $ver_tag"
       ./nginx/objs/nginx 2> /dev/null &
       nginx_pid=$!
-      tarantool t/test.lua 2> /dev/null &
+      tarantool $WORK_DIR/test.lua 2> /dev/null &
       tnt_pid=$!
-      ./t/run_all.sh
+      ./$WORK_DIR/run_all.sh
       for pid in $nginx_pid $tnt_pid; do
         echo "[+] Terminating $pid"
         kill -s TERM $pid
