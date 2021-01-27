@@ -5,8 +5,11 @@ import sys
 import time
 sys.path.append('./t')
 from http_utils import *
+import os
 
-VERBOSE = False
+# Debugging flag.
+VERBOSE = os.getenv('VERBOSE', False)
+
 BASE_URL = 'http://0.0.0.0:8081'
 
 # =============

@@ -6,10 +6,10 @@ import json
 import urllib
 import urllib2
 import traceback
+import os
 
-
-#VERBOSE = True
-VERBOSE = False
+# Debugging flag.
+VERBOSE = os.getenv('VERBOSE', False)
 BASE_URL = 'http://0.0.0.0:8081'
 
 
