@@ -167,6 +167,9 @@ For selective running, start:
 If you want to add new test, see examples: `*_features.py` files.
 Don't forget to include it to `test/run_all.sh`.
 
+You can set `VERBOSE` environment variable to `True` to enable
+debug info.
+
 [Back to contents](#contents)
 
 ## REST
